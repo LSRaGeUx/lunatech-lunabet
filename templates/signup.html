@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Créer un espace", "Create a space") }} - LunaBet{% endblock %}
+{% block nav %}
+    <a href="/">{{ loc.f("Accueil", "Home") }}</a>
+{% endblock %}
+{% block content %}
+<section class="card">
+    <h1>{{ loc.f("Crée ton espace LunaBet", "Create your LunaBet space") }}</h1>
+    <p style="font-style: italic; opacity: 0.75; margin-top: -0.4rem;">
+        {{ loc.f(
+            "Un espace par entreprise / équipe. Tu deviens admin et invites tes collègues.",
+            "One space per company / team. You become the admin and invite your colleagues."
+        ) }}
+    </p>
+
+    {% match error %}
+        {% when Some with (msg) %}<p class="error">{{ msg }}</p>
+        {% when None %}
+    {% endmatch %}
+
+    <form method="post" action="/signup" class="signup-form">
+        <label>
+            {{ loc.f("Slug (sous-domaine)", "Slug (subdomain)") }}
+            <input type="text" name="slug" value="{{ form.slug }}" required
+                   pattern="[a-z0-9_-]+" maxlength="40" placeholder="acme"
+                   autocomplete="off">
+            <small>{{ loc.f("Ton espace sera accessible à", "Your space will live at") }}
+                <code>&lt;slug&gt;.lunabet.eu</code></small>
+        </label>
+
+        <label>
+            {{ loc.f("Nom affiché", "Display name") }}
+            <input type="text" name="name" value="{{ form.name }}" required
+                   maxlength="80" placeholder="ACME Corp">
+        </label>
+
+        <label>
+            {{ loc.f("Ton nom", "Your name") }}
+            <input type="text" name="owner_name" value="{{ form.owner_name }}" required
+                   maxlength="80" placeholder="Alice Dupont">
+        </label>
+
+        <label>
+            {{ loc.f("Ton email pro", "Your work email") }}
+            <input type="email" name="owner_email" value="{{ form.owner_email }}" required
+                   maxlength="120" placeholder="alice@acme.com">
+            <small>{{ loc.f(
+                "Tes collègues devront avoir un email du même domaine pour rejoindre.",
+                "Your colleagues will need an email on the same domain to join."
+            ) }}</small>
+        </label>
+
+        <button class="btn" type="submit">
+            {{ loc.f("Créer mon espace", "Create my space") }}
+        </button>
+    </form>
+</section>
+
+<style>
+    .signup-form { display: grid; gap: 1.2rem; margin-top: 1.2rem; max-width: 480px; }
+    .signup-form label { display: flex; flex-direction: column; gap: 0.3rem; font-weight: 700; color: var(--navy); }
+    .signup-form input[type=text], .signup-form input[type=email] {
+        font: inherit; padding: 0.55rem; border: 2px solid var(--ink); border-radius: 4px; background: var(--paper);
+    }
+    .signup-form small { font-weight: 400; color: var(--ink-soft); }
+    .signup-form code { background: var(--paper-dark); padding: 0 0.3rem; border-radius: 3px; }
+</style>
+{% endblock %}

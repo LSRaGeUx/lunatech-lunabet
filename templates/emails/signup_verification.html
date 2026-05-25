@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="{{ loc.code() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LunaBet</title>
+</head>
+<body style="margin:0;padding:0;background:#f3e6c4;font-family:Georgia,'Times New Roman',serif;color:#1a1411;-webkit-text-size-adjust:100%;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3e6c4;">
+    <tr><td align="center" style="padding:24px 12px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#fbf3df;border:2px solid #1a1411;border-radius:6px;">
+            <tr>
+                <td style="background:#1d3557;padding:18px 24px;border-bottom:5px solid #c79b1e;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td style="color:#f0c75c;font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:24px;letter-spacing:2px;">
+                                ★ LUNABET
+                            </td>
+                            <td align="right" valign="middle">
+                                <img src="{{ logo_url }}" alt="LunaBet" height="28" style="display:inline-block;height:28px;">
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            <tr><td style="background:#2e7d4a;height:10px;line-height:10px;font-size:0;">&nbsp;</td></tr>
+
+            <tr>
+                <td style="padding:30px 32px 24px;">
+                    <h1 style="font-family:Impact,'Arial Narrow',Arial,sans-serif;color:#1d3557;font-size:26px;margin:0 0 14px;letter-spacing:1px;">
+                        {{ loc.f("CONFIRME TON ESPACE", "CONFIRM YOUR SPACE") }}
+                    </h1>
+                    <p style="font-size:16px;line-height:1.55;margin:0 0 16px;">
+                        {{ loc.f("Salut", "Hi") }} <strong>{{ owner_name }}</strong>,
+                    </p>
+                    <p style="font-size:15px;line-height:1.55;margin:0 0 20px;">
+                        {{ loc.f("Tu as demandé à créer un espace LunaBet pour", "You requested a LunaBet space for") }}
+                        <strong>« {{ new_tenant_name }} »</strong>.
+                        {{ loc.f(
+                            "Clique sur le bouton ci-dessous pour activer ton espace et devenir admin.",
+                            "Click the button below to activate it and become the admin."
+                        ) }}
+                    </p>
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;">
+                        <tr><td>
+                            <a href="{{ link }}"
+                               style="display:inline-block;background:#c8232c;color:#fbf3df;font-family:Impact,'Arial Narrow',Arial,sans-serif;letter-spacing:1.5px;text-decoration:none;padding:14px 28px;border:2px solid #1a1411;border-radius:4px;font-size:18px;box-shadow:3px 3px 0 #1a1411;">
+                                {{ loc.f("ACTIVER MON ESPACE ⚽", "ACTIVATE MY SPACE ⚽") }}
+                            </a>
+                        </td></tr>
+                    </table>
+                    <p style="font-size:13px;color:#524535;margin:0 0 6px;">
+                        {{ loc.f("Lien valable 30 minutes :", "Link valid for 30 minutes:") }}
+                    </p>
+                    <p style="font-size:12px;color:#1d3557;word-break:break-all;background:#f3e6c4;padding:8px 10px;border-radius:3px;margin:0 0 18px;">
+                        {{ link }}
+                    </p>
+                    <hr style="border:none;border-top:1px dashed #c79b1e;margin:20px 0;">
+                    <p style="font-size:13px;color:#524535;font-style:italic;margin:0;">
+                        {{ loc.f(
+                            "Si tu n'as pas demandé ça, ignore simplement cet email.",
+                            "If you didn't request this, just ignore this email."
+                        ) }}
+                    </p>
+                </td>
+            </tr>
+
+            <tr>
+                <td style="background:#2e7d4a;padding:18px;text-align:center;color:#fff8e0;font-family:Arial,sans-serif;font-size:12px;border-top:5px solid #c79b1e;">
+                    <img src="{{ logo_url }}" alt="LunaBet" height="22" style="display:inline-block;height:22px;vertical-align:middle;margin-bottom:6px;"><br>
+                    <span style="opacity:0.9;">LunaBet · {{ loc.f("plateforme de pronos foot pour équipes", "football predictions for teams") }}</span>
+                </td>
+            </tr>
+        </table>
+    </td></tr>
+</table>
+</body>
+</html>

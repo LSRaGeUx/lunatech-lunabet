@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Confirme ton email", "Confirm your email") }} - LunaBet{% endblock %}
+{% block content %}
+<section class="card">
+    <h1>{{ loc.f("Vérifie ta boîte mail", "Check your inbox") }}</h1>
+    <p>
+        {{ loc.f(
+            "Un email de confirmation a été envoyé à",
+            "A confirmation email has been sent to"
+        ) }}
+        <strong>{{ owner_email }}</strong>.
+    </p>
+    <p>
+        {{ loc.f(
+            "Clique sur le lien pour activer ton espace. Le lien expire au bout de 30 minutes.",
+            "Click the link to activate your space. The link expires after 30 minutes."
+        ) }}
+    </p>
+    <p style="font-style: italic; opacity: 0.7;">
+        {{ loc.f(
+            "Il file vers toi comme un Tir du Tigre. 🐯",
+            "It's flying your way like a Tiger Shot. 🐯"
+        ) }}
+    </p>
+</section>
+{% endblock %}

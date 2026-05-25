@@ -11,6 +11,7 @@ mod home;
 mod lang;
 mod leaderboard;
 mod matches;
+mod signup;
 mod stake;
 mod super_admin;
 
@@ -21,6 +22,8 @@ pub fn router() -> Router<AppState> {
         .route("/login", get(auth::login_page).post(auth::request_magic_link))
         .route("/login/sent", get(auth::login_sent))
         .route("/auth/callback", get(auth::callback))
+        .route("/signup", get(signup::form).post(signup::submit))
+        .route("/signup/verify", get(signup::verify))
         .route("/logout", post(auth::logout))
         .route("/matches", get(matches::list))
         .route("/matches/:id/bet", post(bets::place_or_update))

@@ -18,6 +18,17 @@ struct MagicLinkHtml<'a> {
 }
 
 #[derive(Template)]
+#[template(path = "emails/signup_verification.html")]
+struct SignupVerificationHtml<'a> {
+    loc: Locale,
+    tenant: &'a Tenant,
+    new_tenant_name: &'a str,
+    owner_name: &'a str,
+    link: &'a str,
+    logo_url: &'a str,
+}
+
+#[derive(Template)]
 #[template(path = "emails/match_reminder.html")]
 struct MatchReminderHtml<'a> {
     tenant: &'a Tenant,
@@ -108,6 +119,52 @@ pub async fn send_bet_reminder(
     );
 
     let subject = format!("⚽ {home} - {away} - {}", tenant.name);
+    send_html_email(cfg, &tenant.mail_from, to, &subject, plain, html).await
+}
+
+pub async fn send_signup_verification(
+    cfg: &Config,
+    tenant: &Tenant,
+    loc: Locale,
+    to: &str,
+    owner_name: &str,
+    new_tenant_name: &str,
+    link: &str,
+) -> anyhow::Result<()> {
+    let logo_url = format!("{}/static/lunatech-logo.svg", cfg.base_url.trim_end_matches('/'));
+    let html = SignupVerificationHtml {
+        loc,
+        tenant,
+        new_tenant_name,
+        owner_name,
+        link,
+        logo_url: &logo_url,
+    }
+    .render()?;
+
+    let plain = match loc {
+        Locale::Fr => format!(
+            "Salut {owner_name} !\n\n\
+             Tu as demandé à créer un espace LunaBet pour « {new_tenant_name} ». \
+             Clique sur ce lien pour confirmer (valable 30 minutes) :\n\n\
+             {link}\n\n\
+             Si ce n'est pas toi, ignore simplement cet email.\n\n\
+             - LunaBet\n"
+        ),
+        Locale::En => format!(
+            "Hi {owner_name}!\n\n\
+             You requested a LunaBet space for \"{new_tenant_name}\". \
+             Click this link to confirm (valid for 30 minutes):\n\n\
+             {link}\n\n\
+             If this wasn't you, just ignore this email.\n\n\
+             - LunaBet\n"
+        ),
+    };
+
+    let subject = match loc {
+        Locale::Fr => format!("Confirme la création de {new_tenant_name} sur LunaBet"),
+        Locale::En => format!("Confirm your LunaBet space for {new_tenant_name}"),
+    };
     send_html_email(cfg, &tenant.mail_from, to, &subject, plain, html).await
 }
 
