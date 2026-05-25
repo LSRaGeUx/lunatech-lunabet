@@ -318,6 +318,28 @@ h2::before {
 .hero h1 { color: var(--red); }
 .hero h1::after { margin-left: auto; margin-right: auto; background: var(--navy); }
 
+.hero > *:not(.manga-burst) { position: relative; z-index: 1; }
+.hero .manga-burst {
+    position: absolute;
+    width: 520px;
+    height: 520px;
+    max-width: 110%;
+    max-height: 110%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -55%);
+    z-index: 0;
+    pointer-events: none;
+    animation: burst-spin 60s linear infinite;
+}
+@keyframes burst-spin {
+    from { transform: translate(-50%, -55%) rotate(0deg); }
+    to   { transform: translate(-50%, -55%) rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .hero .manga-burst { animation: none; }
+}
+
 .ball-wrap {
     display: flex;
     justify-content: center;
@@ -833,6 +855,22 @@ canvas.goal3d {
 .tier-option.tier-2 .tier-eur { color: #6c6c6c; }
 .tier-option.tier-5 .tier-eur { color: var(--navy); }
 .tier-option.tier-10 .tier-eur { color: var(--red); }
+
+.tier-icon {
+    width: 58px;
+    height: 58px;
+    margin-bottom: 0.4rem;
+    color: var(--ink-soft);
+    transition: transform 0.15s, color 0.15s;
+}
+.tier-option.tier-2 .tier-icon { color: #6c6c6c; }
+.tier-option.tier-5 .tier-icon { color: var(--navy); }
+.tier-option.tier-10 .tier-icon { color: var(--red); }
+.tier-option:hover .tier-icon { transform: scale(1.08) rotate(-3deg); }
+.tier-option input:checked + .tier-card .tier-icon {
+    color: var(--red);
+    transform: scale(1.1);
+}
 
 /* --- responsive --- */
 
