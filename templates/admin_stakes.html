@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Admin - {{ loc.f("Mises", "Stakes") }} - LunaBet{% endblock %}
+{% block nav %}
+    <span class="user">{{ user_name }} <span class="admin-badge">admin</span></span>
+    <a href="/matches">{{ loc.f("Matches", "Matches") }}</a>
+    <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
+    <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
+{% endblock %}
+{% block content %}
+<h1>Admin - {{ loc.f("Gestion des mises", "Stake management") }}</h1>
+
+<section class="pot-widget">
+    <div class="pot-amount">
+        <span class="pot-label">{{ loc.f("Pot total", "Total pot") }}</span>
+        <span class="pot-value">{{ pot_total_eur }} €</span>
+        <span class="pot-meta">{{ paid_count }} {{ loc.f("payeurs", "paid-up players") }}</span>
+    </div>
+    <div class="pot-split">
+        <span>{{ loc.f("Date limite", "Deadline") }} : <strong>{{ deadline_local }}</strong>
+        {% if deadline_passed %}<span class="deadline-passed">{{ loc.f("(passée)", "(passed)") }}</span>{% endif %}
+        </span>
+    </div>
+</section>
+
+<table class="leaderboard">
+    <thead>
+        <tr>
+            <th>{{ loc.f("Joueur", "Player") }}</th>
+            <th>Email</th>
+            <th>{{ loc.f("Palier", "Tier") }}</th>
+            <th>{{ loc.f("Choisi le", "Chosen on") }}</th>
+            <th>{{ loc.f("Payé le", "Paid on") }}</th>
+            <th>{{ loc.f("Action", "Action") }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in rows %}
+        <tr>
+            <td>{{ r.display_name }}</td>
+            <td><code>{{ r.email }}</code></td>
+            <td>
+                {% match r.stake_eur %}
+                    {% when Some with (s) %}<span class="tier-badge tier-{{ s }}">{{ s }} €</span>
+                    {% when None %}<span class="muted">—</span>
+                {% endmatch %}
+            </td>
+            <td>
+                {% match r.stake_chosen_at %}
+                    {% when Some with (d) %}{{ d.format("%d/%m %H:%M") }}
+                    {% when None %}<span class="muted">—</span>
+                {% endmatch %}
+            </td>
+            <td>
+                {% match r.paid_at %}
+                    {% when Some with (d) %}<strong>{{ d.format("%d/%m %H:%M") }}</strong>
+                    {% when None %}<span class="muted">—</span>
+                {% endmatch %}
+            </td>
+            <td>
+                {% if r.stake_eur.is_some() %}
+                    {% match r.paid_at %}
+                        {% when Some with (_) %}
+                            <form method="post" action="/admin/stakes/{{ r.user_id }}/unpaid" class="inline">
+                                <button class="btn btn-navy" type="submit" style="margin: 0; font-size: 0.85rem; padding: 0.35rem 0.7rem;">{{ loc.f("Annuler", "Undo") }}</button>
+                            </form>
+                        {% when None %}
+                            <form method="post" action="/admin/stakes/{{ r.user_id }}/paid" class="inline">
+                                <button class="btn" type="submit" style="margin: 0; font-size: 0.85rem; padding: 0.35rem 0.7rem;">{{ loc.f("Marquer payé", "Mark paid") }}</button>
+                            </form>
+                    {% endmatch %}
+                {% else %}
+                    <span class="muted">{{ loc.f("pas de palier", "no tier") }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

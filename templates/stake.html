@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Ma mise", "My stake") }} - LunaBet{% endblock %}
+{% block nav %}
+    <a href="/matches">{{ loc.f("Matches", "Matches") }}</a>
+    <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
+    <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
+{% endblock %}
+{% block content %}
+<h1>{{ loc.f("Ma mise pour le pot", "My stake for the pot") }}</h1>
+
+{% if paid %}
+    <section class="card">
+        <h2 style="color: var(--green);">✓ {{ loc.f("Tu es dans le pot", "You are in the pot") }}</h2>
+        <p>
+            {{ loc.f(
+                "Mise enregistrée :",
+                "Stake recorded:"
+            ) }}
+            <strong>{{ user.stake_eur.unwrap_or(0) }} €</strong>.
+            {{ loc.f(
+                "Tu es éligible aux gains du top 3.",
+                "You are eligible for top-3 payouts."
+            ) }}
+        </p>
+        <p>
+            <a href="/leaderboard">{{ loc.f("Voir le classement →", "See the leaderboard →") }}</a>
+        </p>
+    </section>
+{% else %}
+    {% match user.stake_eur %}
+        {% when Some with (s) %}
+        <section class="card">
+            <h2>{{ loc.f("Mise choisie", "Stake chosen") }} : {{ s }} €</h2>
+            <p>
+                {{ loc.f(
+                    "Pour finaliser, verse",
+                    "To finalise, transfer"
+                ) }}
+                <strong>{{ s }} €</strong>
+                {{ loc.f(
+                    "à l'admin (",
+                    "to the admin ("
+                ) }}<code>{{ admin_emails_display }}</code>{{ loc.f(
+                    ") via Lydia ou virement. L'admin marquera ta mise comme payée dans l'app.",
+                    ") via Lydia or bank transfer. The admin will mark your stake as paid in the app."
+                ) }}
+            </p>
+            <p class="muted">
+                {{ loc.f("Tant que ta mise n'est pas payée, tu apparais comme \"non éligible\" dans le classement.", "Until your stake is paid, you appear as \"not eligible\" in the leaderboard.") }}
+            </p>
+        </section>
+        {% when None %}
+        {% if deadline_passed %}
+            <section class="card">
+                <h2>{{ loc.f("Date limite dépassée", "Deadline passed") }}</h2>
+                <p>{{ loc.f(
+                    "La date limite pour rentrer dans le pot était le",
+                    "The deadline to enter the pot was"
+                ) }} <strong>{{ deadline_local }}</strong>. {{ loc.f(
+                    "Tu peux continuer à parier sur les matches mais tu n'es pas éligible aux gains.",
+                    "You can still bet on matches but you are not eligible for payouts."
+                ) }}</p>
+            </section>
+        {% else %}
+            <section class="card">
+                <p>
+                    {{ loc.f(
+                        "Choisis ton palier de mise. La date limite est le",
+                        "Choose your stake tier. The deadline is"
+                    ) }}
+                    <strong>{{ deadline_local }}</strong>.
+                </p>
+                <form method="post" action="/stake" class="tier-form">
+                    <label class="tier-option tier-2">
+                        <input type="radio" name="tier" value="2" required>
+                        <span class="tier-card">
+                            <span class="tier-eur">2 €</span>
+                            <span class="tier-label">{{ loc.f("Léger", "Light") }}</span>
+                        </span>
+                    </label>
+                    <label class="tier-option tier-5">
+                        <input type="radio" name="tier" value="5" required checked>
+                        <span class="tier-card">
+                            <span class="tier-eur">5 €</span>
+                            <span class="tier-label">{{ loc.f("Standard", "Standard") }}</span>
+                        </span>
+                    </label>
+                    <label class="tier-option tier-10">
+                        <input type="radio" name="tier" value="10" required>
+                        <span class="tier-card">
+                            <span class="tier-eur">10 €</span>
+                            <span class="tier-label">{{ loc.f("Confiant", "Confident") }}</span>
+                        </span>
+                    </label>
+                    <button class="btn" type="submit" style="grid-column: 1 / -1;">
+                        {{ loc.f("Valider mon palier", "Confirm my tier") }}
+                    </button>
+                </form>
+                <p class="muted">
+                    {{ loc.f(
+                        "Une mise plus élevée augmente ta part du pot si tu finis dans le top 3. La règle : payout = pot × (base × mise) / Σ(base × mise top3), avec base = 50% / 30% / 20%.",
+                        "A higher stake increases your slice of the pot if you finish in the top 3. The formula: payout = pot × (base × stake) / Σ(base × stake top3), with base = 50% / 30% / 20%."
+                    ) }}
+                </p>
+            </section>
+        {% endif %}
+    {% endmatch %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Dev - LunaBet{% endblock %}
+{% block nav %}
+    <a href="/matches">{{ loc.f("Matches", "Matches") }}</a>
+    <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
+{% endblock %}
+{% block content %}
+<section class="card" style="max-width: 720px;">
+    <h1>{{ loc.f("Mode développement", "Development mode") }}</h1>
+    <p>{{ loc.f(
+        "Connecte-toi en un clic en tant que n'importe quel utilisateur de test. Cette page n'est accessible que si DEV_MODE=true.",
+        "Sign in with one click as any test user. This page is only available when DEV_MODE=true."
+    ) }}</p>
+    {% if users.is_empty() %}
+        <p><strong>{{ loc.f("Aucun utilisateur de test.", "No test user.") }}</strong> {{ loc.f("Lance d'abord", "Run first") }} <code>cargo run -- seed</code>.</p>
+    {% else %}
+    <table class="leaderboard">
+        <thead>
+            <tr><th>{{ loc.f("Utilisateur", "User") }}</th><th>Email</th><th>Points</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.display_name }}</td>
+                <td><code>{{ u.email }}</code></td>
+                <td>{{ u.points }}</td>
+                <td><a class="btn" href="/dev/login?email={{ u.email }}">{{ loc.f("Se connecter", "Sign in") }}</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</section>
+{% endblock %}

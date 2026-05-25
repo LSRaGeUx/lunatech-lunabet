@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Connexion", "Sign in") }} - LunaBet{% endblock %}
+{% block content %}
+<section class="card">
+    <h1>{{ loc.f("Connexion", "Sign in") }}</h1>
+    <p>
+        {{ loc.f(
+            "Entre ton email",
+            "Enter your"
+        ) }}
+        <code>@{{ domain }}</code>
+        {{ loc.f(
+            ". Tu recevras un lien de connexion par email.",
+            " email. You'll receive a magic link by email."
+        ) }}
+    </p>
+    {% match error %}
+        {% when Some with (msg) %}<p class="error">{{ msg }}</p>
+        {% when None %}
+    {% endmatch %}
+    <form method="post" action="/login">
+        <label for="email">{{ loc.f("Email Lunatech", "Lunatech email") }}</label>
+        <input id="email" name="email" type="email" required autofocus
+               placeholder="prenom.nom@{{ domain }}">
+        <button class="btn" type="submit">{{ loc.f("Envoyer le lien", "Send link") }}</button>
+    </form>
+</section>
+{% endblock %}

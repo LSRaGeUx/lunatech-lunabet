@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Classement", "Leaderboard") }} - LunaBet{% endblock %}
+{% block nav %}
+    <span class="user">{{ user_name }}</span>
+    <a href="/matches">{{ loc.f("Matches", "Matches") }}</a>
+    <a href="/stake">{{ loc.f("Ma mise", "My stake") }}</a>
+    {% if is_admin %}<a href="/admin/stakes">Admin</a>{% endif %}
+    <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
+{% endblock %}
+{% block content %}
+<h1>{{ loc.f("Classement Lunatech", "Lunatech leaderboard") }}</h1>
+
+<div class="goal-banner" aria-hidden="true">
+    <canvas class="goal3d" width="900" height="220"></canvas>
+</div>
+
+<section class="pot-widget">
+    <div class="pot-amount">
+        <span class="pot-label">{{ loc.f("Pot total", "Total pot") }}</span>
+        <span class="pot-value">{{ pot_total_eur }} €</span>
+        <span class="pot-meta">{{ paid_count }} {{ loc.f("payeurs", "paid-up players") }}</span>
+    </div>
+    <div class="pot-split">
+        <span>{{ loc.f("Répartition", "Split") }} : <strong>50 / 30 / 20</strong> <em>{{ loc.f("pondéré par mise", "weighted by stake") }}</em></span>
+    </div>
+    {% if paid_user_paid %}
+        <p class="pot-mystatus paid">{{ loc.f("Tu es dans le pot", "You are in the pot") }} ({{ paid_user_stake_eur.unwrap_or(0) }} €)</p>
+    {% else %}
+        {% match paid_user_stake_eur %}
+            {% when Some with (s) %}<p class="pot-mystatus pending"><a href="/stake">{{ loc.f("Mise choisie", "Stake chosen") }} ({{ s }} €) - {{ loc.f("en attente de paiement", "awaiting payment") }} →</a></p>
+            {% when None %}<p class="pot-mystatus none"><a href="/stake" class="btn">{{ loc.f("Mets ta mise →", "Place your stake →") }}</a></p>
+        {% endmatch %}
+    {% endif %}
+</section>
+
+{% if rows.is_empty() %}
+    <p>{{ loc.f("Aucun parieur pour le moment.", "No players yet.") }}</p>
+{% else %}
+<table class="leaderboard">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>{{ loc.f("Parieur", "Player") }}</th>
+            <th>{{ loc.f("Mise", "Stake") }}</th>
+            <th>Points</th>
+            <th>{{ loc.f("Scores exacts", "Exact scores") }}</th>
+            <th>{{ loc.f("Paris résolus", "Settled bets") }}</th>
+            <th>{{ loc.f("Gain estimé", "Estimated payout") }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in rows %}
+        <tr {% if r.is_me %}class="me"{% endif %}>
+            <td>{{ r.rank }}</td>
+            <td>
+                {{ r.display_name }}{% if r.is_me %} ({{ loc.f("toi", "you") }}){% endif %}
+                {% if !r.eligible %}<span class="non-eligible-badge">{{ loc.f("non éligible", "not eligible") }}</span>{% endif %}
+            </td>
+            <td>
+                {% match r.stake_eur %}
+                    {% when Some with (s) %}<span class="tier-badge tier-{{ s }}">{{ s }} €</span>{% if !r.paid %} <em class="muted">{{ loc.f("non payé", "unpaid") }}</em>{% endif %}
+                    {% when None %}<span class="muted">—</span>
+                {% endmatch %}
+            </td>
+            <td><strong>{{ r.points }}</strong></td>
+            <td>{{ r.exact }}</td>
+            <td>{{ r.bets }}</td>
+            <td>
+                {% match r.payout_eur %}
+                    {% when Some with (p) %}<strong class="payout">{{ p|fmt("{:.2}") }} €</strong>
+                    {% when None %}<span class="muted">—</span>
+                {% endmatch %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+<p class="note">{{ loc.f(
+    "Barème : 3 points pour un score exact, 1 point pour le bon vainqueur (ou bon match nul), 0 sinon. Départage : scores exacts, puis paris résolus, puis ancienneté du compte.",
+    "Scoring: 3 points for an exact score, 1 point for the right winner (or draw), 0 otherwise. Tiebreak: exact scores, then settled bets, then account creation date."
+) }}</p>
+{% endblock %}

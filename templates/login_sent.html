@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Email envoyé", "Email sent") }} - LunaBet{% endblock %}
+{% block content %}
+<section class="card">
+    <h1>{{ loc.f("Vérifie ta boîte mail", "Check your inbox") }}</h1>
+    <p>
+        {{ loc.f(
+            "Si l'email est valide, tu vas recevoir un lien de connexion d'ici quelques secondes.",
+            "If the email is valid, you'll receive a sign-in link in a few seconds."
+        ) }}
+    </p>
+    <p>{{ loc.f("Le lien expire au bout de 15 minutes.", "The link expires after 15 minutes.") }}</p>
+</section>
+{% endblock %}

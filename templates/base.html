@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="{{ loc.code() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}LunaBet{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.161.0/build/three.module.js"
+      }
+    }
+    </script>
+    <script type="module" src="/static/ball.js"></script>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header class="topbar">
+        <a href="/" class="brand">
+            <canvas class="ball3d ball-mini" width="80" height="80" aria-hidden="true"></canvas>
+            <span class="brand-name">LunaBet</span>
+        </a>
+        <nav>
+            {% block nav %}{% endblock %}
+            <span class="lang-switch">
+                <a href="/lang/fr" class="lang-link{% if loc.code() == "fr" %} active{% endif %}">FR</a>
+                <span class="lang-sep">|</span>
+                <a href="/lang/en" class="lang-link{% if loc.code() == "en" %} active{% endif %}">EN</a>
+            </span>
+            <a class="lunatech-topbar" href="https://www.lunatech.com" target="_blank" rel="noreferrer noopener" aria-label="Lunatech">
+                <img src="/static/lunatech-logo.svg" alt="Lunatech" height="32">
+            </a>
+        </nav>
+    </header>
+    <div class="pitch-stripe" aria-hidden="true"></div>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="pitch-footer">
+        <div class="pitch-circle" aria-hidden="true"></div>
+        <div class="pitch-line" aria-hidden="true"></div>
+        <a href="https://www.lunatech.com" target="_blank" rel="noreferrer noopener" class="lunatech-footer" aria-label="Lunatech">
+            <img src="/static/lunatech-logo.svg" alt="Lunatech" height="40">
+        </a>
+        <small>{{ loc.f("Coupe du Monde 2026 - Lunatech", "FIFA World Cup 2026 - Lunatech") }}</small>
+    </footer>
+</body>
+</html>

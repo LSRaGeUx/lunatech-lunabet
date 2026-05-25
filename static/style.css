@@ -1,0 +1,847 @@
+/* --- LunaBet — album Panini 2026 --------------------------- */
+
+:root {
+    --paper: #f3e6c4;
+    --paper-light: #fbf3df;
+    --paper-dark: #e8d6a8;
+    --ink: #1a1411;
+    --ink-soft: #524535;
+    --navy: #1d3557;
+    --navy-dark: #122339;
+    --red: #c8232c;
+    --red-dark: #9c1820;
+    --gold: #c79b1e;
+    --gold-light: #f0c75c;
+    --green: #2e7d4a;
+    --shadow: 0 2px 0 rgba(26, 20, 17, 0.18), 0 8px 16px -8px rgba(26, 20, 17, 0.25);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background:
+        radial-gradient(circle at 20% 10%, rgba(255, 245, 210, 0.6), transparent 40%),
+        radial-gradient(circle at 80% 90%, rgba(232, 214, 168, 0.5), transparent 40%),
+        var(--paper);
+    color: var(--ink);
+    font-family: "Lora", Georgia, "Times New Roman", serif;
+    line-height: 1.55;
+    min-height: 100vh;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+        radial-gradient(rgba(26, 20, 17, 0.05) 1px, transparent 1px),
+        radial-gradient(rgba(26, 20, 17, 0.03) 1px, transparent 1px);
+    background-size: 3px 3px, 7px 7px;
+    background-position: 0 0, 1px 2px;
+    opacity: 0.7;
+}
+
+body > * { position: relative; z-index: 1; }
+
+a { color: var(--red); text-decoration: none; border-bottom: 1px dashed currentColor; }
+a:hover { color: var(--red-dark); }
+
+code {
+    background: var(--paper-dark);
+    padding: 0.05rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+/* --- top bar (couverture d'album) --- */
+
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 2rem;
+    background: var(--navy);
+    color: var(--paper-light);
+    border-bottom: 5px solid var(--gold);
+    box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.topbar a { color: var(--paper-light); border: none; }
+.topbar a:hover { color: var(--gold-light); }
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: "Bebas Neue", "Oswald", Impact, sans-serif;
+    font-size: 1.7rem;
+    letter-spacing: 0.08em;
+    text-shadow: 2px 2px 0 var(--navy-dark);
+    text-decoration: none;
+}
+.brand .brand-name {
+    color: var(--gold-light);
+}
+.brand:hover .brand-name { color: #ffe9a8; }
+
+canvas.ball3d.ball-mini {
+    width: 44px;
+    height: 44px;
+    display: inline-block;
+    vertical-align: middle;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+
+/* bande de pelouse sous la topbar (rayures vertical foot) */
+.pitch-stripe {
+    height: 14px;
+    background:
+        repeating-linear-gradient(
+            90deg,
+            #2e7d4a 0 24px,
+            #266a3f 24px 48px
+        );
+    border-bottom: 2px solid var(--ink);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18),
+                inset 0 -3px 6px rgba(0, 0, 0, 0.25);
+}
+
+.topbar nav { display: flex; gap: 1.25rem; align-items: center; font-family: "Bebas Neue", Impact, sans-serif; letter-spacing: 0.06em; font-size: 1.05rem; flex-wrap: wrap; }
+.user { color: var(--gold-light); }
+.admin-badge {
+    display: inline-block;
+    background: var(--red);
+    color: var(--paper-light);
+    padding: 0.05rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+}
+
+.lang-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: 0.5rem;
+    padding-left: 0.75rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.25);
+}
+.lang-link {
+    color: rgba(246, 239, 223, 0.6) !important;
+    text-decoration: none !important;
+    border: none !important;
+    padding: 0.15rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.95rem;
+}
+.lang-link.active {
+    color: var(--gold-light) !important;
+    background: rgba(0, 0, 0, 0.2);
+    font-weight: 700;
+}
+.lang-link:hover { color: var(--paper-light) !important; }
+.lang-sep { color: rgba(246, 239, 223, 0.3); }
+
+.lunatech-topbar {
+    display: inline-flex;
+    align-items: center;
+    border: none !important;
+    margin-left: 0.75rem;
+    padding-left: 0.75rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.25) !important;
+    color: var(--paper-light);
+    text-decoration: none !important;
+}
+.lunatech-topbar img {
+    height: 32px;
+    width: auto;
+    display: block;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.lunatech-footer {
+    display: inline-block;
+    position: relative;
+    z-index: 1;
+    color: var(--paper-light);
+    border: none !important;
+    margin-bottom: 0.6rem;
+}
+.lunatech-footer img {
+    height: 40px;
+    width: auto;
+    display: block;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+main { max-width: 1000px; margin: 2rem auto; padding: 0 1.5rem; }
+
+/* footer-pelouse avec rond de coup d'envoi */
+.pitch-footer {
+    margin-top: 3rem;
+    padding: 2.5rem 1rem 1.5rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.9);
+    font-style: italic;
+    background:
+        repeating-linear-gradient(
+            90deg,
+            #266a3f 0 60px,
+            #2e7d4a 60px 120px
+        );
+    border-top: 5px solid var(--gold);
+    position: relative;
+    overflow: hidden;
+}
+.pitch-footer::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.18), transparent 60%);
+    pointer-events: none;
+}
+.pitch-circle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 110px;
+    height: 110px;
+    transform: translate(-50%, -50%);
+    border: 3px solid rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    pointer-events: none;
+}
+.pitch-circle::after {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: 12px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+.pitch-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 3px;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+.pitch-footer small {
+    position: relative;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    color: #fff8e0;
+}
+
+h1, h2 {
+    font-family: "Bebas Neue", "Oswald", Impact, sans-serif;
+    letter-spacing: 0.05em;
+    color: var(--navy);
+    margin-top: 0;
+}
+h1 {
+    font-size: 2.6rem;
+    line-height: 1.1;
+    position: relative;
+    padding: 0.5rem 1rem 0.4rem;
+    display: inline-block;
+    background-image:
+        linear-gradient(45deg, rgba(29, 53, 87, 0.14) 1px, transparent 1px),
+        linear-gradient(-45deg, rgba(29, 53, 87, 0.14) 1px, transparent 1px);
+    background-size: 14px 14px;
+    border-top: 3px solid var(--navy);
+    border-left: 3px solid var(--navy);
+    border-right: 3px solid var(--navy);
+    border-radius: 6px 6px 0 0;
+    box-shadow: inset 0 -8px 0 rgba(255, 255, 255, 0.7);
+}
+h1::after {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 4px;
+    background: var(--red);
+    margin: 0.4rem 0 0;
+}
+h2 {
+    font-size: 1.8rem;
+    margin-top: 2.2rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+h2::before {
+    content: "⚽";
+    font-size: 1.4rem;
+    filter: grayscale(0.2);
+    animation: ballspin 8s linear infinite;
+    display: inline-block;
+}
+
+@keyframes ballspin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+@keyframes ballroll {
+    0% { transform: translateX(-120%) rotate(0deg); }
+    100% { transform: translateX(120vw) rotate(720deg); }
+}
+
+/* --- hero (page d'accueil) --- */
+
+.hero {
+    background: var(--paper-light);
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    padding: 3rem 2rem 4rem;
+    text-align: center;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+}
+
+.hero h1 { color: var(--red); }
+.hero h1::after { margin-left: auto; margin-right: auto; background: var(--navy); }
+
+.ball-wrap {
+    display: flex;
+    justify-content: center;
+    margin: -0.5rem auto 1rem;
+}
+canvas.ball3d.ball-hero {
+    width: 240px;
+    height: 240px;
+    max-width: 70vw;
+    max-height: 70vw;
+    display: block;
+    filter: drop-shadow(0 8px 12px rgba(26, 20, 17, 0.25));
+}
+.hero::after {
+    /* terrain stylisé en bas du hero */
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -2px;
+    height: 18px;
+    background:
+        repeating-linear-gradient(
+            90deg,
+            #2e7d4a 0 40px,
+            #266a3f 40px 80px
+        );
+    border-radius: 0 0 6px 6px;
+    border-top: 2px solid var(--ink);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* mini-ballon emoji qui traverse le hero */
+.rolling-ball {
+    position: absolute;
+    bottom: 18px;
+    left: 0;
+    width: 28px;
+    height: 28px;
+    font-size: 24px;
+    line-height: 1;
+    animation: ballroll 14s linear infinite;
+    pointer-events: none;
+}
+
+.ball-fallback {
+    display: inline-block;
+    animation: ballspin 3s linear infinite;
+    line-height: 1;
+}
+
+/* --- cartes génériques --- */
+
+.card {
+    background: var(--paper-light);
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    padding: 2rem;
+    max-width: 520px;
+    margin: 0 auto;
+    box-shadow: var(--shadow);
+}
+.card label { display: block; margin: 1rem 0 0.4rem; font-weight: 600; color: var(--navy); font-family: "Bebas Neue", sans-serif; letter-spacing: 0.05em; }
+.card input {
+    width: 100%;
+    padding: 0.7rem;
+    font-size: 1rem;
+    font-family: inherit;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    color: var(--ink);
+}
+.card input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+/* --- boutons (tampon encreur) --- */
+
+.btn {
+    display: inline-block;
+    background: var(--red);
+    color: var(--paper-light);
+    border: 2px solid var(--ink);
+    padding: 0.6rem 1.4rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: "Bebas Neue", "Oswald", Impact, sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: 3px 3px 0 var(--ink);
+    transition: transform 0.05s, box-shadow 0.05s;
+    text-decoration: none !important;
+    border-bottom: 2px solid var(--ink) !important;
+}
+.btn:hover { background: var(--red-dark); color: var(--paper-light); }
+.btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+
+.btn.btn-navy { background: var(--navy); }
+.btn.btn-navy:hover { background: var(--navy-dark); }
+
+.link {
+    background: transparent;
+    border: 0;
+    color: var(--paper-light);
+    cursor: pointer;
+    font: inherit;
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.06em;
+    font-size: 1.05rem;
+    text-decoration: underline;
+    text-decoration-style: dashed;
+}
+.inline { display: inline; }
+
+.error {
+    background: rgba(200, 35, 44, 0.12);
+    border: 2px dashed var(--red);
+    padding: 0.75rem;
+    border-radius: 4px;
+    color: var(--red-dark);
+}
+
+/* --- matches : grille de vignettes --- */
+
+.matches {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.match {
+    background: var(--paper-light);
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 1rem 1.1rem 1.1rem;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+}
+.match::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 1px dashed rgba(26, 20, 17, 0.25);
+    border-radius: 6px;
+    margin: 6px;
+    pointer-events: none;
+}
+.match::after {
+    /* watermark ballon dans le coin */
+    content: "⚽";
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    font-size: 3.5rem;
+    opacity: 0.07;
+    pointer-events: none;
+    transform: rotate(-12deg);
+}
+.match.finished::after { opacity: 0.10; }
+
+.match header {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin-bottom: 0.9rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 2px dotted var(--paper-dark);
+}
+.match .kickoff { color: var(--navy); font-weight: 700; }
+.match .stage, .match .group {
+    background: var(--navy);
+    color: var(--paper-light);
+    padding: 0.1rem 0.55rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+}
+.match .group { background: var(--gold); color: var(--ink); }
+
+/* formulaire de pari : équipe (code drapeau) | input | "vs" | input | équipe */
+
+.bet-form {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto 1fr;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+.bet-form .team {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    font-weight: 700;
+    color: var(--navy);
+    text-align: center;
+    line-height: 1.15;
+    font-size: 0.95rem;
+}
+.bet-form .team .code {
+    background: var(--red);
+    color: var(--paper-light);
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 1rem;
+    letter-spacing: 0.1em;
+    padding: 0.25rem 0.6rem;
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    box-shadow: 2px 2px 0 var(--ink);
+    min-width: 56px;
+    text-align: center;
+}
+.bet-form .team.away .code { background: var(--navy); }
+.bet-form .sep {
+    font-family: "Bebas Neue", sans-serif;
+    color: var(--ink-soft);
+    font-size: 1.1rem;
+}
+.bet-form input[type="number"] {
+    width: 56px;
+    padding: 0.45rem 0.3rem;
+    text-align: center;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    color: var(--ink);
+    border-radius: 4px;
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+.bet-form input[type="number"]:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+.bet-form input[type="number"]:disabled {
+    background: var(--paper-dark);
+    color: var(--ink-soft);
+    opacity: 0.8;
+}
+.bet-form .submit-row {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.8rem;
+}
+.closed {
+    color: var(--ink-soft);
+    font-style: italic;
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.06em;
+}
+
+/* matches terminés */
+
+.match.finished { background: var(--paper); }
+.match.finished .final-score {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 0.8rem;
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 2.2rem;
+    color: var(--navy);
+    margin: 0.5rem 0;
+}
+.match.finished .final-score .sep { color: var(--red); font-size: 1.8rem; }
+.match.finished .teams-row {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    color: var(--ink);
+    font-size: 0.95rem;
+    margin-bottom: 0.3rem;
+}
+
+.bet-row {
+    margin-top: 0.7rem;
+    padding-top: 0.7rem;
+    border-top: 2px dotted var(--paper-dark);
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 0.92rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.bet-row strong, .bet-row .my-bet { color: var(--navy); font-style: normal; font-weight: 700; }
+
+/* tampon « vignette » sur les paris résolus */
+.pts {
+    display: inline-block;
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.06em;
+    padding: 0.2rem 0.7rem;
+    border: 2px solid currentColor;
+    border-radius: 4px;
+    transform: rotate(-4deg);
+    background: var(--paper-light);
+}
+.pts-3 { color: var(--green); border-style: double; border-width: 4px; }
+.pts-3::before { content: "★ "; }
+.pts-1 { color: var(--gold); }
+.pts-0 { color: var(--red); opacity: 0.8; }
+
+/* --- classement --- */
+
+table.leaderboard {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--paper-light);
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+table.leaderboard th, table.leaderboard td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px dotted var(--paper-dark);
+}
+table.leaderboard th {
+    background: var(--navy);
+    color: var(--paper-light);
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.08em;
+    font-weight: 400;
+    font-size: 1rem;
+}
+table.leaderboard tbody tr:nth-child(odd) td { background: rgba(232, 214, 168, 0.35); }
+table.leaderboard tr.me td { background: rgba(199, 155, 30, 0.25); font-weight: 700; }
+table.leaderboard tr.me td:first-child::before { content: "→ "; color: var(--red); font-weight: 700; }
+table.leaderboard td:first-child {
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 1.3rem;
+    color: var(--red);
+    width: 60px;
+}
+table.leaderboard td:nth-child(3) strong {
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 1.4rem;
+    color: var(--navy);
+}
+
+.note { color: var(--ink-soft); font-style: italic; margin-top: 1rem; }
+.muted { color: var(--ink-soft); font-style: italic; }
+
+/* --- banner du but 3D au-dessus du classement --- */
+.goal-banner {
+    margin: 0.8rem 0 1.2rem;
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    overflow: hidden;
+    background: linear-gradient(to bottom, #6cb6ff 0%, #b4dcff 55%, #2e7d4a 56%, #1f5b35 100%);
+    box-shadow: var(--shadow);
+    position: relative;
+}
+.goal-banner::after {
+    /* lined paper feel, faint */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+}
+canvas.goal3d {
+    width: 100%;
+    height: 220px;
+    display: block;
+}
+@media (max-width: 640px) {
+    canvas.goal3d { height: 160px; }
+}
+
+/* --- widget Pot (cagnotte) --- */
+.pot-widget {
+    background: linear-gradient(135deg, #1d3557 0%, #122339 100%);
+    color: var(--paper-light);
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+}
+.pot-widget::before {
+    content: "💰";
+    position: absolute;
+    right: -20px;
+    bottom: -30px;
+    font-size: 8rem;
+    opacity: 0.1;
+    transform: rotate(-15deg);
+}
+.pot-amount {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+.pot-label {
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.1em;
+    color: var(--gold-light);
+    font-size: 0.95rem;
+}
+.pot-value {
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 3rem;
+    color: var(--paper-light);
+    text-shadow: 2px 2px 0 var(--navy-dark);
+}
+.pot-meta { color: rgba(246, 239, 223, 0.7); font-size: 0.85rem; }
+.pot-split {
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.06em;
+    color: var(--paper-light);
+}
+.pot-split strong { color: var(--gold-light); }
+.pot-split em { font-family: "Lora", serif; font-size: 0.85em; color: rgba(246, 239, 223, 0.75); }
+.pot-mystatus {
+    flex-basis: 100%;
+    margin: 0;
+    padding-top: 0.6rem;
+    border-top: 1px dashed rgba(246, 239, 223, 0.3);
+}
+.pot-mystatus.paid { color: #9beba9; }
+.pot-mystatus.pending a { color: var(--gold-light); }
+.pot-mystatus.none .btn { margin-top: 0; }
+
+.deadline-passed { color: #ff9a9a; font-weight: 700; }
+
+/* --- badges palier --- */
+.tier-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 3px;
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.06em;
+    color: white;
+    border: 2px solid var(--ink);
+    box-shadow: 2px 2px 0 var(--ink);
+    font-size: 0.95rem;
+}
+.tier-2 { background: #8c8c8c; }
+.tier-5 { background: var(--navy); }
+.tier-10 { background: var(--red); }
+
+.non-eligible-badge {
+    display: inline-block;
+    background: var(--paper-dark);
+    color: var(--ink-soft);
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    padding: 0.05rem 0.4rem;
+    border-radius: 3px;
+    margin-left: 0.3rem;
+    border: 1px solid var(--ink-soft);
+}
+
+.payout { color: var(--green); font-family: "Bebas Neue", sans-serif; font-size: 1.1rem; }
+
+/* --- formulaire de palier --- */
+.tier-form {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.8rem;
+    margin: 1.5rem 0;
+}
+.tier-option { cursor: pointer; }
+.tier-option input { position: absolute; opacity: 0; pointer-events: none; }
+.tier-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.2rem 0.5rem;
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    border-radius: 6px;
+    transition: transform 0.05s, box-shadow 0.05s;
+    box-shadow: 4px 4px 0 var(--ink);
+}
+.tier-option:hover .tier-card { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+.tier-option input:checked + .tier-card {
+    background: var(--gold-light);
+    border-color: var(--red);
+    box-shadow: 4px 4px 0 var(--red);
+}
+.tier-eur {
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 2.4rem;
+    color: var(--navy);
+    line-height: 1;
+}
+.tier-label {
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-top: 0.3rem;
+}
+.tier-option.tier-2 .tier-eur { color: #6c6c6c; }
+.tier-option.tier-5 .tier-eur { color: var(--navy); }
+.tier-option.tier-10 .tier-eur { color: var(--red); }
+
+/* --- responsive --- */
+
+@media (max-width: 540px) {
+    .bet-form { grid-template-columns: 1fr 1fr; }
+    .bet-form .team { grid-column: span 2; }
+    .bet-form input[type="number"] { width: 100%; }
+    .bet-form .sep { display: none; }
+    main { padding: 0 1rem; }
+    h1 { font-size: 2rem; }
+    .topbar { padding: 0.8rem 1rem; flex-wrap: wrap; gap: 0.6rem; }
+}
