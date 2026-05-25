@@ -75,15 +75,16 @@ impl TryFrom<TenantRow> for Tenant {
     }
 }
 
-/// Upsert the default tenant from the current env-driven `Config`, then return
-/// it. This is the bridge between the single-tenant deployment we already have
-/// in production and the multi-tenant data model. As long as a deployment keeps
-/// setting the legacy env vars, the matching tenant row is kept in sync on
-/// every boot.
-pub async fn upsert_from_config(pool: &PgPool, cfg: &Config) -> anyhow::Result<Tenant> {
+/// Make sure the deployment's default tenant exists, creating it from the
+/// env-driven `Config` on the very first boot. After the row exists, the
+/// env vars are no longer consulted: subsequent edits go through
+/// `/admin/tenants/<slug>/edit` and stick across deploys. Env vars like
+/// `ALLOWED_EMAIL_DOMAIN`, `MAIL_FROM`, `STAKE_DEADLINE`, etc. are therefore
+/// bootstrap-only.
+pub async fn ensure_default(pool: &PgPool, cfg: &Config) -> anyhow::Result<Tenant> {
     let pattern_src = cfg.allowed_email_domain_pattern.as_str();
-    // Strip the `^(?:…)$` wrapper that `Config::from_env` adds, so the value we
-    // store in the DB is the same shape a tenant admin would type.
+    // Strip the `^(?:…)$` wrapper that `Config::from_env` adds, so the value
+    // we store in the DB matches the shape a tenant admin would type.
     let pattern_stored = pattern_src
         .trim_start_matches("^(?:")
         .trim_end_matches(")$")
@@ -91,21 +92,14 @@ pub async fn upsert_from_config(pool: &PgPool, cfg: &Config) -> anyhow::Result<T
 
     let admins: Vec<String> = cfg.admin_emails.iter().cloned().collect();
 
-    let row: TenantRow = sqlx::query_as(
+    let inserted: Option<TenantRow> = sqlx::query_as(
         r#"
         INSERT INTO tenants
             (slug, name, allowed_email_pattern, mail_from, stake_deadline,
              reminder_lead_minutes, slack_webhook_url, football_competition,
              admin_emails)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (slug) DO UPDATE SET
-            allowed_email_pattern = EXCLUDED.allowed_email_pattern,
-            mail_from             = EXCLUDED.mail_from,
-            stake_deadline        = EXCLUDED.stake_deadline,
-            reminder_lead_minutes = EXCLUDED.reminder_lead_minutes,
-            slack_webhook_url     = EXCLUDED.slack_webhook_url,
-            football_competition  = EXCLUDED.football_competition,
-            admin_emails          = EXCLUDED.admin_emails
+        ON CONFLICT (slug) DO NOTHING
         RETURNING id, slug, name, allowed_email_pattern, logo_url,
                   primary_color, accent_color, football_competition,
                   stake_deadline, reminder_lead_minutes, slack_webhook_url,
@@ -121,11 +115,25 @@ pub async fn upsert_from_config(pool: &PgPool, cfg: &Config) -> anyhow::Result<T
     .bind(&cfg.slack_webhook_url)
     .bind(&cfg.football_data_competition)
     .bind(&admins)
-    .fetch_one(pool)
+    .fetch_optional(pool)
     .await
-    .context("upserting default tenant from env config")?;
+    .context("bootstrapping default tenant from env config")?;
 
-    Tenant::try_from(row)
+    if let Some(row) = inserted {
+        tracing::info!(slug = %cfg.default_tenant_slug, "default tenant bootstrapped from env");
+        return Tenant::try_from(row);
+    }
+
+    // Row already exists; the env vars are not authoritative anymore, just
+    // load whatever the admin UI / migrations have stored.
+    resolve_by_slug(pool, &cfg.default_tenant_slug)
+        .await?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "default tenant `{}` disappeared between INSERT and SELECT",
+                cfg.default_tenant_slug
+            )
+        })
 }
 
 impl Tenant {

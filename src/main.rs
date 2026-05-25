@@ -61,9 +61,9 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("running migrations")?;
 
-    let default_tenant = tenant::upsert_from_config(&pool, &cfg)
+    let default_tenant = tenant::ensure_default(&pool, &cfg)
         .await
-        .context("syncing default tenant from env config")?;
+        .context("ensuring default tenant exists")?;
     tracing::info!(slug = %default_tenant.slug, id = %default_tenant.id, "default tenant loaded");
     let tenants = tenant::TenantRegistry::new(pool.clone(), default_tenant.clone());
 
