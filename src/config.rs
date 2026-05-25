@@ -5,6 +5,7 @@ use anyhow::{anyhow, Context};
 use base64::Engine;
 use chrono::{DateTime, Utc};
 use rand::RngCore;
+use regex::Regex;
 
 #[derive(Clone)]
 pub struct Config {
@@ -20,7 +21,7 @@ pub struct Config {
     pub mail_from: String,
     pub football_data_api_key: Option<String>,
     pub football_data_competition: String,
-    pub allowed_email_domain: String,
+    pub allowed_email_domain_pattern: Regex,
     pub slack_webhook_url: Option<String>,
     pub reminder_lead_minutes: i64,
     pub dev_mode: bool,
@@ -76,8 +77,10 @@ impl Config {
         let football_data_competition =
             env::var("FOOTBALL_DATA_COMPETITION").unwrap_or_else(|_| "WC".into());
 
-        let allowed_email_domain =
-            env::var("ALLOWED_EMAIL_DOMAIN").unwrap_or_else(|_| "lunatech.com".into());
+        let allowed_email_domain_raw =
+            env::var("ALLOWED_EMAIL_DOMAIN").unwrap_or_else(|_| "lunatech\\.com".into());
+        let allowed_email_domain_pattern = Regex::new(&format!("^(?:{allowed_email_domain_raw})$"))
+            .context("ALLOWED_EMAIL_DOMAIN must be a valid regex")?;
 
         let slack_webhook_url = env::var("SLACK_WEBHOOK_URL").ok().filter(|s| !s.is_empty());
         let reminder_lead_minutes = env::var("REMINDER_LEAD_MINUTES")
@@ -123,7 +126,7 @@ impl Config {
             mail_from,
             football_data_api_key,
             football_data_competition,
-            allowed_email_domain,
+            allowed_email_domain_pattern,
             slack_webhook_url,
             reminder_lead_minutes,
             dev_mode,

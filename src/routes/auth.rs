@@ -36,11 +36,20 @@ struct LoginSentTpl {
     loc: Locale,
 }
 
+fn domain_display(cfg: &crate::config::Config) -> String {
+    cfg.allowed_email_domain_pattern
+        .as_str()
+        .trim_start_matches("^(?:")
+        .trim_end_matches(")$")
+        .replace("\\.", ".")
+}
+
 pub async fn login_page(State(state): State<AppState>, loc: Locale) -> impl IntoResponse {
+    let domain = domain_display(&state.cfg);
     let tpl = LoginTpl {
         loc,
         error: None,
-        domain: &state.cfg.allowed_email_domain,
+        domain: &domain,
     };
     Html(tpl.render().unwrap_or_else(|e| format!("template error: {e}")))
 }
@@ -56,15 +65,19 @@ pub async fn request_magic_link(
     Form(form): Form<LoginForm>,
 ) -> AppResult<Response> {
     let email = form.email.trim().to_lowercase();
-    let allowed_suffix = format!("@{}", state.cfg.allowed_email_domain.to_lowercase());
-    if !email.ends_with(&allowed_suffix) || !email.contains('@') {
+    let domain = email.split_once('@').map(|(_, d)| d);
+    let allowed = domain
+        .map(|d| state.cfg.allowed_email_domain_pattern.is_match(d))
+        .unwrap_or(false);
+    if !allowed {
+        let domain_display = domain_display(&state.cfg);
         let tpl = LoginTpl {
             loc,
             error: Some(loc.f(
                 "Cette app est réservée aux emails Lunatech.",
                 "This app is reserved for Lunatech emails.",
             )),
-            domain: &state.cfg.allowed_email_domain,
+            domain: &domain_display,
         };
         return Ok((StatusCode::BAD_REQUEST, Html(tpl.render()?)).into_response());
     }
