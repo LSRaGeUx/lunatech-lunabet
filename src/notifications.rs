@@ -3,15 +3,27 @@ use serde_json::json;
 
 use crate::mail;
 use crate::state::AppState;
+use crate::tenant::{self, Tenant};
 
 pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
-    // Background jobs operate against the deployment's default tenant for
-    // now. Phase 5 will iterate over all tenants registered in the directory.
-    let tenant = state.tenants.default_tenant().clone();
+    let tenants = tenant::load_all(&state.pool).await?;
+    for t in tenants {
+        if let Err(e) = send_for_tenant(state, &t).await {
+            tracing::warn!(tenant = %t.slug, "match reminders failed: {e:#}");
+        }
+    }
+    Ok(())
+}
+
+async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()> {
     let lead = Duration::minutes(tenant.reminder_lead_minutes);
     let now = Utc::now();
     let window_end = now + lead;
 
+    // Matches kicking off within the lead window for which this tenant hasn't
+    // sent a reminder yet. We join the per-tenant `match_reminders` table so
+    // each tenant gets its own reminder lifecycle (one tenant's send no longer
+    // suppresses another's).
     let matches: Vec<(
         i64,
         String,
@@ -21,17 +33,21 @@ pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
         Option<String>,
     )> = sqlx::query_as(
         r#"
-        SELECT id, home_team, away_team, kickoff_at, stage, group_name
-        FROM matches
-        WHERE reminded_at IS NULL
-          AND kickoff_at > $1
-          AND kickoff_at <= $2
-          AND (status = 'SCHEDULED' OR status = 'TIMED')
-        ORDER BY kickoff_at ASC
+        SELECT m.id, m.home_team, m.away_team, m.kickoff_at, m.stage, m.group_name
+        FROM matches m
+        WHERE m.kickoff_at > $1
+          AND m.kickoff_at <= $2
+          AND (m.status = 'SCHEDULED' OR m.status = 'TIMED')
+          AND NOT EXISTS (
+            SELECT 1 FROM match_reminders r
+            WHERE r.tenant_id = $3 AND r.match_id = m.id
+          )
+        ORDER BY m.kickoff_at ASC
         "#,
     )
     .bind(now)
     .bind(window_end)
+    .bind(tenant.id)
     .fetch_all(&state.pool)
     .await?;
 
@@ -40,7 +56,10 @@ pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
     }
 
     for (match_id, home, away, kickoff, stage, group) in matches {
-        tracing::info!("sending reminders for match {match_id}: {home} - {away}");
+        tracing::info!(
+            tenant = %tenant.slug,
+            "sending reminders for match {match_id}: {home} - {away}"
+        );
 
         let unbet_users: Vec<(String, String)> = sqlx::query_as(
             r#"
@@ -64,7 +83,7 @@ pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
         for (email, _name) in &unbet_users {
             match mail::send_bet_reminder(
                 &state.cfg,
-                &tenant,
+                tenant,
                 email,
                 &home,
                 &away,
@@ -81,6 +100,7 @@ pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
             }
         }
         tracing::info!(
+            tenant = %tenant.slug,
             "match {match_id}: {emails_sent} reminder emails sent, {emails_failed} failed, {} users without bet",
             unbet_users.len()
         );
@@ -104,22 +124,39 @@ pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
             let payload = json!({ "text": text });
             match state.http.post(webhook).json(&payload).send().await {
                 Ok(resp) if resp.status().is_success() => {
-                    tracing::info!("Slack reminder posted for match {match_id}");
+                    tracing::info!(tenant = %tenant.slug, "Slack reminder posted for match {match_id}");
                 }
                 Ok(resp) => {
                     tracing::warn!(
+                        tenant = %tenant.slug,
                         "Slack webhook returned {} for match {match_id}",
                         resp.status()
                     );
                 }
-                Err(e) => tracing::warn!("Slack webhook failed for match {match_id}: {e:#}"),
+                Err(e) => tracing::warn!(
+                    tenant = %tenant.slug,
+                    "Slack webhook failed for match {match_id}: {e:#}"
+                ),
             }
         }
 
-        sqlx::query("UPDATE matches SET reminded_at = NOW() WHERE id = $1")
-            .bind(match_id)
-            .execute(&state.pool)
-            .await?;
+        sqlx::query(
+            "INSERT INTO match_reminders (tenant_id, match_id) VALUES ($1, $2) \
+             ON CONFLICT DO NOTHING",
+        )
+        .bind(tenant.id)
+        .bind(match_id)
+        .execute(&state.pool)
+        .await?;
+
+        // Keep the legacy denormalised flag in sync so existing dashboards or
+        // ad-hoc queries that watch `matches.reminded_at` still see activity.
+        sqlx::query(
+            "UPDATE matches SET reminded_at = COALESCE(reminded_at, NOW()) WHERE id = $1",
+        )
+        .bind(match_id)
+        .execute(&state.pool)
+        .await?;
     }
 
     Ok(())

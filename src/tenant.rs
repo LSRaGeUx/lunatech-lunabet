@@ -142,6 +142,27 @@ impl Tenant {
     }
 }
 
+/// Load every tenant row in creation order. Used by background jobs that fan
+/// out work per tenant (fixture sync, reminders). The list is freshly fetched
+/// on every call, so newly-created tenants are picked up on the next tick.
+pub async fn load_all(pool: &PgPool) -> anyhow::Result<Vec<Tenant>> {
+    let rows: Vec<TenantRow> = sqlx::query_as(
+        r#"
+        SELECT id, slug, name, allowed_email_pattern, logo_url,
+               primary_color, accent_color, football_competition,
+               stake_deadline, reminder_lead_minutes, slack_webhook_url,
+               mail_from, admin_emails
+        FROM tenants
+        ORDER BY created_at ASC
+        "#,
+    )
+    .fetch_all(pool)
+    .await
+    .context("loading all tenants")?;
+
+    rows.into_iter().map(Tenant::try_from).collect()
+}
+
 /// Look up a tenant by slug. Returns `None` if the slug doesn't match any row.
 pub async fn resolve_by_slug(pool: &PgPool, slug: &str) -> anyhow::Result<Option<Tenant>> {
     let row: Option<TenantRow> = sqlx::query_as(

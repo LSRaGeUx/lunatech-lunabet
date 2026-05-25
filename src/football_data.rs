@@ -1,8 +1,11 @@
+use std::collections::HashSet;
+
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 use crate::state::AppState;
+use crate::tenant;
 
 #[derive(Debug, Deserialize)]
 struct MatchesResp {
@@ -53,7 +56,31 @@ pub async fn sync_fixtures(state: &AppState) -> anyhow::Result<()> {
     let Some(api_key) = state.cfg.football_data_api_key.clone() else {
         return Ok(());
     };
-    let competition = &state.tenants.default_tenant().football_competition;
+
+    // Collect the unique set of competitions any tenant cares about so we
+    // make one API call per code regardless of how many tenants share it.
+    let tenants = tenant::load_all(&state.pool).await?;
+    let mut competitions: HashSet<String> = HashSet::new();
+    for t in &tenants {
+        competitions.insert(t.football_competition.clone());
+    }
+    if competitions.is_empty() {
+        return Ok(());
+    }
+
+    for competition in competitions {
+        if let Err(e) = sync_one_competition(state, &api_key, &competition).await {
+            tracing::warn!(competition = %competition, "fixtures sync failed: {e:#}");
+        }
+    }
+    Ok(())
+}
+
+async fn sync_one_competition(
+    state: &AppState,
+    api_key: &str,
+    competition: &str,
+) -> anyhow::Result<()> {
     let url = format!("https://api.football-data.org/v4/competitions/{competition}/matches");
 
     let resp = state
@@ -80,7 +107,7 @@ pub async fn sync_fixtures(state: &AppState) -> anyhow::Result<()> {
             .name
             .clone()
             .or_else(|| m.competition.code.clone())
-            .unwrap_or_else(|| competition.clone());
+            .unwrap_or_else(|| competition.to_string());
         let (home_score, away_score) = m
             .score
             .as_ref()
@@ -130,6 +157,6 @@ pub async fn sync_fixtures(state: &AppState) -> anyhow::Result<()> {
     }
     tx.commit().await?;
 
-    tracing::info!("synced {count} matches from football-data.org");
+    tracing::info!("synced {count} matches from football-data.org ({competition})");
     Ok(())
 }
