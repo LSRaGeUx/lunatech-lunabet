@@ -3,6 +3,8 @@
 App de paris sur la Coupe du Monde 2026 pour les employés de Lunatech.
 Score exact, leaderboard, pot pondéré par mise. Bilingue FR / EN.
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 ## Aperçu
 
 | Accueil | Album de pronos |
@@ -309,3 +311,7 @@ Couvre :
 - Snapshot Postgres pendant la compétition (les paris doivent être préservés).
 - Plan gratuit football-data.org : 10 requêtes/minute, le job tourne toutes les 5 min → marge confortable.
 - **Cadre légal** : un pot d'argent réel entre collègues, même via "honor system", peut tomber sous la régulation de l'ANJ en France. Faire valider par les RH ou le service juridique avant ouverture publique. L'app ne touche jamais à l'argent (les paiements se font hors-app), ce qui limite l'exposition mais ne l'élimine pas.
+
+## Licence
+
+Distribué sous licence [Apache 2.0](LICENSE) — © 2026 Lunatech Labs.
