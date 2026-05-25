@@ -6,6 +6,7 @@ use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
 use crate::config::Config;
 use crate::i18n::Locale;
+use crate::tenant::Tenant;
 
 #[derive(Template)]
 #[template(path = "emails/magic_link.html")]
@@ -25,7 +26,13 @@ struct MatchReminderHtml<'a> {
     logo_url: &'a str,
 }
 
-pub async fn send_magic_link(cfg: &Config, loc: Locale, to: &str, link: &str) -> anyhow::Result<()> {
+pub async fn send_magic_link(
+    cfg: &Config,
+    tenant: &Tenant,
+    loc: Locale,
+    to: &str,
+    link: &str,
+) -> anyhow::Result<()> {
     let logo_url = format!("{}/static/lunatech-logo.svg", cfg.base_url.trim_end_matches('/'));
     let html = MagicLinkHtml { loc, link, logo_url: &logo_url }.render()?;
 
@@ -54,11 +61,12 @@ pub async fn send_magic_link(cfg: &Config, loc: Locale, to: &str, link: &str) ->
         "Ton lien de connexion LunaBet",
         "Your LunaBet sign-in link",
     );
-    send_html_email(cfg, to, subject, plain, html).await
+    send_html_email(cfg, &tenant.mail_from, to, subject, plain, html).await
 }
 
 pub async fn send_bet_reminder(
     cfg: &Config,
+    tenant: &Tenant,
     to: &str,
     home: &str,
     away: &str,
@@ -86,18 +94,19 @@ pub async fn send_bet_reminder(
          — LunaBet · Lunatech\n"
     );
 
-    let subject = format!("⚽ {home} - {away} — LunaBet");
-    send_html_email(cfg, to, &subject, plain, html).await
+    let subject = format!("⚽ {home} - {away} - LunaBet");
+    send_html_email(cfg, &tenant.mail_from, to, &subject, plain, html).await
 }
 
 async fn send_html_email(
     cfg: &Config,
+    mail_from: &str,
     to: &str,
     subject: &str,
     plain: String,
     html: String,
 ) -> anyhow::Result<()> {
-    let from: Mailbox = cfg.mail_from.parse().context("MAIL_FROM is invalid")?;
+    let from: Mailbox = mail_from.parse().context("tenant mail_from is invalid")?;
     let to_addr: Mailbox = to.parse().context("recipient email is invalid")?;
 
     let email = Message::builder()

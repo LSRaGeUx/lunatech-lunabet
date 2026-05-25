@@ -53,7 +53,7 @@ pub async fn sync_fixtures(state: &AppState) -> anyhow::Result<()> {
     let Some(api_key) = state.cfg.football_data_api_key.clone() else {
         return Ok(());
     };
-    let competition = &state.cfg.football_data_competition;
+    let competition = &state.tenant.football_competition;
     let url = format!("https://api.football-data.org/v4/competitions/{competition}/matches");
 
     let resp = state

@@ -69,9 +69,11 @@ pub async fn stakes_page(
         r#"
         SELECT id, email, display_name, stake_eur, stake_chosen_at, paid_at
         FROM users
+        WHERE tenant_id = $1
         ORDER BY (paid_at IS NULL), stake_chosen_at NULLS LAST, display_name ASC
         "#,
     )
+    .bind(state.tenant.id)
     .fetch_all(&state.pool)
     .await?;
 
@@ -87,7 +89,8 @@ pub async fn stakes_page(
         })
         .collect();
 
-    let pot = crate::stakes::load_pot(&state.pool, state.cfg.stake_deadline).await?;
+    let pot =
+        crate::stakes::load_pot(&state.pool, state.tenant.id, state.tenant.stake_deadline).await?;
 
     let tpl = AdminStakesTpl {
         loc,
@@ -95,8 +98,8 @@ pub async fn stakes_page(
         pot_total_eur: pot.total_eur,
         paid_count: pot.paid_count,
         rows,
-        deadline_local: state.cfg.stake_deadline.format("%d/%m/%Y %H:%M UTC").to_string(),
-        deadline_passed: Utc::now() > state.cfg.stake_deadline,
+        deadline_local: state.tenant.stake_deadline.format("%d/%m/%Y %H:%M UTC").to_string(),
+        deadline_passed: Utc::now() > state.tenant.stake_deadline,
     };
     Ok(Html(tpl.render()?).into_response())
 }
@@ -110,11 +113,12 @@ pub async fn mark_paid(
         r#"
         UPDATE users
         SET paid_at = COALESCE(paid_at, NOW()), paid_by = $1
-        WHERE id = $2 AND stake_eur IS NOT NULL
+        WHERE id = $2 AND tenant_id = $3 AND stake_eur IS NOT NULL
         "#,
     )
     .bind(admin.id)
     .bind(user_id)
+    .bind(state.tenant.id)
     .execute(&state.pool)
     .await?;
     Ok(Redirect::to("/admin/stakes").into_response())
@@ -125,9 +129,12 @@ pub async fn mark_unpaid(
     AdminUser(_admin): AdminUser,
     Path(user_id): Path<Uuid>,
 ) -> AppResult<Response> {
-    sqlx::query("UPDATE users SET paid_at = NULL, paid_by = NULL WHERE id = $1")
-        .bind(user_id)
-        .execute(&state.pool)
-        .await?;
+    sqlx::query(
+        "UPDATE users SET paid_at = NULL, paid_by = NULL WHERE id = $1 AND tenant_id = $2",
+    )
+    .bind(user_id)
+    .bind(state.tenant.id)
+    .execute(&state.pool)
+    .await?;
     Ok(Redirect::to("/admin/stakes").into_response())
 }

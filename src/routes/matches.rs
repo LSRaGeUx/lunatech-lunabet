@@ -34,6 +34,9 @@ pub async fn list(
     loc: Locale,
     AuthUser(user): AuthUser,
 ) -> AppResult<Response> {
+    // Matches stay global in Phase 1 (one competition synced from
+    // football-data). A future migration will associate matches with
+    // tenants when we onboard a second competition.
     let matches: Vec<Match> = sqlx::query_as(
         r#"
         SELECT id, competition, stage, group_name,
@@ -47,9 +50,11 @@ pub async fn list(
     .await?;
 
     let bets: Vec<(i64, i32, i32, Option<i32>)> = sqlx::query_as(
-        "SELECT match_id, home_score, away_score, points FROM bets WHERE user_id = $1",
+        "SELECT match_id, home_score, away_score, points FROM bets \
+         WHERE user_id = $1 AND tenant_id = $2",
     )
     .bind(user.id)
+    .bind(state.tenant.id)
     .fetch_all(&state.pool)
     .await?;
 

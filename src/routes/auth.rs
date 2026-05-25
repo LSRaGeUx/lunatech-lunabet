@@ -53,7 +53,7 @@ pub async fn request_magic_link(
     let email = form.email.trim().to_lowercase();
     let domain = email.split_once('@').map(|(_, d)| d);
     let allowed = domain
-        .map(|d| state.cfg.allowed_email_domain_pattern.is_match(d))
+        .map(|d| state.tenant.allowed_email_pattern.is_match(d))
         .unwrap_or(false);
     if !allowed {
         let tpl = LoginTpl {
@@ -72,16 +72,19 @@ pub async fn request_magic_link(
     let token_hash = hex_sha256(&token);
     let expires_at = Utc::now() + Duration::minutes(MAGIC_LINK_TTL_MINUTES);
 
-    sqlx::query("INSERT INTO magic_links (token_hash, email, expires_at) VALUES ($1, $2, $3)")
-        .bind(&token_hash)
-        .bind(&email)
-        .bind(expires_at)
-        .execute(&state.pool)
-        .await?;
+    sqlx::query(
+        "INSERT INTO magic_links (tenant_id, token_hash, email, expires_at) VALUES ($1, $2, $3, $4)",
+    )
+    .bind(state.tenant.id)
+    .bind(&token_hash)
+    .bind(&email)
+    .bind(expires_at)
+    .execute(&state.pool)
+    .await?;
 
     let link = format!("{}/auth/callback?token={}", state.cfg.base_url.trim_end_matches('/'), token);
 
-    if let Err(e) = mail::send_magic_link(&state.cfg, loc, &email, &link).await {
+    if let Err(e) = mail::send_magic_link(&state.cfg, &state.tenant, loc, &email, &link).await {
         tracing::warn!("could not send magic link email to {email}: {e:#}");
         tracing::info!("DEV magic link for {email}: {link}");
     }
@@ -107,10 +110,14 @@ pub async fn callback(
     let token_hash = hex_sha256(&q.token);
 
     let row: Option<(String, chrono::DateTime<Utc>, Option<chrono::DateTime<Utc>>)> =
-        sqlx::query_as("SELECT email, expires_at, consumed_at FROM magic_links WHERE token_hash = $1")
-            .bind(&token_hash)
-            .fetch_optional(&state.pool)
-            .await?;
+        sqlx::query_as(
+            "SELECT email, expires_at, consumed_at FROM magic_links \
+             WHERE token_hash = $1 AND tenant_id = $2",
+        )
+        .bind(&token_hash)
+        .bind(state.tenant.id)
+        .fetch_optional(&state.pool)
+        .await?;
 
     let Some((email, expires_at, consumed_at)) = row else {
         return Ok((StatusCode::BAD_REQUEST, loc.f("Lien invalide.", "Invalid link.")).into_response());
@@ -134,18 +141,19 @@ pub async fn callback(
         .replace('.', " ")
         .replace('_', " ");
 
-    let is_admin = state.cfg.admin_emails.contains(&email);
+    let is_admin = state.tenant.is_admin(&email);
     let user: User = sqlx::query_as(
         r#"
-        INSERT INTO users (email, display_name, is_admin)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (email) DO UPDATE
+        INSERT INTO users (tenant_id, email, display_name, is_admin)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (tenant_id, email) DO UPDATE
             SET email = EXCLUDED.email,
                 is_admin = EXCLUDED.is_admin
         RETURNING id, email, display_name, is_admin, created_at,
                   stake_eur, stake_chosen_at, paid_at
         "#,
     )
+    .bind(state.tenant.id)
     .bind(&email)
     .bind(&display_name)
     .bind(is_admin)
@@ -154,12 +162,15 @@ pub async fn callback(
 
     let session_id = Uuid::new_v4();
     let session_expires = Utc::now() + Duration::days(SESSION_TTL_DAYS);
-    sqlx::query("INSERT INTO sessions (id, user_id, expires_at) VALUES ($1, $2, $3)")
-        .bind(session_id)
-        .bind(user.id)
-        .bind(session_expires)
-        .execute(&state.pool)
-        .await?;
+    sqlx::query(
+        "INSERT INTO sessions (id, tenant_id, user_id, expires_at) VALUES ($1, $2, $3, $4)",
+    )
+    .bind(session_id)
+    .bind(state.tenant.id)
+    .bind(user.id)
+    .bind(session_expires)
+    .execute(&state.pool)
+    .await?;
 
     let cookie = Cookie::build((SESSION_COOKIE, session_id.to_string()))
         .path("/")
@@ -201,10 +212,11 @@ pub async fn current_user(state: &AppState, jar: &PrivateCookieJar) -> AppResult
                u.stake_eur, u.stake_chosen_at, u.paid_at
         FROM sessions s
         JOIN users u ON u.id = s.user_id
-        WHERE s.id = $1 AND s.expires_at > NOW()
+        WHERE s.id = $1 AND s.tenant_id = $2 AND s.expires_at > NOW()
         "#,
     )
     .bind(id)
+    .bind(state.tenant.id)
     .fetch_optional(&state.pool)
     .await?;
     Ok(user)

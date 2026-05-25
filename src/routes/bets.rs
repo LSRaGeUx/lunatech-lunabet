@@ -42,14 +42,15 @@ pub async fn place_or_update(
 
     sqlx::query(
         r#"
-        INSERT INTO bets (user_id, match_id, home_score, away_score)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO bets (tenant_id, user_id, match_id, home_score, away_score)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (user_id, match_id) DO UPDATE
         SET home_score = EXCLUDED.home_score,
             away_score = EXCLUDED.away_score,
             updated_at = NOW()
         "#,
     )
+    .bind(state.tenant.id)
     .bind(user.id)
     .bind(match_id)
     .bind(form.home_score)

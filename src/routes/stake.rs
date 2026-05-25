@@ -29,18 +29,18 @@ pub async fn page(
     loc: Locale,
     AuthUser(user): AuthUser,
 ) -> AppResult<Response> {
-    let deadline_passed = Utc::now() > state.cfg.stake_deadline;
+    let deadline_passed = Utc::now() > state.tenant.stake_deadline;
     let tpl = StakeTpl {
         loc,
         user: &user,
         deadline_passed,
-        deadline_local: state.cfg.stake_deadline.format("%d/%m/%Y %H:%M UTC").to_string(),
+        deadline_local: state.tenant.stake_deadline.format("%d/%m/%Y %H:%M UTC").to_string(),
         paid: user.paid_at.is_some(),
-        admin_emails_display: if state.cfg.admin_emails.is_empty() {
+        admin_emails_display: if state.tenant.admin_emails.is_empty() {
             "admin".into()
         } else {
             state
-                .cfg
+                .tenant
                 .admin_emails
                 .iter()
                 .cloned()
@@ -64,7 +64,7 @@ pub async fn submit(
     if user.paid_at.is_some() {
         return Ok((StatusCode::CONFLICT, "Stake already paid; ask an admin to change it.").into_response());
     }
-    if Utc::now() > state.cfg.stake_deadline {
+    if Utc::now() > state.tenant.stake_deadline {
         return Ok((StatusCode::FORBIDDEN, "Stake deadline has passed.").into_response());
     }
     if !stakes::is_valid_tier(form.tier) {
@@ -74,11 +74,12 @@ pub async fn submit(
         r#"
         UPDATE users
         SET stake_eur = $1, stake_chosen_at = NOW()
-        WHERE id = $2
+        WHERE id = $2 AND tenant_id = $3
         "#,
     )
     .bind(form.tier)
     .bind(user.id)
+    .bind(state.tenant.id)
     .execute(&state.pool)
     .await?;
     Ok(Redirect::to("/stake").into_response())

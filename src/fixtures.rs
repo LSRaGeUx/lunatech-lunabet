@@ -2,6 +2,8 @@ use chrono::{Duration, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::tenant::Tenant;
+
 struct SeedUser {
     email: &'static str,
     display_name: &'static str,
@@ -40,7 +42,7 @@ const MATCHES: &[SeedMatch] = &[
     SeedMatch { id: 900008, home: "Japon",    home_code: "JPN", away: "Croatie",    away_code: "CRO", group: "Group D", offset_hours:  72, final_score: None },
 ];
 
-pub async fn seed(pool: &PgPool) -> anyhow::Result<()> {
+pub async fn seed(pool: &PgPool, tenant: &Tenant) -> anyhow::Result<()> {
     let now = Utc::now();
     let mut tx = pool.begin().await?;
 
@@ -50,9 +52,9 @@ pub async fn seed(pool: &PgPool) -> anyhow::Result<()> {
         let paid_at = if u.paid { Some(now) } else { None };
         let id: Uuid = sqlx::query_scalar(
             r#"
-            INSERT INTO users (email, display_name, is_admin, stake_eur, stake_chosen_at, paid_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (email) DO UPDATE
+            INSERT INTO users (tenant_id, email, display_name, is_admin, stake_eur, stake_chosen_at, paid_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (tenant_id, email) DO UPDATE
                 SET display_name = EXCLUDED.display_name,
                     is_admin = EXCLUDED.is_admin,
                     stake_eur = EXCLUDED.stake_eur,
@@ -61,6 +63,7 @@ pub async fn seed(pool: &PgPool) -> anyhow::Result<()> {
             RETURNING id
             "#,
         )
+        .bind(tenant.id)
         .bind(u.email)
         .bind(u.display_name)
         .bind(u.is_admin)
@@ -86,18 +89,20 @@ pub async fn seed(pool: &PgPool) -> anyhow::Result<()> {
                 home_team, away_team, home_team_code, away_team_code,
                 kickoff_at, status, home_score, away_score, updated_at
             )
-            VALUES ($1, 'FIFA World Cup (DEV)', 'GROUP_STAGE', $2,
-                    $3, $4, $5, $6,
-                    $7, $8, $9, $10, NOW())
+            VALUES ($1, $2, 'GROUP_STAGE', $3,
+                    $4, $5, $6, $7,
+                    $8, $9, $10, $11, NOW())
             ON CONFLICT (id) DO UPDATE SET
-                kickoff_at = EXCLUDED.kickoff_at,
-                status     = EXCLUDED.status,
-                home_score = EXCLUDED.home_score,
-                away_score = EXCLUDED.away_score,
-                updated_at = NOW()
+                competition = EXCLUDED.competition,
+                kickoff_at  = EXCLUDED.kickoff_at,
+                status      = EXCLUDED.status,
+                home_score  = EXCLUDED.home_score,
+                away_score  = EXCLUDED.away_score,
+                updated_at  = NOW()
             "#,
         )
         .bind(m.id)
+        .bind(&tenant.football_competition)
         .bind(m.group)
         .bind(m.home)
         .bind(m.away)
@@ -134,12 +139,13 @@ pub async fn seed(pool: &PgPool) -> anyhow::Result<()> {
     for (user_idx, match_id, h, a) in bets {
         sqlx::query(
             r#"
-            INSERT INTO bets (user_id, match_id, home_score, away_score)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO bets (tenant_id, user_id, match_id, home_score, away_score)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (user_id, match_id) DO UPDATE
             SET home_score = EXCLUDED.home_score, away_score = EXCLUDED.away_score, updated_at = NOW()
             "#,
         )
+        .bind(tenant.id)
         .bind(user_ids[*user_idx])
         .bind(match_id)
         .bind(h)

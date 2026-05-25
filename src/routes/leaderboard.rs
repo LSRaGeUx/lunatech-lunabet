@@ -41,8 +41,8 @@ pub async fn index(
     loc: Locale,
     AuthUser(user): AuthUser,
 ) -> AppResult<Response> {
-    let board = stakes::load_leaderboard(&state.pool).await?;
-    let pot = stakes::load_pot(&state.pool, state.cfg.stake_deadline).await?;
+    let board = stakes::load_leaderboard(&state.pool, state.tenant.id).await?;
+    let pot = stakes::load_pot(&state.pool, state.tenant.id, state.tenant.stake_deadline).await?;
     let top_paid = stakes::top_paid_from_leaderboard(&board);
     let payouts = stakes::compute_payouts(pot.total_eur, &top_paid);
 

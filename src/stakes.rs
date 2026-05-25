@@ -74,7 +74,10 @@ pub fn compute_payouts(pot_eur: i64, top_paid: &[(Uuid, String, i32)]) -> Vec<Pa
     out
 }
 
-pub async fn load_leaderboard(pool: &PgPool) -> anyhow::Result<Vec<LeaderboardRow>> {
+pub async fn load_leaderboard(
+    pool: &PgPool,
+    tenant_id: Uuid,
+) -> anyhow::Result<Vec<LeaderboardRow>> {
     let rows: Vec<(
         Uuid,
         String,
@@ -96,7 +99,8 @@ pub async fn load_leaderboard(pool: &PgPool) -> anyhow::Result<Vec<LeaderboardRo
             u.paid_at,
             u.created_at
         FROM users u
-        LEFT JOIN bets b ON b.user_id = u.id
+        LEFT JOIN bets b ON b.user_id = u.id AND b.tenant_id = u.tenant_id
+        WHERE u.tenant_id = $1
         GROUP BY u.id, u.display_name, u.stake_eur, u.paid_at, u.created_at
         ORDER BY points DESC NULLS LAST,
                  exact_count DESC NULLS LAST,
@@ -104,6 +108,7 @@ pub async fn load_leaderboard(pool: &PgPool) -> anyhow::Result<Vec<LeaderboardRo
                  u.created_at ASC
         "#,
     )
+    .bind(tenant_id)
     .fetch_all(pool)
     .await?;
 
@@ -122,10 +127,16 @@ pub async fn load_leaderboard(pool: &PgPool) -> anyhow::Result<Vec<LeaderboardRo
         .collect())
 }
 
-pub async fn load_pot(pool: &PgPool, deadline: DateTime<Utc>) -> anyhow::Result<PotState> {
+pub async fn load_pot(
+    pool: &PgPool,
+    tenant_id: Uuid,
+    deadline: DateTime<Utc>,
+) -> anyhow::Result<PotState> {
     let (total, count): (Option<i64>, Option<i64>) = sqlx::query_as(
-        "SELECT COALESCE(SUM(stake_eur), 0)::BIGINT, COUNT(*)::BIGINT FROM users WHERE paid_at IS NOT NULL"
+        "SELECT COALESCE(SUM(stake_eur), 0)::BIGINT, COUNT(*)::BIGINT \
+         FROM users WHERE tenant_id = $1 AND paid_at IS NOT NULL",
     )
+    .bind(tenant_id)
     .fetch_one(pool)
     .await?;
     Ok(PotState {

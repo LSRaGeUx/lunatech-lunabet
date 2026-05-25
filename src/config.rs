@@ -27,6 +27,8 @@ pub struct Config {
     pub dev_mode: bool,
     pub admin_emails: HashSet<String>,
     pub stake_deadline: DateTime<Utc>,
+    pub default_tenant_slug: String,
+    pub default_tenant_name: String,
 }
 
 impl Config {
@@ -113,6 +115,11 @@ impl Config {
             }
         };
 
+        let default_tenant_slug =
+            env::var("DEFAULT_TENANT_SLUG").unwrap_or_else(|_| "lunatech".into());
+        let default_tenant_name =
+            env::var("DEFAULT_TENANT_NAME").unwrap_or_else(|_| "Lunatech".into());
+
         Ok(Self {
             database_url,
             bind_addr,
@@ -132,6 +139,8 @@ impl Config {
             dev_mode,
             admin_emails,
             stake_deadline,
+            default_tenant_slug,
+            default_tenant_name,
         })
     }
 }
