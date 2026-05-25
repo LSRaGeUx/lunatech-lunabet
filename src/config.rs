@@ -33,6 +33,10 @@ pub struct Config {
     /// emails get access to `/admin/tenants` regardless of which tenant they
     /// happen to be signed into.
     pub super_admin_emails: HashSet<String>,
+    /// Host names (without port) that should be treated as the platform
+    /// apex — no tenant resolution, marketing landing. Anything not in this
+    /// list with a subdomain is treated as a tenant request.
+    pub apex_hosts: HashSet<String>,
 }
 
 impl Config {
@@ -124,6 +128,19 @@ impl Config {
         let default_tenant_name =
             env::var("DEFAULT_TENANT_NAME").unwrap_or_else(|_| "Lunatech".into());
 
+        let apex_hosts: HashSet<String> = env::var("APEX_HOSTS")
+            .unwrap_or_else(|_| "lunabet.eu,www.lunabet.eu,localhost,127.0.0.1".into())
+            .split(',')
+            .filter_map(|s| {
+                let t = s.trim().to_lowercase();
+                if t.is_empty() {
+                    None
+                } else {
+                    Some(t)
+                }
+            })
+            .collect();
+
         let super_admin_emails: HashSet<String> = env::var("SUPER_ADMIN_EMAILS")
             .unwrap_or_default()
             .split(',')
@@ -159,6 +176,7 @@ impl Config {
             default_tenant_slug,
             default_tenant_name,
             super_admin_emails,
+            apex_hosts,
         })
     }
 }

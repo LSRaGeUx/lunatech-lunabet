@@ -16,7 +16,7 @@ use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::mail;
 use crate::state::AppState;
-use crate::tenant::{Tenant, TenantCtx};
+use crate::tenant::{MaybeTenant, Tenant};
 
 const SESSION_COOKIE: &str = "lb_session";
 const SIGNUP_TOKEN_TTL_MINUTES: i64 = 30;
@@ -49,9 +49,10 @@ struct SignupSentTpl<'a> {
 
 pub async fn form(
     State(_state): State<AppState>,
-    TenantCtx(tenant): TenantCtx,
+    MaybeTenant(maybe_tenant): MaybeTenant,
     loc: Locale,
 ) -> impl IntoResponse {
+    let tenant = maybe_tenant.unwrap_or_else(Tenant::platform);
     let tpl = SignupTpl {
         loc,
         tenant: &tenant,
@@ -87,10 +88,11 @@ fn domain_of(email: &str) -> Option<&str> {
 
 pub async fn submit(
     State(state): State<AppState>,
-    TenantCtx(tenant): TenantCtx,
+    MaybeTenant(maybe_tenant): MaybeTenant,
     loc: Locale,
     Form(form): Form<SignupForm>,
 ) -> AppResult<Response> {
+    let tenant = maybe_tenant.unwrap_or_else(Tenant::platform);
     let slug = form.slug.trim().to_lowercase();
     let name = form.name.trim().to_string();
     let owner_email = form.owner_email.trim().to_lowercase();

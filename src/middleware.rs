@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use axum::body::Body;
 use axum::extract::{Query, State};
 use axum::http::Request;
@@ -12,72 +14,90 @@ struct TenantQuery {
     tenant: Option<String>,
 }
 
-/// Best-effort extraction of a tenant slug from the incoming request.
-///
-/// Precedence:
-///   1. The `X-Tenant` header (handy for local dev / curl / tests).
-///   2. The `?tenant=<slug>` query parameter (handy for browser testing
-///      before DNS is set up).
-///   3. The first label of the `Host` header, when the host has at least two
-///      dots (so `acme.lunabet.eu` resolves to `acme`, while `localhost` or
-///      `lunabet.eu` resolve to nothing).
-fn extract_slug(req: &Request<Body>) -> Option<String> {
+/// What the request "wants" in terms of tenant resolution.
+enum SlugIntent {
+    /// Header / query / subdomain says: route to this slug.
+    Slug(String),
+    /// The host is the platform apex (or a bare IP / localhost); no tenant
+    /// scope, route to marketing pages.
+    Apex,
+    /// Neither apex nor a tenant subdomain: fall back to the deployment's
+    /// default tenant. Keeps backwards compatibility with single-tenant
+    /// hosts (the Clever Cloud free `*.cleverapps.io` URL while DNS is being
+    /// set up).
+    Default,
+}
+
+fn classify(req: &Request<Body>, apex_hosts: &std::collections::HashSet<String>) -> SlugIntent {
     if let Some(h) = req.headers().get("X-Tenant").and_then(|v| v.to_str().ok()) {
         let t = h.trim();
         if !t.is_empty() {
-            return Some(t.to_string());
+            return SlugIntent::Slug(t.to_string());
         }
     }
-
     if let Ok(Query(q)) = Query::<TenantQuery>::try_from_uri(req.uri()) {
         if let Some(t) = q.tenant {
             let t = t.trim();
             if !t.is_empty() {
-                return Some(t.to_string());
+                return SlugIntent::Slug(t.to_string());
             }
         }
     }
 
-    if let Some(host) = req
+    let host = req
         .headers()
         .get(axum::http::header::HOST)
         .and_then(|v| v.to_str().ok())
-    {
-        // Strip the optional ":port" suffix.
-        let host_only = host.split(':').next().unwrap_or(host);
-        // Require at least one dot beyond the first label, otherwise this is
-        // a bare hostname like `localhost` or an apex domain like
-        // `lunabet.eu` with no tenant subdomain.
-        if host_only.matches('.').count() >= 2 {
-            if let Some(first) = host_only.split('.').next() {
-                if !first.is_empty() && first != "www" {
-                    return Some(first.to_string());
-                }
+        .unwrap_or("");
+    let host_only = host.split(':').next().unwrap_or(host).to_lowercase();
+
+    if host_only.is_empty() {
+        return SlugIntent::Default;
+    }
+    if apex_hosts.contains(&host_only) {
+        return SlugIntent::Apex;
+    }
+    // Bare IPv4/IPv6 → apex (no DNS labels to extract).
+    if host_only.parse::<IpAddr>().is_ok() {
+        return SlugIntent::Apex;
+    }
+    // Two-or-more-dot host where the first label isn't "www" → tenant.
+    if host_only.matches('.').count() >= 2 {
+        if let Some(first) = host_only.split('.').next() {
+            if !first.is_empty() && first != "www" {
+                return SlugIntent::Slug(first.to_string());
             }
         }
     }
-
-    None
+    SlugIntent::Default
 }
 
-/// Resolve the tenant for the current request and stash it in the request
-/// extensions for downstream handlers to read via the `TenantCtx` extractor.
-/// When no tenant can be resolved, fall back to the registry's default tenant
-/// so that bare `localhost` and pre-DNS deployments keep working.
+/// Resolve the tenant for the current request.
+///
+/// Attaches a `Tenant` to request extensions when the request targets one
+/// (subdomain, header, query, or single-tenant fallback). When the request
+/// targets the platform apex (the marketing host) no tenant is attached, and
+/// downstream handlers must use the `MaybeTenant` extractor (or the
+/// `TenantCtx` extractor will redirect to `/`).
 pub async fn resolve_tenant(
     State(state): State<AppState>,
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
-    let slug = extract_slug(&req);
-    let tenant = match slug {
-        Some(s) => state
-            .tenants
-            .resolve(&s)
-            .await
-            .unwrap_or_else(|| state.tenants.default_tenant().clone()),
-        None => state.tenants.default_tenant().clone(),
+    let intent = classify(&req, &state.cfg.apex_hosts);
+    let tenant = match intent {
+        SlugIntent::Apex => None,
+        SlugIntent::Default => Some(state.tenants.default_tenant().clone()),
+        SlugIntent::Slug(s) => Some(
+            state
+                .tenants
+                .resolve(&s)
+                .await
+                .unwrap_or_else(|| state.tenants.default_tenant().clone()),
+        ),
     };
-    req.extensions_mut().insert(tenant);
+    if let Some(t) = tenant {
+        req.extensions_mut().insert(t);
+    }
     next.run(req).await
 }

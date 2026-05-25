@@ -4,8 +4,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use chrono::{DateTime, Utc};
 use regex::Regex;
 use sqlx::PgPool;
@@ -235,11 +234,8 @@ impl TenantRegistry {
 }
 
 /// Axum extractor that yields the tenant the current request is scoped to.
-/// The tenant resolution middleware (`resolve_tenant_middleware`) is
-/// responsible for inserting a `Tenant` into request extensions; if it didn't
-/// run we treat that as a server-side bug and return a 500 rather than
-/// silently falling back to the default tenant (which would risk leaking data
-/// across tenants).
+/// On apex / marketing requests no tenant is attached, so this extractor
+/// redirects to `/` instead of leaking data from a default tenant.
 #[derive(Clone)]
 pub struct TenantCtx(pub Tenant);
 
@@ -256,12 +252,49 @@ where
             .get::<Tenant>()
             .cloned()
             .map(TenantCtx)
-            .ok_or_else(|| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "tenant resolution middleware did not run",
-                )
-                    .into_response()
-            })
+            .ok_or_else(|| Redirect::to("/").into_response())
+    }
+}
+
+/// Same as `TenantCtx` but tolerant of apex requests: returns `None` when
+/// no tenant is attached. Use on routes that legitimately work both on the
+/// marketing apex and inside a tenant (the home page, signup).
+pub struct MaybeTenant(pub Option<Tenant>);
+
+#[axum::async_trait]
+impl<S> FromRequestParts<S> for MaybeTenant
+where
+    S: Send + Sync,
+{
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        Ok(MaybeTenant(parts.extensions.get::<Tenant>().cloned()))
+    }
+}
+
+impl Tenant {
+    /// Synthetic "tenant" representing the LunaBet platform itself. Used as
+    /// branding context for pages served from the apex (marketing, signup)
+    /// so templates that expect a `tenant` reference can render without a
+    /// real DB row.
+    pub fn platform() -> Self {
+        use regex::Regex;
+        Tenant {
+            id: Uuid::nil(),
+            slug: "_platform".into(),
+            name: "LunaBet".into(),
+            // Match-nothing regex: no one signs up "as the platform".
+            allowed_email_pattern: Arc::new(Regex::new("^$").unwrap()),
+            logo_url: None,
+            primary_color: "#1d3557".into(),
+            accent_color: "#c8232c".into(),
+            football_competition: "WC".into(),
+            stake_deadline: DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
+            reminder_lead_minutes: 0,
+            slack_webhook_url: None,
+            mail_from: "noreply@lunabet.eu".into(),
+            admin_emails: HashSet::new(),
+        }
     }
 }

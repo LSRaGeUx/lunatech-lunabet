@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="{{ loc.code() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LunaBet — {{ loc.f("Pronos foot d'entreprise", "Office football predictions") }}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+    <link rel="stylesheet" href="/static/style.css">
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.161.0/build/three.module.js"
+      }
+    }
+    </script>
+    <script type="module" src="/static/ball.js"></script>
+</head>
+<body>
+    <header class="topbar">
+        <a href="/" class="brand">
+            <canvas class="ball3d ball-mini" width="80" height="80" aria-hidden="true"></canvas>
+            <span class="brand-name">LunaBet</span>
+        </a>
+        <nav>
+            <a href="/signup">{{ loc.f("Créer un espace", "Create a space") }}</a>
+            <span class="lang-switch">
+                <a href="/lang/fr" class="lang-link{% if loc.code() == "fr" %} active{% endif %}">FR</a>
+                <span class="lang-sep">|</span>
+                <a href="/lang/en" class="lang-link{% if loc.code() == "en" %} active{% endif %}">EN</a>
+            </span>
+        </nav>
+    </header>
+    <div class="pitch-stripe" aria-hidden="true"></div>
+
+    <main>
+        <section class="hero">
+            <img class="manga-burst" src="/static/manga-burst.svg" alt="" aria-hidden="true">
+            <div class="ball-wrap">
+                <canvas class="ball3d ball-hero" width="320" height="320" aria-hidden="true"></canvas>
+            </div>
+            <h1>LunaBet</h1>
+            <p style="font-size: 1.25rem;">
+                {{ loc.f(
+                    "Les pronos foot d'entreprise — sans la galère.",
+                    "Office football predictions — without the hassle."
+                ) }}
+            </p>
+            <p style="font-style: italic; opacity: 0.75; margin-top: 0.3rem;">
+                {{ loc.f(
+                    "« Le ballon est ton ami. » — Olivier Atton",
+                    "« The ball is your friend. » — Tsubasa Ozora"
+                ) }}
+            </p>
+            <p style="margin-top: 1.5rem;">
+                <a class="btn" href="/signup">{{ loc.f("Créer mon espace", "Create my space") }}</a>
+            </p>
+            <span class="rolling-ball" aria-hidden="true">⚽</span>
+        </section>
+
+        <section style="margin-top: 2.5rem;">
+            <h2 style="text-align:center;">{{ loc.f("Comment ça marche", "How it works") }}</h2>
+            <div class="how-grid">
+                <article class="how-step">
+                    <span class="how-num">1</span>
+                    <h3>{{ loc.f("Crée ton espace", "Claim your space") }}</h3>
+                    <p>{{ loc.f(
+                        "Choisis un slug, confirme par email. Ton équipe te rejoint via le domaine de votre boîte mail.",
+                        "Pick a slug, confirm by email. Your team joins through your work email domain."
+                    ) }}</p>
+                </article>
+                <article class="how-step">
+                    <span class="how-num">2</span>
+                    <h3>{{ loc.f("Score exact pour 3 points", "Exact score for 3 pts") }}</h3>
+                    <p>{{ loc.f(
+                        "Un seul format de pari : le score exact. 3 pts si tu trouves pile, 1 pt pour le bon vainqueur, 0 sinon.",
+                        "Single bet type: the exact score. 3 pts if you nail it, 1 pt for the right winner, 0 otherwise."
+                    ) }}</p>
+                </article>
+                <article class="how-step">
+                    <span class="how-num">3</span>
+                    <h3>{{ loc.f("Pot partagé", "Shared pot") }}</h3>
+                    <p>{{ loc.f(
+                        "Mise 2 / 5 / 10 €. Le top 3 du classement se partage le pot, pondéré par la mise.",
+                        "Stake 2 / 5 / 10 €. The top 3 split the pot, weighted by stake."
+                    ) }}</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="how-features">
+            <h2 style="text-align:center;">{{ loc.f("Ce que tu obtiens", "What you get") }}</h2>
+            <ul>
+                <li>⚽ {{ loc.f("Sync automatique des matches via football-data.org", "Automatic match sync via football-data.org") }}</li>
+                <li>📧 {{ loc.f("Connexion par magic link, pas de mot de passe", "Magic-link sign-in, no passwords") }}</li>
+                <li>🐯 {{ loc.f("Rappels par email avant chaque coup d'envoi", "Email reminders before kick-off") }}</li>
+                <li>💬 {{ loc.f("Notifications Slack optionnelles", "Optional Slack notifications") }}</li>
+                <li>🎨 {{ loc.f("Brandé à tes couleurs et ton logo", "Themed to your colours and your logo") }}</li>
+                <li>🇫🇷 {{ loc.f("Bilingue FR / EN", "Bilingual FR / EN") }}</li>
+            </ul>
+        </section>
+
+        <section style="margin-top: 3rem; text-align: center;">
+            <p style="font-size: 1.1rem;">
+                {{ loc.f(
+                    "Prêt à mettre la Newteam au défi ?",
+                    "Ready to challenge the Newteam?"
+                ) }}
+            </p>
+            <p>
+                <a class="btn" href="/signup">{{ loc.f("Créer mon espace", "Create my space") }} →</a>
+            </p>
+        </section>
+    </main>
+
+    <footer class="pitch-footer">
+        <div class="pitch-circle" aria-hidden="true"></div>
+        <div class="pitch-line" aria-hidden="true"></div>
+        <small>LunaBet · {{ loc.f("Pronos foot d'entreprise", "Office football predictions") }}</small>
+    </footer>
+
+    <style>
+        .how-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .how-step {
+            background: var(--paper-light);
+            border: 2px solid var(--ink);
+            border-radius: 8px;
+            padding: 1.2rem 1.4rem;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+        .how-step h3 {
+            margin: 0.5rem 0 0.4rem;
+            font-family: "Bebas Neue", sans-serif;
+            color: var(--navy);
+            letter-spacing: 0.04em;
+        }
+        .how-step p { margin: 0; }
+        .how-num {
+            display: inline-block;
+            background: var(--red);
+            color: var(--paper-light);
+            font-family: "Bebas Neue", sans-serif;
+            font-size: 1.4rem;
+            width: 2rem; height: 2rem;
+            line-height: 2rem;
+            border-radius: 50%;
+            text-align: center;
+            border: 2px solid var(--ink);
+            box-shadow: 2px 2px 0 var(--ink);
+        }
+        .how-features {
+            background: var(--paper);
+            border: 2px solid var(--ink);
+            border-radius: 8px;
+            padding: 1.5rem 1.8rem;
+            margin: 2.5rem 0;
+        }
+        .how-features ul {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 0.5rem 1.4rem;
+        }
+        .how-features li {
+            padding: 0.4rem 0;
+            font-size: 1rem;
+        }
+    </style>
+</body>
+</html>
