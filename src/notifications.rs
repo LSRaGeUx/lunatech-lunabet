@@ -55,6 +55,8 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
         return Ok(());
     }
 
+    let tenant_url = tenant.public_url(&state.cfg);
+
     for (match_id, home, away, kickoff, stage, group) in matches {
         tracing::info!(
             tenant = %tenant.slug,
@@ -88,7 +90,7 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
                 &home,
                 &away,
                 &kickoff_local,
-                &state.cfg.base_url,
+                &tenant_url,
             )
             .await
             {
@@ -119,7 +121,7 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
             let text = format!(
                 ":soccer: *{home}* vs *{away}*{context_line} commence à {kickoff_local} (dans <{lead_min} min).\nPariez maintenant : {base}/matches",
                 lead_min = tenant.reminder_lead_minutes,
-                base = state.cfg.base_url.trim_end_matches('/'),
+                base = tenant_url,
             );
             let payload = json!({ "text": text });
             match state.http.post(webhook).json(&payload).send().await {

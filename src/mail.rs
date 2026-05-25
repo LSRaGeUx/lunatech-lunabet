@@ -43,13 +43,14 @@ pub async fn send_magic_link(
     cfg: &Config,
     tenant: &Tenant,
     loc: Locale,
+    base_url: &str,
     to: &str,
     link: &str,
 ) -> anyhow::Result<()> {
     let logo_url = match tenant.logo_url.as_deref() {
         Some(u) if u.starts_with("http") => u.to_string(),
-        Some(rel) => format!("{}{}", cfg.base_url.trim_end_matches('/'), rel),
-        None => format!("{}/static/lunatech-logo.svg", cfg.base_url.trim_end_matches('/')),
+        Some(rel) => format!("{}{}", base_url.trim_end_matches('/'), rel),
+        None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
     };
     let html = MagicLinkHtml { loc, tenant, link, logo_url: &logo_url }.render()?;
 
@@ -126,12 +127,13 @@ pub async fn send_signup_verification(
     cfg: &Config,
     tenant: &Tenant,
     loc: Locale,
+    base_url: &str,
     to: &str,
     owner_name: &str,
     new_tenant_name: &str,
     link: &str,
 ) -> anyhow::Result<()> {
-    let logo_url = format!("{}/static/lunatech-logo.svg", cfg.base_url.trim_end_matches('/'));
+    let logo_url = format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/'));
     let html = SignupVerificationHtml {
         loc,
         tenant,

@@ -139,6 +139,27 @@ impl Tenant {
     pub fn logo_url_or_default(&self) -> &str {
         self.logo_url.as_deref().unwrap_or("/static/lunatech-logo.svg")
     }
+
+    /// Absolute base URL where this tenant's pages live (no trailing slash).
+    /// Used to build magic-link callback URLs, email logo URLs, Slack
+    /// message links, etc.
+    ///
+    /// - When `PLATFORM_URL` is set (multi-tenant DNS mode), tenant URLs are
+    ///   derived as `https://{slug}.{apex_host}`.
+    /// - Otherwise (single-tenant / pre-DNS deployments), falls back to
+    ///   `BASE_URL`, which then holds the deployment's single URL.
+    pub fn public_url(&self, cfg: &crate::config::Config) -> String {
+        if let Some(platform) = cfg.platform_url.as_deref() {
+            let trimmed = platform.trim_end_matches('/');
+            if let Some(rest) = trimmed.strip_prefix("https://") {
+                return format!("https://{}.{}", self.slug, rest);
+            }
+            if let Some(rest) = trimmed.strip_prefix("http://") {
+                return format!("http://{}.{}", self.slug, rest);
+            }
+        }
+        cfg.base_url.trim_end_matches('/').to_string()
+    }
 }
 
 /// Load every tenant row in creation order. Used by background jobs that fan

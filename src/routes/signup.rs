@@ -196,16 +196,22 @@ pub async fn submit(
     .execute(&state.pool)
     .await?;
 
-    let link = format!(
-        "{}/signup/verify?token={}",
-        state.cfg.base_url.trim_end_matches('/'),
-        token
-    );
+    // Signup is platform-level: the verify link must land on the apex
+    // (where /signup/verify lives) so the new owner ends up on the right
+    // host. Fall back to BASE_URL in single-tenant / pre-DNS mode.
+    let platform = state
+        .cfg
+        .platform_url
+        .clone()
+        .unwrap_or_else(|| state.cfg.base_url.clone());
+    let platform = platform.trim_end_matches('/').to_string();
+    let link = format!("{}/signup/verify?token={}", platform, token);
 
     if let Err(e) = mail::send_signup_verification(
         &state.cfg,
         &tenant,
         loc,
+        &platform,
         &owner_email,
         &owner_name,
         &name,
@@ -326,15 +332,43 @@ pub async fn verify(
 
     tx.commit().await?;
 
-    let cookie = Cookie::build((SESSION_COOKIE, session_id.to_string()))
+    let mut builder = Cookie::build((SESSION_COOKIE, session_id.to_string()))
         .path("/")
         .http_only(true)
         .same_site(SameSite::Lax)
-        .max_age(time::Duration::days(SESSION_TTL_DAYS))
-        .build();
-    let jar = jar.add(cookie);
+        .max_age(time::Duration::days(SESSION_TTL_DAYS));
+    if let Some(domain) = state.cfg.cookie_domain() {
+        // Multi-tenant DNS mode: the cookie was set on the apex (where
+        // /signup/verify lives) but the new owner is about to be redirected
+        // to their tenant subdomain. Domain={apex} lets the cookie travel.
+        builder = builder.domain(domain);
+    }
+    let jar = jar.add(builder.build());
 
-    Ok((jar, Redirect::to("/matches")).into_response())
+    // Build a synthetic Tenant just enough to compute the public URL of
+    // the freshly created subdomain.
+    let new_tenant_url = if state.cfg.platform_url.is_some() {
+        let synthetic = Tenant {
+            id: tenant_id,
+            slug: slug.clone(),
+            name: name.clone(),
+            allowed_email_pattern: std::sync::Arc::new(regex::Regex::new("^$").unwrap()),
+            logo_url: None,
+            primary_color: String::new(),
+            accent_color: String::new(),
+            football_competition: String::new(),
+            stake_deadline: Utc::now(),
+            reminder_lead_minutes: 0,
+            slack_webhook_url: None,
+            mail_from: String::new(),
+            admin_emails: Default::default(),
+        };
+        format!("{}/matches", synthetic.public_url(&state.cfg))
+    } else {
+        "/matches".to_string()
+    };
+
+    Ok((jar, Redirect::to(&new_tenant_url)).into_response())
 }
 
 fn hex_sha256(input: &str) -> String {

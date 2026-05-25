@@ -46,6 +46,26 @@ pub struct Config {
 }
 
 impl Config {
+    /// Cookie `Domain` attribute to use for session cookies. In multi-tenant
+    /// mode (PLATFORM_URL set), this returns the apex host so the same
+    /// session cookie is sent across all `*.apex` subdomains. In
+    /// single-tenant mode, returns `None` and the browser scopes cookies
+    /// to the exact request host.
+    pub fn cookie_domain(&self) -> Option<String> {
+        let url = self.platform_url.as_deref()?;
+        let s = url.trim_end_matches('/');
+        let s = s
+            .strip_prefix("https://")
+            .or_else(|| s.strip_prefix("http://"))
+            .unwrap_or(s);
+        let host = s.split(':').next().unwrap_or(s);
+        if host.is_empty() {
+            None
+        } else {
+            Some(host.to_string())
+        }
+    }
+
     pub fn from_env() -> anyhow::Result<Self> {
         let database_url = env::var("DATABASE_URL").context("DATABASE_URL is required")?;
         let bind_addr = env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".into());

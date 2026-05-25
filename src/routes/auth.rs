@@ -95,9 +95,10 @@ pub async fn request_magic_link(
     .execute(&state.pool)
     .await?;
 
-    let link = format!("{}/auth/callback?token={}", state.cfg.base_url.trim_end_matches('/'), token);
+    let tenant_url = tenant.public_url(&state.cfg);
+    let link = format!("{}/auth/callback?token={}", tenant_url, token);
 
-    if let Err(e) = mail::send_magic_link(&state.cfg, &tenant, loc, &email, &link).await {
+    if let Err(e) = mail::send_magic_link(&state.cfg, &tenant, loc, &tenant_url, &email, &link).await {
         tracing::warn!("could not send magic link email to {email}: {e:#}");
         tracing::info!("DEV magic link for {email}: {link}");
     }
@@ -190,13 +191,15 @@ pub async fn callback(
     .execute(&state.pool)
     .await?;
 
-    let cookie = Cookie::build((SESSION_COOKIE, session_id.to_string()))
+    let mut builder = Cookie::build((SESSION_COOKIE, session_id.to_string()))
         .path("/")
         .http_only(true)
         .same_site(SameSite::Lax)
-        .max_age(time::Duration::days(SESSION_TTL_DAYS))
-        .build();
-    let jar = jar.add(cookie);
+        .max_age(time::Duration::days(SESSION_TTL_DAYS));
+    if let Some(domain) = state.cfg.cookie_domain() {
+        builder = builder.domain(domain);
+    }
+    let jar = jar.add(builder.build());
 
     Ok((jar, Redirect::to("/matches")).into_response())
 }

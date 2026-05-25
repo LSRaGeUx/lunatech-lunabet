@@ -114,13 +114,15 @@ pub async fn login_as(
     .execute(&state.pool)
     .await?;
 
-    let cookie = Cookie::build((SESSION_COOKIE, session_id.to_string()))
+    let mut builder = Cookie::build((SESSION_COOKIE, session_id.to_string()))
         .path("/")
         .http_only(true)
         .same_site(SameSite::Lax)
-        .max_age(time::Duration::days(SESSION_TTL_DAYS))
-        .build();
-    let jar = jar.add(cookie);
+        .max_age(time::Duration::days(SESSION_TTL_DAYS));
+    if let Some(domain) = state.cfg.cookie_domain() {
+        builder = builder.domain(domain);
+    }
+    let jar = jar.add(builder.build());
 
     Ok((jar, Redirect::to("/matches")).into_response())
 }
