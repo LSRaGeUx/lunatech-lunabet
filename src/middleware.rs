@@ -8,6 +8,7 @@ use axum::response::Response;
 use serde::Deserialize;
 
 use crate::state::AppState;
+use crate::tenant::UnknownSlug;
 
 #[derive(Debug, Deserialize)]
 struct TenantQuery {
@@ -85,19 +86,23 @@ pub async fn resolve_tenant(
     next: Next,
 ) -> Response {
     let intent = classify(&req, &state.cfg.apex_hosts);
-    let tenant = match intent {
-        SlugIntent::Apex => None,
-        SlugIntent::Default => Some(state.tenants.default_tenant().clone()),
-        SlugIntent::Slug(s) => Some(
-            state
-                .tenants
-                .resolve(&s)
-                .await
-                .unwrap_or_else(|| state.tenants.default_tenant().clone()),
-        ),
-    };
-    if let Some(t) = tenant {
-        req.extensions_mut().insert(t);
+    match intent {
+        SlugIntent::Apex => {
+            // No tenant attached: handlers using MaybeTenant render the
+            // platform marketing pages, TenantCtx redirects to "/".
+        }
+        SlugIntent::Default => {
+            req.extensions_mut()
+                .insert(state.tenants.default_tenant().clone());
+        }
+        SlugIntent::Slug(s) => match state.tenants.resolve(&s).await {
+            Some(t) => {
+                req.extensions_mut().insert(t);
+            }
+            None => {
+                req.extensions_mut().insert(UnknownSlug(s));
+            }
+        },
     }
     next.run(req).await
 }

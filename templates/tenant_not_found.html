@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="{{ loc.code() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ loc.f("Espace introuvable", "Space not found") }} — LunaBet</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="topbar">
+        <a href="/" class="brand">
+            <span class="brand-name">LunaBet</span>
+        </a>
+        <nav>
+            <span class="lang-switch">
+                <a href="/lang/fr" class="lang-link{% if loc.code() == "fr" %} active{% endif %}">FR</a>
+                <span class="lang-sep">|</span>
+                <a href="/lang/en" class="lang-link{% if loc.code() == "en" %} active{% endif %}">EN</a>
+            </span>
+        </nav>
+    </header>
+    <div class="pitch-stripe" aria-hidden="true"></div>
+
+    <main>
+        <section class="card">
+            <h1 style="color: var(--red);">
+                {{ loc.f("Espace introuvable", "Space not found") }}
+            </h1>
+            <p style="font-size: 1.1rem;">
+                {{ loc.f(
+                    "Aucun espace LunaBet n'existe pour le slug",
+                    "There's no LunaBet space at the slug"
+                ) }}
+                <code>{{ slug }}</code>.
+            </p>
+            <p>
+                {{ loc.f(
+                    "Tu peux le créer maintenant — tu deviens admin et tu invites tes collègues via leur email pro.",
+                    "You can create it now — you become the admin and invite your colleagues via their work email."
+                ) }}
+            </p>
+
+            <form method="post" action="{{ signup_action }}" class="signup-form">
+                <input type="hidden" name="slug" value="{{ slug }}">
+                <p style="margin: 0.6rem 0 0; font-weight: 700;">
+                    {{ loc.f("Slug réservé", "Reserved slug") }} : <code>{{ slug }}</code>
+                </p>
+                <label>
+                    {{ loc.f("Nom affiché", "Display name") }}
+                    <input type="text" name="name" required maxlength="80" placeholder="ACME Corp">
+                </label>
+                <label>
+                    {{ loc.f("Ton nom", "Your name") }}
+                    <input type="text" name="owner_name" required maxlength="80" placeholder="Alice Dupont">
+                </label>
+                <label>
+                    {{ loc.f("Ton email pro", "Your work email") }}
+                    <input type="email" name="owner_email" required maxlength="120" placeholder="alice@acme.com">
+                    <small>{{ loc.f(
+                        "Tes collègues devront avoir un email du même domaine pour rejoindre.",
+                        "Your colleagues will need an email on the same domain to join."
+                    ) }}</small>
+                </label>
+                <button class="btn" type="submit">
+                    {{ loc.f("Créer cet espace", "Create this space") }}
+                </button>
+            </form>
+
+            <p style="margin-top: 1.5rem; font-size: 0.95rem; color: var(--ink-soft);">
+                <a href="/">{{ loc.f("← Retour à l'accueil", "← Back to home") }}</a>
+            </p>
+        </section>
+    </main>
+
+    <style>
+        .signup-form { display: grid; gap: 1rem; margin-top: 1.2rem; max-width: 480px; }
+        .signup-form label { display: flex; flex-direction: column; gap: 0.3rem; font-weight: 700; color: var(--navy); }
+        .signup-form input[type=text], .signup-form input[type=email] {
+            font: inherit; padding: 0.55rem; border: 2px solid var(--ink); border-radius: 4px; background: var(--paper);
+        }
+        .signup-form small { font-weight: 400; color: var(--ink-soft); }
+        .signup-form code { background: var(--paper-dark); padding: 0 0.3rem; border-radius: 3px; }
+    </style>
+</body>
+</html>

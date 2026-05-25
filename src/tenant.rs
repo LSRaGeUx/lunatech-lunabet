@@ -285,6 +285,14 @@ where
     }
 }
 
+/// Sentinel inserted into request extensions when the request targets a
+/// tenant subdomain (or `X-Tenant` / `?tenant=`) that doesn't match any row.
+/// Distinct from "no tenant intended at all" (apex) so we can show a "this
+/// space doesn't exist yet, create it?" page instead of silently falling
+/// back to the default tenant or to the marketing landing.
+#[derive(Clone)]
+pub struct UnknownSlug(pub String);
+
 /// Same as `TenantCtx` but tolerant of apex requests: returns `None` when
 /// no tenant is attached. Use on routes that legitimately work both on the
 /// marketing apex and inside a tenant (the home page, signup).
@@ -299,6 +307,25 @@ where
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         Ok(MaybeTenant(parts.extensions.get::<Tenant>().cloned()))
+    }
+}
+
+pub struct MaybeUnknownSlug(pub Option<String>);
+
+#[axum::async_trait]
+impl<S> FromRequestParts<S> for MaybeUnknownSlug
+where
+    S: Send + Sync,
+{
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        Ok(MaybeUnknownSlug(
+            parts
+                .extensions
+                .get::<UnknownSlug>()
+                .map(|u| u.0.clone()),
+        ))
     }
 }
 
