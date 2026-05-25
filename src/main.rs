@@ -39,6 +39,19 @@ async fn main() -> anyhow::Result<()> {
 
     let pool = PgPoolOptions::new()
         .max_connections(8)
+        // RLS is installed in migration 0007 with a bypass switch. Until
+        // request handlers are refactored to open a per-request transaction
+        // that sets `app.current_tenant_id`, every new connection starts in
+        // bypass mode so the policies pass through. Removing this hook is
+        // the "flip the switch" step for full enforcement.
+        .after_connect(|conn, _meta| {
+            Box::pin(async move {
+                sqlx::query("SELECT set_config('app.bypass_rls', 'on', false)")
+                    .execute(&mut *conn)
+                    .await?;
+                Ok(())
+            })
+        })
         .connect(&cfg.database_url)
         .await
         .context("connecting to Postgres")?;
