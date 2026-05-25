@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Tenants - LunaBet{% endblock %}
+{% block nav %}
+    <span class="user">{{ user_name }} · super-admin</span>
+    <a href="/matches">{{ loc.f("Matches", "Matches") }}</a>
+    <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
+    <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
+{% endblock %}
+{% block content %}
+<h1>{{ loc.f("Tenants", "Tenants") }}</h1>
+
+<p>
+    <a class="btn" href="/admin/tenants/new">{{ loc.f("Nouveau tenant", "New tenant") }}</a>
+</p>
+
+<table class="leaderboard">
+    <thead>
+        <tr>
+            <th>{{ loc.f("Slug", "Slug") }}</th>
+            <th>{{ loc.f("Nom", "Name") }}</th>
+            <th>{{ loc.f("Couleurs", "Colors") }}</th>
+            <th>{{ loc.f("Compétition", "Competition") }}</th>
+            <th>{{ loc.f("Deadline", "Deadline") }}</th>
+            <th>{{ loc.f("Users", "Users") }}</th>
+            <th>{{ loc.f("Paris", "Bets") }}</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in tenants %}
+        <tr>
+            <td><code>{{ t.slug }}</code></td>
+            <td>{{ t.name }}</td>
+            <td>
+                <span style="display:inline-block; width:14px; height:14px; background:{{ t.primary_color }}; border:1px solid var(--ink); vertical-align: middle;"></span>
+                <span style="display:inline-block; width:14px; height:14px; background:{{ t.accent_color }}; border:1px solid var(--ink); vertical-align: middle;"></span>
+            </td>
+            <td>{{ t.football_competition }}</td>
+            <td>{{ t.stake_deadline.format("%Y-%m-%d %H:%M") }}</td>
+            <td>{{ t.user_count }}</td>
+            <td>{{ t.bet_count }}</td>
+            <td>
+                <a href="/admin/tenants/{{ t.slug }}/edit">{{ loc.f("Éditer", "Edit") }}</a>
+                {% if t.user_count == 0 %}
+                · <form method="post" action="/admin/tenants/{{ t.slug }}/delete" class="inline" onsubmit="return confirm('Delete {{ t.slug }}?');"><button class="link" type="submit" style="color: var(--red);">{{ loc.f("Supprimer", "Delete") }}</button></form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

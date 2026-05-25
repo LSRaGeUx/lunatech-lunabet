@@ -209,6 +209,13 @@ impl TenantRegistry {
         &self.default
     }
 
+    /// Drop a slug from the in-memory cache so the next request re-fetches
+    /// from the database. Call this after admin writes (create/update) so
+    /// edits show up immediately without restarting the server.
+    pub async fn invalidate(&self, slug: &str) {
+        self.cache.write().await.remove(slug);
+    }
+
     pub async fn resolve(&self, slug: &str) -> Option<Tenant> {
         if let Some(t) = self.cache.read().await.get(slug) {
             return Some(t.clone());

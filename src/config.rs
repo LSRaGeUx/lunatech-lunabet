@@ -29,6 +29,10 @@ pub struct Config {
     pub stake_deadline: DateTime<Utc>,
     pub default_tenant_slug: String,
     pub default_tenant_name: String,
+    /// Cross-tenant super-admins (typically the platform operators). These
+    /// emails get access to `/admin/tenants` regardless of which tenant they
+    /// happen to be signed into.
+    pub super_admin_emails: HashSet<String>,
 }
 
 impl Config {
@@ -120,6 +124,19 @@ impl Config {
         let default_tenant_name =
             env::var("DEFAULT_TENANT_NAME").unwrap_or_else(|_| "Lunatech".into());
 
+        let super_admin_emails: HashSet<String> = env::var("SUPER_ADMIN_EMAILS")
+            .unwrap_or_default()
+            .split(',')
+            .filter_map(|s| {
+                let t = s.trim().to_lowercase();
+                if t.is_empty() {
+                    None
+                } else {
+                    Some(t)
+                }
+            })
+            .collect();
+
         Ok(Self {
             database_url,
             bind_addr,
@@ -141,6 +158,7 @@ impl Config {
             stake_deadline,
             default_tenant_slug,
             default_tenant_name,
+            super_admin_emails,
         })
     }
 }

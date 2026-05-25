@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}{% match editing %}{% when Some with (s) %}{{ s }}{% when None %}{{ loc.f("Nouveau tenant", "New tenant") }}{% endmatch %} - LunaBet{% endblock %}
+{% block nav %}
+    <span class="user">{{ user_name }} · super-admin</span>
+    <a href="/admin/tenants">{{ loc.f("Tenants", "Tenants") }}</a>
+    <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
+{% endblock %}
+{% block content %}
+<section class="card">
+    <h1>
+        {% match editing %}
+            {% when Some with (s) %}{{ loc.f("Éditer", "Edit") }} <code>{{ s }}</code>
+            {% when None %}{{ loc.f("Nouveau tenant", "New tenant") }}
+        {% endmatch %}
+    </h1>
+
+    {% match error %}
+        {% when Some with (msg) %}<p class="error">{{ msg }}</p>
+        {% when None %}
+    {% endmatch %}
+
+    <form method="post" action="{% match editing %}{% when Some with (s) %}/admin/tenants/{{ s }}{% when None %}/admin/tenants{% endmatch %}" class="tenant-form">
+        {% match editing %}
+            {% when Some with (s) %}
+                <label>Slug <input type="text" value="{{ s }}" disabled></label>
+            {% when None %}
+                <label>Slug
+                    <input type="text" name="slug" value="{{ form.slug }}" required
+                           pattern="[a-z0-9_-]+" placeholder="acme">
+                </label>
+        {% endmatch %}
+
+        <label>{{ loc.f("Nom affiché", "Display name") }}
+            <input type="text" name="name" value="{{ form.name }}" required placeholder="ACME Corp">
+        </label>
+
+        <label>{{ loc.f("Regex domaine email autorisé", "Allowed email regex") }}
+            <input type="text" name="allowed_email_pattern" value="{{ form.allowed_email_pattern }}"
+                   required placeholder="acme\.com">
+            <small>{{ loc.f("ex. lunatech\\.com ou (.+\\.)?lunatech\\.com pour autoriser les sous-domaines.", "e.g. lunatech\\.com or (.+\\.)?lunatech\\.com to allow subdomains.") }}</small>
+        </label>
+
+        <label>{{ loc.f("Couleur primaire", "Primary color") }}
+            <input type="color" name="primary_color" value="{{ form.primary_color }}">
+        </label>
+        <label>{{ loc.f("Couleur accent", "Accent color") }}
+            <input type="color" name="accent_color" value="{{ form.accent_color }}">
+        </label>
+
+        <label>football-data.org {{ loc.f("code compétition", "competition code") }}
+            <input type="text" name="football_competition" value="{{ form.football_competition }}" required placeholder="WC">
+        </label>
+
+        <label>{{ loc.f("Date limite de mise (UTC)", "Stake deadline (UTC)") }}
+            <input type="datetime-local" name="stake_deadline" value="{{ form.stake_deadline }}" required>
+        </label>
+
+        <label>{{ loc.f("Délai rappel (minutes avant kick-off)", "Reminder lead (minutes before kick-off)") }}
+            <input type="number" name="reminder_lead_minutes" value="{{ form.reminder_lead_minutes }}" min="0" max="10080" required>
+        </label>
+
+        <label>{{ loc.f("Expéditeur emails (From:)", "Email sender (From:)") }}
+            <input type="text" name="mail_from" value="{{ form.mail_from }}" required placeholder="lunabet@acme.com">
+        </label>
+
+        <label>{{ loc.f("Admins (emails séparés par virgule)", "Admins (comma-separated emails)") }}
+            <textarea name="admin_emails" rows="2" placeholder="alice@acme.com, bob@acme.com">{{ form.admin_emails }}</textarea>
+        </label>
+
+        <label>{{ loc.f("URL du logo (optionnel)", "Logo URL (optional)") }}
+            <input type="text" name="logo_url" value="{{ form.logo_url }}" placeholder="/static/lunatech-logo.svg">
+        </label>
+
+        <label>Slack webhook {{ loc.f("(optionnel)", "(optional)") }}
+            <input type="text" name="slack_webhook_url" value="{{ form.slack_webhook_url }}" placeholder="https://hooks.slack.com/...">
+        </label>
+
+        <button class="btn" type="submit">
+            {% match editing %}
+                {% when Some with (_) %}{{ loc.f("Enregistrer", "Save") }}
+                {% when None %}{{ loc.f("Créer", "Create") }}
+            {% endmatch %}
+        </button>
+        <a href="/admin/tenants" style="margin-left: 0.8rem;">{{ loc.f("Annuler", "Cancel") }}</a>
+    </form>
+</section>
+
+<style>
+    .tenant-form { display: grid; gap: 1rem; max-width: 560px; }
+    .tenant-form label { display: flex; flex-direction: column; gap: 0.25rem; font-weight: 700; color: var(--navy); }
+    .tenant-form input[type=text], .tenant-form input[type=number], .tenant-form input[type=datetime-local], .tenant-form textarea {
+        font: inherit; padding: 0.5rem; border: 2px solid var(--ink); border-radius: 4px; background: var(--paper);
+    }
+    .tenant-form input[type=color] { width: 4rem; height: 2.2rem; border: 2px solid var(--ink); border-radius: 4px; padding: 0; }
+    .tenant-form small { font-weight: 400; color: var(--ink-soft); }
+</style>
+{% endblock %}

@@ -12,6 +12,7 @@ mod lang;
 mod leaderboard;
 mod matches;
 mod stake;
+mod super_admin;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -28,6 +29,14 @@ pub fn router() -> Router<AppState> {
         .route("/admin/stakes", get(admin::stakes_page))
         .route("/admin/stakes/:user_id/paid", post(admin::mark_paid))
         .route("/admin/stakes/:user_id/unpaid", post(admin::mark_unpaid))
+        .route(
+            "/admin/tenants",
+            get(super_admin::list).post(super_admin::create),
+        )
+        .route("/admin/tenants/new", get(super_admin::new_form))
+        .route("/admin/tenants/:slug/edit", get(super_admin::edit_form))
+        .route("/admin/tenants/:slug", post(super_admin::update))
+        .route("/admin/tenants/:slug/delete", post(super_admin::delete))
         .route("/dev", get(dev::index))
         .route("/dev/login", get(dev::login_as))
 }
