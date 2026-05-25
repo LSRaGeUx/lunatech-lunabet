@@ -327,17 +327,45 @@ h2::before {
     max-height: 110%;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -55%);
     z-index: 0;
     pointer-events: none;
-    animation: burst-spin 60s linear infinite;
+    transform-origin: 50% 50%;
+    animation:
+        burst-impact 0.8s cubic-bezier(0.18, 1.2, 0.4, 1) 0.1s both,
+        burst-spin 60s linear 0.9s infinite;
+}
+@keyframes burst-impact {
+    0%   { transform: translate(-50%, -55%) scale(0.15) rotate(-40deg); opacity: 0; }
+    55%  { opacity: 1; }
+    100% { transform: translate(-50%, -55%) scale(1)   rotate(0deg);   opacity: 1; }
 }
 @keyframes burst-spin {
     from { transform: translate(-50%, -55%) rotate(0deg); }
     to   { transform: translate(-50%, -55%) rotate(360deg); }
 }
+.hero:hover .manga-burst { animation: burst-pulse 1.6s ease-in-out infinite; }
+@keyframes burst-pulse {
+    0%, 100% { transform: translate(-50%, -55%) scale(1)    rotate(0deg);   filter: none; }
+    50%      { transform: translate(-50%, -55%) scale(1.06) rotate(8deg);   filter: drop-shadow(0 0 6px rgba(200, 35, 44, 0.35)); }
+}
 @media (prefers-reduced-motion: reduce) {
-    .hero .manga-burst { animation: none; }
+    .hero .manga-burst,
+    .hero:hover .manga-burst { animation: none; }
+}
+
+.ball-wrap canvas.ball-hero { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.hero:hover .ball-wrap canvas.ball-hero { transform: scale(1.05) rotate(-4deg); }
+
+/* mini brand ball — wobble on hover (Newteam kickoff) */
+.brand:hover .ball-mini { animation: brand-wobble 0.6s ease-in-out; }
+@keyframes brand-wobble {
+    0%, 100% { transform: rotate(0deg)   translateY(0); }
+    25%      { transform: rotate(-12deg) translateY(-3px); }
+    50%      { transform: rotate(8deg)   translateY(0); }
+    75%      { transform: rotate(-4deg)  translateY(-1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .brand:hover .ball-mini { animation: none; }
 }
 
 .ball-wrap {
@@ -869,7 +897,76 @@ canvas.goal3d {
 .tier-option:hover .tier-icon { transform: scale(1.08) rotate(-3deg); }
 .tier-option input:checked + .tier-card .tier-icon {
     color: var(--red);
-    transform: scale(1.1);
+    transform: scale(1.12);
+}
+
+/* Tracé animé : chaque technique se dessine quand on coche le palier.
+   Les paths SVG ont stroke-dasharray ≈ longueur de tracé, on anime dashoffset. */
+.tier-icon path,
+.tier-icon line,
+.tier-icon circle { transition: stroke-dashoffset 0.55s ease-out, opacity 0.3s ease-out; }
+
+/* Tier 2 — Petite passe : arc puis ball puis flèche */
+.tier-option.tier-2 .tier-icon path { stroke-dasharray: 70; stroke-dashoffset: 70; }
+.tier-option.tier-2 .tier-icon circle { opacity: 0.4; }
+.tier-option.tier-2:hover .tier-icon path,
+.tier-option.tier-2 input:checked + .tier-card .tier-icon path {
+    stroke-dashoffset: 0;
+}
+.tier-option.tier-2:hover .tier-icon circle,
+.tier-option.tier-2 input:checked + .tier-card .tier-icon circle { opacity: 1; }
+
+/* Tier 5 — Tir du tigre : 3 griffes en cascade */
+.tier-option.tier-5 .tier-icon path { stroke-dasharray: 85; stroke-dashoffset: 85; }
+.tier-option.tier-5 .tier-icon circle { opacity: 0.4; }
+.tier-option.tier-5:hover .tier-icon path:nth-of-type(1),
+.tier-option.tier-5 input:checked + .tier-card .tier-icon path:nth-of-type(1) {
+    stroke-dashoffset: 0; transition-delay: 0s;
+}
+.tier-option.tier-5:hover .tier-icon path:nth-of-type(2),
+.tier-option.tier-5 input:checked + .tier-card .tier-icon path:nth-of-type(2) {
+    stroke-dashoffset: 0; transition-delay: 0.12s;
+}
+.tier-option.tier-5:hover .tier-icon path:nth-of-type(3),
+.tier-option.tier-5 input:checked + .tier-card .tier-icon path:nth-of-type(3) {
+    stroke-dashoffset: 0; transition-delay: 0.24s;
+}
+.tier-option.tier-5:hover .tier-icon circle,
+.tier-option.tier-5 input:checked + .tier-card .tier-icon circle {
+    opacity: 1; transition-delay: 0.36s;
+}
+
+/* Tier 10 — Catapulte infernale : arcs convergent + ball pulse + impact lines */
+.tier-option.tier-10 .tier-icon path { stroke-dasharray: 70; stroke-dashoffset: 70; }
+.tier-option.tier-10 .tier-icon line { opacity: 0; }
+.tier-option.tier-10 .tier-icon circle { transform-origin: 30px 32px; transform: scale(0.4); transform-box: fill-box; opacity: 0.5; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s; }
+.tier-option.tier-10:hover .tier-icon path,
+.tier-option.tier-10 input:checked + .tier-card .tier-icon path {
+    stroke-dashoffset: 0;
+}
+.tier-option.tier-10:hover .tier-icon circle,
+.tier-option.tier-10 input:checked + .tier-card .tier-icon circle {
+    transform: scale(1); opacity: 1; transition-delay: 0.35s;
+}
+.tier-option.tier-10:hover .tier-icon line,
+.tier-option.tier-10 input:checked + .tier-card .tier-icon line {
+    opacity: 1; transition-delay: 0.5s;
+}
+.tier-option.tier-10 input:checked + .tier-card .tier-icon {
+    animation: catapulte-shake 0.5s ease-out 0.55s;
+}
+@keyframes catapulte-shake {
+    0%, 100% { transform: scale(1.12) translateX(0); }
+    25%      { transform: scale(1.14) translateX(-2px) rotate(-3deg); }
+    50%      { transform: scale(1.16) translateX(2px)  rotate(3deg); }
+    75%      { transform: scale(1.13) translateX(-1px) rotate(-1deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tier-icon path,
+    .tier-icon line,
+    .tier-icon circle { transition: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; transform: none !important; }
+    .tier-option input:checked + .tier-card .tier-icon { animation: none !important; }
 }
 
 /* --- responsive --- */

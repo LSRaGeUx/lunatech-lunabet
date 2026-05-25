@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ loc.f("Album", "Album") }} - LunaBet{% endblock %}
+{% block title %}{{ loc.f("Mes pronos", "My predictions") }} - LunaBet{% endblock %}
 {% block nav %}
     <span class="user">{{ user_name }} - {{ total_points }} pts</span>
     <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
@@ -8,7 +8,7 @@
     <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
 {% endblock %}
 {% block content %}
-<h1>{{ loc.f("Mon album de pronos", "My predictions album") }}</h1>
+<h1>{{ loc.f("Mes pronos", "My predictions") }}</h1>
 
 {% if upcoming.is_empty() %}
     <p>{{ loc.f(
