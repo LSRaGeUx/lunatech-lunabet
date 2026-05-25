@@ -12,12 +12,13 @@ use crate::models::User;
 use crate::routes::auth::AuthUser;
 use crate::stakes;
 use crate::state::AppState;
-use crate::tenant::TenantCtx;
+use crate::tenant::{Tenant, TenantCtx};
 
 #[derive(Template)]
 #[template(path = "stake.html")]
 struct StakeTpl<'a> {
     loc: Locale,
+    tenant: &'a Tenant,
     user: &'a User,
     deadline_passed: bool,
     deadline_local: String,
@@ -34,6 +35,7 @@ pub async fn page(
     let deadline_passed = Utc::now() > tenant.stake_deadline;
     let tpl = StakeTpl {
         loc,
+        tenant: &tenant,
         user: &user,
         deadline_passed,
         deadline_local: tenant.stake_deadline.format("%d/%m/%Y %H:%M UTC").to_string(),

@@ -28,16 +28,26 @@ const SESSION_TTL_DAYS: i64 = 30;
 struct LoginTpl<'a> {
     loc: Locale,
     error: Option<&'a str>,
+    tenant: &'a Tenant,
 }
 
 #[derive(Template)]
 #[template(path = "login_sent.html")]
-struct LoginSentTpl {
+struct LoginSentTpl<'a> {
     loc: Locale,
+    tenant: &'a Tenant,
 }
 
-pub async fn login_page(_state: State<AppState>, loc: Locale) -> impl IntoResponse {
-    let tpl = LoginTpl { loc, error: None };
+pub async fn login_page(
+    _state: State<AppState>,
+    TenantCtx(tenant): TenantCtx,
+    loc: Locale,
+) -> impl IntoResponse {
+    let tpl = LoginTpl {
+        loc,
+        error: None,
+        tenant: &tenant,
+    };
     Html(tpl.render().unwrap_or_else(|e| format!("template error: {e}")))
 }
 
@@ -61,9 +71,10 @@ pub async fn request_magic_link(
         let tpl = LoginTpl {
             loc,
             error: Some(loc.f(
-                "Cette app est réservée aux emails Lunatech.",
-                "This app is reserved for Lunatech emails.",
+                "Cette app est réservée à ce tenant.",
+                "This app is reserved to this tenant.",
             )),
+            tenant: &tenant,
         };
         return Ok((StatusCode::BAD_REQUEST, Html(tpl.render()?)).into_response());
     }
@@ -94,8 +105,12 @@ pub async fn request_magic_link(
     Ok(Redirect::to("/login/sent").into_response())
 }
 
-pub async fn login_sent(loc: Locale) -> impl IntoResponse {
-    Html(LoginSentTpl { loc }.render().unwrap_or_else(|e| format!("template error: {e}")))
+pub async fn login_sent(
+    TenantCtx(tenant): TenantCtx,
+    loc: Locale,
+) -> impl IntoResponse {
+    let tpl = LoginSentTpl { loc, tenant: &tenant };
+    Html(tpl.render().unwrap_or_else(|e| format!("template error: {e}")))
 }
 
 #[derive(Deserialize)]

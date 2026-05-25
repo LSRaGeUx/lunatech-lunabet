@@ -8,7 +8,7 @@
     <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
 {% endblock %}
 {% block content %}
-<h1>{{ loc.f("Classement Lunatech", "Lunatech leaderboard") }}</h1>
+<h1>{{ loc.f("Classement", "Leaderboard") }} {{ tenant.name }}</h1>
 
 <div class="goal-banner" aria-hidden="true">
     <canvas class="goal3d" width="900" height="220"></canvas>

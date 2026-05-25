@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::state::AppState;
-use crate::tenant::TenantCtx;
+use crate::tenant::{Tenant, TenantCtx};
 
 const SESSION_COOKIE: &str = "lb_session";
 const SESSION_TTL_DAYS: i64 = 30;
@@ -23,8 +23,9 @@ struct DevUser {
 
 #[derive(Template)]
 #[template(path = "dev.html")]
-struct DevTpl {
+struct DevTpl<'a> {
     loc: Locale,
+    tenant: &'a Tenant,
     users: Vec<DevUser>,
 }
 
@@ -60,7 +61,7 @@ pub async fn index(
         })
         .collect();
 
-    Ok(Html(DevTpl { loc, users }.render()?).into_response())
+    Ok(Html(DevTpl { loc, tenant: &tenant, users }.render()?).into_response())
 }
 
 #[derive(Deserialize)]

@@ -9,7 +9,7 @@ use crate::i18n::Locale;
 use crate::routes::auth::AuthUser;
 use crate::stakes;
 use crate::state::AppState;
-use crate::tenant::TenantCtx;
+use crate::tenant::{Tenant, TenantCtx};
 
 pub struct Row {
     pub rank: usize,
@@ -28,6 +28,7 @@ pub struct Row {
 #[template(path = "leaderboard.html")]
 struct LeaderboardTpl<'a> {
     loc: Locale,
+    tenant: &'a Tenant,
     user_name: &'a str,
     rows: Vec<Row>,
     pot_total_eur: i64,
@@ -69,6 +70,7 @@ pub async fn index(
 
     let tpl = LeaderboardTpl {
         loc,
+        tenant: &tenant,
         user_name: &user.display_name,
         rows,
         pot_total_eur: pot.total_eur,

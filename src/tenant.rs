@@ -133,6 +133,13 @@ impl Tenant {
     pub fn is_admin(&self, email: &str) -> bool {
         self.admin_emails.contains(&email.to_lowercase())
     }
+
+    /// Resolved logo URL for templates: the tenant's own override if set,
+    /// otherwise the bundled Lunatech logo so older deployments keep their
+    /// look unchanged.
+    pub fn logo_url_or_default(&self) -> &str {
+        self.logo_url.as_deref().unwrap_or("/static/lunatech-logo.svg")
+    }
 }
 
 /// Look up a tenant by slug. Returns `None` if the slug doesn't match any row.

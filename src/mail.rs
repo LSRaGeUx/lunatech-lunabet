@@ -12,6 +12,7 @@ use crate::tenant::Tenant;
 #[template(path = "emails/magic_link.html")]
 struct MagicLinkHtml<'a> {
     loc: Locale,
+    tenant: &'a Tenant,
     link: &'a str,
     logo_url: &'a str,
 }
@@ -19,6 +20,7 @@ struct MagicLinkHtml<'a> {
 #[derive(Template)]
 #[template(path = "emails/match_reminder.html")]
 struct MatchReminderHtml<'a> {
+    tenant: &'a Tenant,
     home: &'a str,
     away: &'a str,
     kickoff_local: &'a str,
@@ -33,19 +35,23 @@ pub async fn send_magic_link(
     to: &str,
     link: &str,
 ) -> anyhow::Result<()> {
-    let logo_url = format!("{}/static/lunatech-logo.svg", cfg.base_url.trim_end_matches('/'));
-    let html = MagicLinkHtml { loc, link, logo_url: &logo_url }.render()?;
+    let logo_url = match tenant.logo_url.as_deref() {
+        Some(u) if u.starts_with("http") => u.to_string(),
+        Some(rel) => format!("{}{}", cfg.base_url.trim_end_matches('/'), rel),
+        None => format!("{}/static/lunatech-logo.svg", cfg.base_url.trim_end_matches('/')),
+    };
+    let html = MagicLinkHtml { loc, tenant, link, logo_url: &logo_url }.render()?;
 
     let plain = format!(
         "{salut}\n\n\
          {intro} {link}\n\n\
          {expire}\n\n\
          {ignore}\n\n\
-         — LunaBet · Lunatech\n",
+         - {brand} · LunaBet\n",
         salut = loc.f("Salut !", "Hi!"),
         intro = loc.f(
-            "Voici ton lien de connexion à LunaBet :",
-            "Here is your LunaBet sign-in link:"
+            "Voici ton lien de connexion :",
+            "Here is your sign-in link:"
         ),
         expire = loc.f(
             "Il est valable 15 minutes.",
@@ -55,13 +61,14 @@ pub async fn send_magic_link(
             "Si tu n'as pas demandé ce lien, ignore simplement cet email.",
             "If you didn't request this link, just ignore this email."
         ),
+        brand = tenant.name,
     );
 
-    let subject = loc.f(
-        "Ton lien de connexion LunaBet",
-        "Your LunaBet sign-in link",
-    );
-    send_html_email(cfg, &tenant.mail_from, to, subject, plain, html).await
+    let subject = match loc {
+        Locale::Fr => format!("Ton lien de connexion {}", tenant.name),
+        Locale::En => format!("Your {} sign-in link", tenant.name),
+    };
+    send_html_email(cfg, &tenant.mail_from, to, &subject, plain, html).await
 }
 
 pub async fn send_bet_reminder(
@@ -74,8 +81,13 @@ pub async fn send_bet_reminder(
     base_url: &str,
 ) -> anyhow::Result<()> {
     let matches_url = format!("{}/matches", base_url.trim_end_matches('/'));
-    let logo_url = format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/'));
+    let logo_url = match tenant.logo_url.as_deref() {
+        Some(u) if u.starts_with("http") => u.to_string(),
+        Some(rel) => format!("{}{}", base_url.trim_end_matches('/'), rel),
+        None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
+    };
     let html = MatchReminderHtml {
+        tenant,
         home,
         away,
         kickoff_local,
@@ -86,15 +98,16 @@ pub async fn send_bet_reminder(
 
     let plain = format!(
         "Salut ! / Hi!\n\n\
-         FR — {home} - {away} commence bientôt ({kickoff_local}) et tu n'as pas encore parié.\n\
-         EN — {home} - {away} kicks off soon ({kickoff_local}) and you haven't bet yet.\n\n\
-         FR — Va placer ton pronostic : {matches_url}\n\
-         EN — Place your prediction: {matches_url}\n\n\
+         FR - {home} - {away} commence bientôt ({kickoff_local}) et tu n'as pas encore parié.\n\
+         EN - {home} - {away} kicks off soon ({kickoff_local}) and you haven't bet yet.\n\n\
+         FR - Va placer ton pronostic : {matches_url}\n\
+         EN - Place your prediction: {matches_url}\n\n\
          Bonne chance ! / Good luck!\n\n\
-         — LunaBet · Lunatech\n"
+         - {brand} · LunaBet\n",
+        brand = tenant.name,
     );
 
-    let subject = format!("⚽ {home} - {away} - LunaBet");
+    let subject = format!("⚽ {home} - {away} - {}", tenant.name);
     send_html_email(cfg, &tenant.mail_from, to, &subject, plain, html).await
 }
 

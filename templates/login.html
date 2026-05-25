@@ -4,23 +4,17 @@
 <section class="card">
     <h1>{{ loc.f("Connexion", "Sign in") }}</h1>
     <p style="font-style: italic; opacity: 0.75; margin-top: -0.4rem;">
-        {{ loc.f(
-            "Rejoins la Newteam Lunatech.",
-            "Join the Lunatech Newteam."
-        ) }}
+        {{ loc.f("Rejoins la Newteam", "Join the") }} {{ tenant.name }}{{ loc.f("", " Newteam") }}.
     </p>
     <p>
-        {{ loc.f(
-            "Entre ton email Lunatech. Tu recevras un lien de connexion par email.",
-            "Enter your Lunatech email. You'll receive a magic link by email."
-        ) }}
+        {{ loc.f("Entre ton email", "Enter your") }} {{ tenant.name }}. {{ loc.f("Tu recevras un lien de connexion par email.", "You'll receive a magic link by email.") }}
     </p>
     {% match error %}
         {% when Some with (msg) %}<p class="error">{{ msg }}</p>
         {% when None %}
     {% endmatch %}
     <form method="post" action="/login">
-        <label for="email">{{ loc.f("Email Lunatech", "Lunatech email") }}</label>
+        <label for="email">{{ loc.f("Email", "Email") }} {{ tenant.name }}</label>
         <input id="email" name="email" type="email" required autofocus
                placeholder="prenom.nom@lunatech.com">
         <button class="btn" type="submit">{{ loc.f("Envoyer le lien", "Send link") }}</button>

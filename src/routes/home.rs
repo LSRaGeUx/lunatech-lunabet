@@ -7,12 +7,13 @@ use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::routes::auth;
 use crate::state::AppState;
-use crate::tenant::TenantCtx;
+use crate::tenant::{Tenant, TenantCtx};
 
 #[derive(Template)]
 #[template(path = "home.html")]
-struct HomeTpl {
+struct HomeTpl<'a> {
     loc: Locale,
+    tenant: &'a Tenant,
 }
 
 pub async fn index(
@@ -24,5 +25,5 @@ pub async fn index(
     if auth::current_user(&state, &tenant, &jar).await?.is_some() {
         return Ok(Redirect::to("/matches").into_response());
     }
-    Ok(Html(HomeTpl { loc }.render()?).into_response())
+    Ok(Html(HomeTpl { loc, tenant: &tenant }.render()?).into_response())
 }

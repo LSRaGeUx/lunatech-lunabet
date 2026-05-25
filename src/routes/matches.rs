@@ -8,7 +8,7 @@ use crate::i18n::Locale;
 use crate::models::Match;
 use crate::routes::auth::AuthUser;
 use crate::state::AppState;
-use crate::tenant::TenantCtx;
+use crate::tenant::{Tenant, TenantCtx};
 
 pub struct MatchView {
     pub m: Match,
@@ -23,6 +23,7 @@ pub struct MatchView {
 #[template(path = "matches.html")]
 struct MatchesTpl<'a> {
     loc: Locale,
+    tenant: &'a Tenant,
     user_name: &'a str,
     upcoming: Vec<MatchView>,
     finished: Vec<MatchView>,
@@ -91,6 +92,7 @@ pub async fn list(
 
     let tpl = MatchesTpl {
         loc,
+        tenant: &tenant,
         user_name: &user.display_name,
         upcoming,
         finished,

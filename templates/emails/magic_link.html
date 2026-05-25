@@ -19,7 +19,7 @@
                                 ★ LUNABET
                             </td>
                             <td align="right" valign="middle">
-                                <img src="{{ logo_url }}" alt="Lunatech" height="28" style="display:inline-block;height:28px;">
+                                <img src="{{ logo_url }}" alt="{{ tenant.name }}" height="28" style="display:inline-block;height:28px;">
                             </td>
                         </tr>
                     </table>
@@ -36,10 +36,9 @@
                         {{ loc.f("BIENVENUE !", "WELCOME !") }}
                     </h1>
                     <p style="font-size:16px;line-height:1.55;margin:0 0 20px;">
-                        {{ loc.f(
-                            "Voici ton lien de connexion à LunaBet. Il est valable",
-                            "Here is your sign-in link to LunaBet. It is valid for"
-                        ) }}
+                        {{ loc.f("Voici ton lien de connexion à", "Here is your sign-in link to") }}
+                        <strong>{{ tenant.name }}</strong>.
+                        {{ loc.f("Il est valable", "It is valid for") }}
                         <strong>{{ loc.f("15 minutes", "15 minutes") }}</strong>.
                     </p>
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;">
@@ -72,8 +71,8 @@
             <!-- footer pelouse + logo -->
             <tr>
                 <td style="background:#2e7d4a;padding:18px;text-align:center;color:#fff8e0;font-family:Arial,sans-serif;font-size:12px;border-top:5px solid #c79b1e;">
-                    <img src="{{ logo_url }}" alt="Lunatech" height="22" style="display:inline-block;height:22px;vertical-align:middle;margin-bottom:6px;"><br>
-                    <span style="opacity:0.9;">LunaBet · {{ loc.f("Coupe du Monde 2026", "FIFA World Cup 2026") }} · Lunatech</span>
+                    <img src="{{ logo_url }}" alt="{{ tenant.name }}" height="22" style="display:inline-block;height:22px;vertical-align:middle;margin-bottom:6px;"><br>
+                    <span style="opacity:0.9;">{{ tenant.name }} · {{ loc.f("Coupe du Monde 2026", "FIFA World Cup 2026") }} · <em>{{ loc.f("propulsé par LunaBet", "powered by LunaBet") }}</em></span>
                 </td>
             </tr>
         </table>

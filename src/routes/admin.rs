@@ -12,7 +12,7 @@ use crate::i18n::Locale;
 use crate::models::User;
 use crate::routes::auth;
 use crate::state::AppState;
-use crate::tenant::TenantCtx;
+use crate::tenant::{Tenant, TenantCtx};
 
 pub struct AdminUser(pub User);
 
@@ -47,6 +47,7 @@ pub struct StakeRow {
 #[template(path = "admin_stakes.html")]
 struct AdminStakesTpl<'a> {
     loc: Locale,
+    tenant: &'a Tenant,
     user_name: &'a str,
     pot_total_eur: i64,
     paid_count: i64,
@@ -97,6 +98,7 @@ pub async fn stakes_page(
 
     let tpl = AdminStakesTpl {
         loc,
+        tenant: &tenant,
         user_name: &admin.display_name,
         pot_total_eur: pot.total_eur,
         paid_count: pot.paid_count,
