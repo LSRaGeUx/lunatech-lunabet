@@ -16,6 +16,7 @@ mod mail;
 mod middleware;
 mod models;
 mod notifications;
+mod rate_limit;
 mod routes;
 mod scoring;
 mod stakes;
@@ -73,6 +74,9 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let signup_limiter =
+        rate_limit::SignupRateLimiter::new(std::time::Duration::from_secs(3600), 5);
+
     if std::env::args().nth(1).as_deref() == Some("notify") {
         // One-off: run the match-reminder job once and exit (for testing).
         let cookie_key = Key::from(&vec![0u8; 64]);
@@ -82,6 +86,7 @@ async fn main() -> anyhow::Result<()> {
             cfg: cfg.clone(),
             http: reqwest::Client::builder().user_agent("lunatech-betting/0.1").build()?,
             tenants: tenants.clone(),
+            signup_limiter: signup_limiter.clone(),
         };
         notifications::send_match_reminders(&state)
             .await
@@ -100,6 +105,7 @@ async fn main() -> anyhow::Result<()> {
             .user_agent("lunatech-betting/0.1")
             .build()?,
         tenants,
+        signup_limiter,
     };
 
     if cfg.football_data_api_key.is_some() {
@@ -127,6 +133,34 @@ async fn main() -> anyhow::Result<()> {
                 if let Err(e) = notifications::send_match_reminders(&s).await {
                     tracing::warn!("match reminders failed: {e:#}");
                 }
+            }
+        });
+    }
+
+    // Hourly cleanup: drop pending signups that expired more than a day ago
+    // and shrink the in-memory signup rate limiter's bucket map.
+    {
+        let s = state.clone();
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(std::time::Duration::from_secs(3600));
+            ticker.tick().await;
+            loop {
+                ticker.tick().await;
+                let res = sqlx::query(
+                    "DELETE FROM pending_tenants \
+                     WHERE consumed_at IS NULL AND expires_at < NOW() - INTERVAL '1 day'",
+                )
+                .execute(&s.pool)
+                .await;
+                match res {
+                    Ok(r) if r.rows_affected() > 0 => tracing::info!(
+                        "purged {} expired pending tenant signups",
+                        r.rows_affected()
+                    ),
+                    Ok(_) => {}
+                    Err(e) => tracing::warn!("pending_tenants cleanup failed: {e:#}"),
+                }
+                s.signup_limiter.purge_empty();
             }
         });
     }

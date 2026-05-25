@@ -3,6 +3,7 @@ use axum_extra::extract::cookie::Key;
 use sqlx::PgPool;
 
 use crate::config::Config;
+use crate::rate_limit::SignupRateLimiter;
 use crate::tenant::TenantRegistry;
 
 #[derive(Clone)]
@@ -16,6 +17,8 @@ pub struct AppState {
     /// tenant to each incoming request; background jobs use the default
     /// tenant until Phase 5 introduces per-tenant scheduling.
     pub tenants: TenantRegistry,
+    /// Anti-abuse for `POST /signup`. Clones share state via Arc.
+    pub signup_limiter: SignupRateLimiter,
 }
 
 impl FromRef<AppState> for Key {

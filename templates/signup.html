@@ -19,6 +19,14 @@
     {% endmatch %}
 
     <form method="post" action="/signup" class="signup-form">
+        <!-- Honeypot: hidden from humans, attractive to bots. Real users
+             leave it empty; submissions where it's filled get silently
+             dropped. -->
+        <div aria-hidden="true" class="honeypot">
+            <label>Website (do not fill)
+                <input type="text" name="website" tabindex="-1" autocomplete="off" value="">
+            </label>
+        </div>
         <label>
             {{ loc.f("Slug (sous-domaine)", "Slug (subdomain)") }}
             <input type="text" name="slug" value="{{ form.slug }}" required
@@ -64,5 +72,6 @@
     }
     .signup-form small { font-weight: 400; color: var(--ink-soft); }
     .signup-form code { background: var(--paper-dark); padding: 0 0.3rem; border-radius: 3px; }
+    .honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 </style>
 {% endblock %}

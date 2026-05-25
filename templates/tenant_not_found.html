@@ -45,6 +45,11 @@
             </p>
 
             <form method="post" action="{{ signup_action }}" class="signup-form">
+                <div aria-hidden="true" class="honeypot">
+                    <label>Website (do not fill)
+                        <input type="text" name="website" tabindex="-1" autocomplete="off" value="">
+                    </label>
+                </div>
                 <input type="hidden" name="slug" value="{{ slug }}">
                 <p style="margin: 0.6rem 0 0; font-weight: 700;">
                     {{ loc.f("Slug réservé", "Reserved slug") }} : <code>{{ slug }}</code>
@@ -84,6 +89,7 @@
         }
         .signup-form small { font-weight: 400; color: var(--ink-soft); }
         .signup-form code { background: var(--paper-dark); padding: 0 0.3rem; border-radius: 3px; }
+        .honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
     </style>
 </body>
 </html>

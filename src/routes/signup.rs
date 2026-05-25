@@ -1,6 +1,6 @@
 use askama::Template;
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::Form;
 use axum_extra::extract::cookie::{Cookie, PrivateCookieJar, SameSite};
@@ -15,6 +15,7 @@ use uuid::Uuid;
 use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::mail;
+use crate::rate_limit;
 use crate::state::AppState;
 use crate::tenant::{MaybeTenant, Tenant};
 
@@ -80,6 +81,11 @@ pub struct SignupForm {
     name: String,
     owner_email: String,
     owner_name: String,
+    /// Honeypot. Real users can't see the field (hidden via CSS), bots
+    /// happily fill every input. If non-empty we pretend the request
+    /// succeeded but never store anything or send an email.
+    #[serde(default)]
+    website: Option<String>,
 }
 
 fn valid_slug(s: &str) -> bool {
@@ -102,12 +108,48 @@ pub async fn submit(
     State(state): State<AppState>,
     MaybeTenant(maybe_tenant): MaybeTenant,
     loc: Locale,
+    headers: HeaderMap,
     Form(form): Form<SignupForm>,
 ) -> AppResult<Response> {
     if let Some(target) = redirect_to_platform(&state, &maybe_tenant) {
         return Ok(Redirect::to(&target).into_response());
     }
     let tenant = maybe_tenant.unwrap_or_else(Tenant::platform);
+
+    // Honeypot first: bots fill the hidden field; we render the "check
+    // your inbox" page back so they don't learn they've been caught, but
+    // never store anything or send an email.
+    if form.website.as_deref().map(|s| !s.trim().is_empty()).unwrap_or(false) {
+        tracing::info!(
+            ip = ?rate_limit::client_ip(&headers),
+            owner_email = %form.owner_email,
+            "signup honeypot triggered"
+        );
+        let tpl = SignupSentTpl {
+            loc,
+            tenant: &tenant,
+            owner_email: form.owner_email.trim().to_lowercase(),
+        };
+        return Ok(Html(tpl.render()?).into_response());
+    }
+
+    // Per-IP rate limit: 5 attempts / hour. Fails open when we can't
+    // extract a client IP (dev / direct connection without a proxy).
+    if let Some(ip) = rate_limit::client_ip(&headers) {
+        if !state.signup_limiter.check_and_record(ip) {
+            tracing::warn!(%ip, "signup rate-limited");
+            return Ok((
+                StatusCode::TOO_MANY_REQUESTS,
+                Html(render_signup_error(
+                    loc,
+                    &tenant,
+                    &form,
+                    "Trop de tentatives. Réessaie dans une heure.",
+                )),
+            )
+                .into_response());
+        }
+    }
     let slug = form.slug.trim().to_lowercase();
     let name = form.name.trim().to_string();
     let owner_email = form.owner_email.trim().to_lowercase();
@@ -168,6 +210,27 @@ pub async fn submit(
     .await?;
     if taken.unwrap_or(false) {
         return Ok((StatusCode::CONFLICT, render_error("Ce slug est déjà pris.")).into_response());
+    }
+
+    // Per-email cooldown: at most one live verification per owner email
+    // at a time. Stops a flood from filling a victim's inbox or burning
+    // through many slugs from the same address.
+    let pending_for_email: Option<bool> = sqlx::query_scalar(
+        "SELECT EXISTS (\
+           SELECT 1 FROM pending_tenants \
+           WHERE owner_email = $1 AND consumed_at IS NULL AND expires_at > NOW())",
+    )
+    .bind(&owner_email)
+    .fetch_one(&state.pool)
+    .await?;
+    if pending_for_email.unwrap_or(false) {
+        return Ok((
+            StatusCode::CONFLICT,
+            render_error(
+                "Une demande est déjà en cours pour cet email. Vérifie ta boîte mail ou attends 30 minutes.",
+            ),
+        )
+            .into_response());
     }
 
     // Generate the verification token. We store only its hash, the link
@@ -369,6 +432,21 @@ pub async fn verify(
     };
 
     Ok((jar, Redirect::to(&new_tenant_url)).into_response())
+}
+
+fn render_signup_error(loc: Locale, tenant: &Tenant, form: &SignupForm, msg: &str) -> String {
+    let tpl = SignupTpl {
+        loc,
+        tenant,
+        form: SignupValues {
+            slug: form.slug.clone(),
+            name: form.name.clone(),
+            owner_email: form.owner_email.clone(),
+            owner_name: form.owner_name.clone(),
+        },
+        error: Some(msg),
+    };
+    tpl.render().unwrap_or_else(|e| format!("template error: {e}"))
 }
 
 fn hex_sha256(input: &str) -> String {
