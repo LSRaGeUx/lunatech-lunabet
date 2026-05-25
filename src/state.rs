@@ -3,7 +3,7 @@ use axum_extra::extract::cookie::Key;
 use sqlx::PgPool;
 
 use crate::config::Config;
-use crate::tenant::Tenant;
+use crate::tenant::TenantRegistry;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -11,11 +11,11 @@ pub struct AppState {
     pub cookie_key: Key,
     pub cfg: Config,
     pub http: reqwest::Client,
-    /// The active tenant for the current deployment. While the app is
-    /// single-tenant per process this is loaded once at startup; when we add
-    /// per-request tenant resolution this will be moved into a request
-    /// extension and removed from `AppState`.
-    pub tenant: Tenant,
+    /// Directory of all known tenants plus the deployment's default tenant.
+    /// The resolution middleware reads this registry to attach the right
+    /// tenant to each incoming request; background jobs use the default
+    /// tenant until Phase 5 introduces per-tenant scheduling.
+    pub tenants: TenantRegistry,
 }
 
 impl FromRef<AppState> for Key {

@@ -12,6 +12,7 @@ use crate::i18n::Locale;
 use crate::models::User;
 use crate::routes::auth;
 use crate::state::AppState;
+use crate::tenant::TenantCtx;
 
 pub struct AdminUser(pub User);
 
@@ -20,10 +21,11 @@ impl FromRequestParts<AppState> for AdminUser {
     type Rejection = Response;
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+        let TenantCtx(tenant) = TenantCtx::from_request_parts(parts, state).await?;
         let jar = PrivateCookieJar::<axum_extra::extract::cookie::Key>::from_request_parts(parts, state)
             .await
             .map_err(|e| e.into_response())?;
-        match auth::current_user(state, &jar).await {
+        match auth::current_user(state, &tenant, &jar).await {
             Ok(Some(u)) if u.is_admin => Ok(AdminUser(u)),
             Ok(Some(_)) => Err((StatusCode::FORBIDDEN, "Admin access required.").into_response()),
             Ok(None) => Err(Redirect::to("/login").into_response()),
@@ -55,6 +57,7 @@ struct AdminStakesTpl<'a> {
 
 pub async fn stakes_page(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AdminUser(admin): AdminUser,
 ) -> AppResult<Response> {
@@ -73,7 +76,7 @@ pub async fn stakes_page(
         ORDER BY (paid_at IS NULL), stake_chosen_at NULLS LAST, display_name ASC
         "#,
     )
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .fetch_all(&state.pool)
     .await?;
 
@@ -90,7 +93,7 @@ pub async fn stakes_page(
         .collect();
 
     let pot =
-        crate::stakes::load_pot(&state.pool, state.tenant.id, state.tenant.stake_deadline).await?;
+        crate::stakes::load_pot(&state.pool, tenant.id, tenant.stake_deadline).await?;
 
     let tpl = AdminStakesTpl {
         loc,
@@ -98,14 +101,15 @@ pub async fn stakes_page(
         pot_total_eur: pot.total_eur,
         paid_count: pot.paid_count,
         rows,
-        deadline_local: state.tenant.stake_deadline.format("%d/%m/%Y %H:%M UTC").to_string(),
-        deadline_passed: Utc::now() > state.tenant.stake_deadline,
+        deadline_local: tenant.stake_deadline.format("%d/%m/%Y %H:%M UTC").to_string(),
+        deadline_passed: Utc::now() > tenant.stake_deadline,
     };
     Ok(Html(tpl.render()?).into_response())
 }
 
 pub async fn mark_paid(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     AdminUser(admin): AdminUser,
     Path(user_id): Path<Uuid>,
 ) -> AppResult<Response> {
@@ -118,7 +122,7 @@ pub async fn mark_paid(
     )
     .bind(admin.id)
     .bind(user_id)
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .execute(&state.pool)
     .await?;
     Ok(Redirect::to("/admin/stakes").into_response())
@@ -126,6 +130,7 @@ pub async fn mark_paid(
 
 pub async fn mark_unpaid(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     AdminUser(_admin): AdminUser,
     Path(user_id): Path<Uuid>,
 ) -> AppResult<Response> {
@@ -133,7 +138,7 @@ pub async fn mark_unpaid(
         "UPDATE users SET paid_at = NULL, paid_by = NULL WHERE id = $1 AND tenant_id = $2",
     )
     .bind(user_id)
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .execute(&state.pool)
     .await?;
     Ok(Redirect::to("/admin/stakes").into_response())

@@ -9,6 +9,7 @@ use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::routes::auth::AuthUser;
 use crate::state::AppState;
+use crate::tenant::TenantCtx;
 
 #[derive(Deserialize)]
 pub struct BetForm {
@@ -18,6 +19,7 @@ pub struct BetForm {
 
 pub async fn place_or_update(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AuthUser(user): AuthUser,
     Path(match_id): Path<i64>,
@@ -50,7 +52,7 @@ pub async fn place_or_update(
             updated_at = NOW()
         "#,
     )
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .bind(user.id)
     .bind(match_id)
     .bind(form.home_score)

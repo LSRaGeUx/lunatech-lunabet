@@ -12,6 +12,7 @@ use crate::models::User;
 use crate::routes::auth::AuthUser;
 use crate::stakes;
 use crate::state::AppState;
+use crate::tenant::TenantCtx;
 
 #[derive(Template)]
 #[template(path = "stake.html")]
@@ -26,21 +27,21 @@ struct StakeTpl<'a> {
 
 pub async fn page(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AuthUser(user): AuthUser,
 ) -> AppResult<Response> {
-    let deadline_passed = Utc::now() > state.tenant.stake_deadline;
+    let deadline_passed = Utc::now() > tenant.stake_deadline;
     let tpl = StakeTpl {
         loc,
         user: &user,
         deadline_passed,
-        deadline_local: state.tenant.stake_deadline.format("%d/%m/%Y %H:%M UTC").to_string(),
+        deadline_local: tenant.stake_deadline.format("%d/%m/%Y %H:%M UTC").to_string(),
         paid: user.paid_at.is_some(),
-        admin_emails_display: if state.tenant.admin_emails.is_empty() {
+        admin_emails_display: if tenant.admin_emails.is_empty() {
             "admin".into()
         } else {
-            state
-                .tenant
+            tenant
                 .admin_emails
                 .iter()
                 .cloned()
@@ -58,13 +59,14 @@ pub struct StakeForm {
 
 pub async fn submit(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     AuthUser(user): AuthUser,
     Form(form): Form<StakeForm>,
 ) -> AppResult<Response> {
     if user.paid_at.is_some() {
         return Ok((StatusCode::CONFLICT, "Stake already paid; ask an admin to change it.").into_response());
     }
-    if Utc::now() > state.tenant.stake_deadline {
+    if Utc::now() > tenant.stake_deadline {
         return Ok((StatusCode::FORBIDDEN, "Stake deadline has passed.").into_response());
     }
     if !stakes::is_valid_tier(form.tier) {
@@ -79,7 +81,7 @@ pub async fn submit(
     )
     .bind(form.tier)
     .bind(user.id)
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .execute(&state.pool)
     .await?;
     Ok(Redirect::to("/stake").into_response())

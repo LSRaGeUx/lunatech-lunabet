@@ -17,6 +17,7 @@ use crate::i18n::Locale;
 use crate::mail;
 use crate::models::User;
 use crate::state::AppState;
+use crate::tenant::{Tenant, TenantCtx};
 
 const SESSION_COOKIE: &str = "lb_session";
 const MAGIC_LINK_TTL_MINUTES: i64 = 15;
@@ -47,13 +48,14 @@ pub struct LoginForm {
 
 pub async fn request_magic_link(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     loc: Locale,
     Form(form): Form<LoginForm>,
 ) -> AppResult<Response> {
     let email = form.email.trim().to_lowercase();
     let domain = email.split_once('@').map(|(_, d)| d);
     let allowed = domain
-        .map(|d| state.tenant.allowed_email_pattern.is_match(d))
+        .map(|d| tenant.allowed_email_pattern.is_match(d))
         .unwrap_or(false);
     if !allowed {
         let tpl = LoginTpl {
@@ -75,7 +77,7 @@ pub async fn request_magic_link(
     sqlx::query(
         "INSERT INTO magic_links (tenant_id, token_hash, email, expires_at) VALUES ($1, $2, $3, $4)",
     )
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .bind(&token_hash)
     .bind(&email)
     .bind(expires_at)
@@ -84,7 +86,7 @@ pub async fn request_magic_link(
 
     let link = format!("{}/auth/callback?token={}", state.cfg.base_url.trim_end_matches('/'), token);
 
-    if let Err(e) = mail::send_magic_link(&state.cfg, &state.tenant, loc, &email, &link).await {
+    if let Err(e) = mail::send_magic_link(&state.cfg, &tenant, loc, &email, &link).await {
         tracing::warn!("could not send magic link email to {email}: {e:#}");
         tracing::info!("DEV magic link for {email}: {link}");
     }
@@ -103,6 +105,7 @@ pub struct CallbackQuery {
 
 pub async fn callback(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     loc: Locale,
     jar: PrivateCookieJar,
     Query(q): Query<CallbackQuery>,
@@ -115,7 +118,7 @@ pub async fn callback(
              WHERE token_hash = $1 AND tenant_id = $2",
         )
         .bind(&token_hash)
-        .bind(state.tenant.id)
+        .bind(tenant.id)
         .fetch_optional(&state.pool)
         .await?;
 
@@ -141,7 +144,7 @@ pub async fn callback(
         .replace('.', " ")
         .replace('_', " ");
 
-    let is_admin = state.tenant.is_admin(&email);
+    let is_admin = tenant.is_admin(&email);
     let user: User = sqlx::query_as(
         r#"
         INSERT INTO users (tenant_id, email, display_name, is_admin)
@@ -153,7 +156,7 @@ pub async fn callback(
                   stake_eur, stake_chosen_at, paid_at
         "#,
     )
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .bind(&email)
     .bind(&display_name)
     .bind(is_admin)
@@ -166,7 +169,7 @@ pub async fn callback(
         "INSERT INTO sessions (id, tenant_id, user_id, expires_at) VALUES ($1, $2, $3, $4)",
     )
     .bind(session_id)
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .bind(user.id)
     .bind(session_expires)
     .execute(&state.pool)
@@ -199,7 +202,11 @@ pub async fn logout(
     Ok((jar, Redirect::to("/")).into_response())
 }
 
-pub async fn current_user(state: &AppState, jar: &PrivateCookieJar) -> AppResult<Option<User>> {
+pub async fn current_user(
+    state: &AppState,
+    tenant: &Tenant,
+    jar: &PrivateCookieJar,
+) -> AppResult<Option<User>> {
     let Some(c) = jar.get(SESSION_COOKIE) else {
         return Ok(None);
     };
@@ -216,7 +223,7 @@ pub async fn current_user(state: &AppState, jar: &PrivateCookieJar) -> AppResult
         "#,
     )
     .bind(id)
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .fetch_optional(&state.pool)
     .await?;
     Ok(user)
@@ -229,10 +236,11 @@ impl FromRequestParts<AppState> for AuthUser {
     type Rejection = Response;
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+        let TenantCtx(tenant) = TenantCtx::from_request_parts(parts, state).await?;
         let jar = PrivateCookieJar::<axum_extra::extract::cookie::Key>::from_request_parts(parts, state)
             .await
             .map_err(|e| e.into_response())?;
-        match current_user(state, &jar).await {
+        match current_user(state, &tenant, &jar).await {
             Ok(Some(u)) => Ok(AuthUser(u)),
             Ok(None) => Err(Redirect::to("/login").into_response()),
             Err(e) => Err(e.into_response()),

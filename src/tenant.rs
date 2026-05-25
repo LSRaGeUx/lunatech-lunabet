@@ -1,10 +1,15 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::Context;
+use axum::extract::FromRequestParts;
+use axum::http::request::Parts;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
 use regex::Regex;
 use sqlx::PgPool;
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::config::Config;
@@ -127,5 +132,101 @@ pub async fn upsert_from_config(pool: &PgPool, cfg: &Config) -> anyhow::Result<T
 impl Tenant {
     pub fn is_admin(&self, email: &str) -> bool {
         self.admin_emails.contains(&email.to_lowercase())
+    }
+}
+
+/// Look up a tenant by slug. Returns `None` if the slug doesn't match any row.
+pub async fn resolve_by_slug(pool: &PgPool, slug: &str) -> anyhow::Result<Option<Tenant>> {
+    let row: Option<TenantRow> = sqlx::query_as(
+        r#"
+        SELECT id, slug, name, allowed_email_pattern, logo_url,
+               primary_color, accent_color, football_competition,
+               stake_deadline, reminder_lead_minutes, slack_webhook_url,
+               mail_from, admin_emails
+        FROM tenants
+        WHERE slug = $1
+        "#,
+    )
+    .bind(slug)
+    .fetch_optional(pool)
+    .await
+    .with_context(|| format!("looking up tenant `{slug}`"))?;
+
+    row.map(Tenant::try_from).transpose()
+}
+
+/// In-process tenant directory: caches resolved tenants by slug, and exposes a
+/// well-known "default" tenant for requests that don't carry tenant routing
+/// info (no subdomain, no `X-Tenant` header). The cache is positive-only and
+/// has no TTL: a server restart is required to pick up tenant config changes.
+#[derive(Clone)]
+pub struct TenantRegistry {
+    default: Tenant,
+    cache: Arc<RwLock<HashMap<String, Tenant>>>,
+    pool: PgPool,
+}
+
+impl TenantRegistry {
+    pub fn new(pool: PgPool, default: Tenant) -> Self {
+        let mut seed = HashMap::new();
+        seed.insert(default.slug.clone(), default.clone());
+        Self {
+            default,
+            cache: Arc::new(RwLock::new(seed)),
+            pool,
+        }
+    }
+
+    pub fn default_tenant(&self) -> &Tenant {
+        &self.default
+    }
+
+    pub async fn resolve(&self, slug: &str) -> Option<Tenant> {
+        if let Some(t) = self.cache.read().await.get(slug) {
+            return Some(t.clone());
+        }
+        match resolve_by_slug(&self.pool, slug).await {
+            Ok(Some(t)) => {
+                self.cache.write().await.insert(slug.to_string(), t.clone());
+                Some(t)
+            }
+            Ok(None) => None,
+            Err(e) => {
+                tracing::warn!(slug = %slug, "tenant lookup failed: {e:#}");
+                None
+            }
+        }
+    }
+}
+
+/// Axum extractor that yields the tenant the current request is scoped to.
+/// The tenant resolution middleware (`resolve_tenant_middleware`) is
+/// responsible for inserting a `Tenant` into request extensions; if it didn't
+/// run we treat that as a server-side bug and return a 500 rather than
+/// silently falling back to the default tenant (which would risk leaking data
+/// across tenants).
+#[derive(Clone)]
+pub struct TenantCtx(pub Tenant);
+
+#[axum::async_trait]
+impl<S> FromRequestParts<S> for TenantCtx
+where
+    S: Send + Sync,
+{
+    type Rejection = Response;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        parts
+            .extensions
+            .get::<Tenant>()
+            .cloned()
+            .map(TenantCtx)
+            .ok_or_else(|| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "tenant resolution middleware did not run",
+                )
+                    .into_response()
+            })
     }
 }

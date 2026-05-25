@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::state::AppState;
+use crate::tenant::TenantCtx;
 
 const SESSION_COOKIE: &str = "lb_session";
 const SESSION_TTL_DAYS: i64 = 30;
@@ -27,7 +28,11 @@ struct DevTpl {
     users: Vec<DevUser>,
 }
 
-pub async fn index(State(state): State<AppState>, loc: Locale) -> AppResult<Response> {
+pub async fn index(
+    State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
+    loc: Locale,
+) -> AppResult<Response> {
     if !state.cfg.dev_mode {
         return Ok((StatusCode::NOT_FOUND, "Dev mode disabled.").into_response());
     }
@@ -42,7 +47,7 @@ pub async fn index(State(state): State<AppState>, loc: Locale) -> AppResult<Resp
         ORDER BY u.display_name ASC
         "#,
     )
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .fetch_all(&state.pool)
     .await?;
 
@@ -65,6 +70,7 @@ pub struct LoginQuery {
 
 pub async fn login_as(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     jar: PrivateCookieJar,
     Query(q): Query<LoginQuery>,
 ) -> AppResult<Response> {
@@ -77,7 +83,7 @@ pub async fn login_as(
     let user_id: Option<Uuid> = sqlx::query_scalar(
         "SELECT id FROM users WHERE tenant_id = $1 AND email = $2",
     )
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .bind(&email)
     .fetch_optional(&state.pool)
     .await?;
@@ -87,11 +93,11 @@ pub async fn login_as(
     };
 
     // sync admin flag from the tenant's admin_emails on each dev login
-    let is_admin = state.tenant.is_admin(&email);
+    let is_admin = tenant.is_admin(&email);
     sqlx::query("UPDATE users SET is_admin = $1 WHERE id = $2 AND tenant_id = $3")
         .bind(is_admin)
         .bind(user_id)
-        .bind(state.tenant.id)
+        .bind(tenant.id)
         .execute(&state.pool)
         .await?;
 
@@ -101,7 +107,7 @@ pub async fn login_as(
         "INSERT INTO sessions (id, tenant_id, user_id, expires_at) VALUES ($1, $2, $3, $4)",
     )
     .bind(session_id)
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .bind(user_id)
     .bind(expires_at)
     .execute(&state.pool)

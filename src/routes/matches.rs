@@ -8,6 +8,7 @@ use crate::i18n::Locale;
 use crate::models::Match;
 use crate::routes::auth::AuthUser;
 use crate::state::AppState;
+use crate::tenant::TenantCtx;
 
 pub struct MatchView {
     pub m: Match,
@@ -31,6 +32,7 @@ struct MatchesTpl<'a> {
 
 pub async fn list(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AuthUser(user): AuthUser,
 ) -> AppResult<Response> {
@@ -54,7 +56,7 @@ pub async fn list(
          WHERE user_id = $1 AND tenant_id = $2",
     )
     .bind(user.id)
-    .bind(state.tenant.id)
+    .bind(tenant.id)
     .fetch_all(&state.pool)
     .await?;
 

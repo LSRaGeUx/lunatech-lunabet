@@ -9,6 +9,7 @@ use crate::i18n::Locale;
 use crate::routes::auth::AuthUser;
 use crate::stakes;
 use crate::state::AppState;
+use crate::tenant::TenantCtx;
 
 pub struct Row {
     pub rank: usize,
@@ -38,11 +39,12 @@ struct LeaderboardTpl<'a> {
 
 pub async fn index(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AuthUser(user): AuthUser,
 ) -> AppResult<Response> {
-    let board = stakes::load_leaderboard(&state.pool, state.tenant.id).await?;
-    let pot = stakes::load_pot(&state.pool, state.tenant.id, state.tenant.stake_deadline).await?;
+    let board = stakes::load_leaderboard(&state.pool, tenant.id).await?;
+    let pot = stakes::load_pot(&state.pool, tenant.id, tenant.stake_deadline).await?;
     let top_paid = stakes::top_paid_from_leaderboard(&board);
     let payouts = stakes::compute_payouts(pot.total_eur, &top_paid);
 

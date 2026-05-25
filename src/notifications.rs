@@ -5,7 +5,10 @@ use crate::mail;
 use crate::state::AppState;
 
 pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
-    let lead = Duration::minutes(state.tenant.reminder_lead_minutes);
+    // Background jobs operate against the deployment's default tenant for
+    // now. Phase 5 will iterate over all tenants registered in the directory.
+    let tenant = state.tenants.default_tenant().clone();
+    let lead = Duration::minutes(tenant.reminder_lead_minutes);
     let now = Utc::now();
     let window_end = now + lead;
 
@@ -50,7 +53,7 @@ pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
               )
             "#,
         )
-        .bind(state.tenant.id)
+        .bind(tenant.id)
         .bind(match_id)
         .fetch_all(&state.pool)
         .await?;
@@ -61,7 +64,7 @@ pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
         for (email, _name) in &unbet_users {
             match mail::send_bet_reminder(
                 &state.cfg,
-                &state.tenant,
+                &tenant,
                 email,
                 &home,
                 &away,
@@ -82,7 +85,7 @@ pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
             unbet_users.len()
         );
 
-        if let Some(webhook) = &state.tenant.slack_webhook_url {
+        if let Some(webhook) = &tenant.slack_webhook_url {
             let context_bits = [stage.as_deref(), group.as_deref()]
                 .into_iter()
                 .flatten()
@@ -95,7 +98,7 @@ pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
             };
             let text = format!(
                 ":soccer: *{home}* vs *{away}*{context_line} commence à {kickoff_local} (dans <{lead_min} min).\nPariez maintenant : {base}/matches",
-                lead_min = state.tenant.reminder_lead_minutes,
+                lead_min = tenant.reminder_lead_minutes,
                 base = state.cfg.base_url.trim_end_matches('/'),
             );
             let payload = json!({ "text": text });

@@ -13,6 +13,7 @@ mod fixtures;
 mod football_data;
 mod i18n;
 mod mail;
+mod middleware;
 mod models;
 mod notifications;
 mod routes;
@@ -47,13 +48,14 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("running migrations")?;
 
-    let tenant = tenant::upsert_from_config(&pool, &cfg)
+    let default_tenant = tenant::upsert_from_config(&pool, &cfg)
         .await
         .context("syncing default tenant from env config")?;
-    tracing::info!(slug = %tenant.slug, id = %tenant.id, "default tenant loaded");
+    tracing::info!(slug = %default_tenant.slug, id = %default_tenant.id, "default tenant loaded");
+    let tenants = tenant::TenantRegistry::new(pool.clone(), default_tenant.clone());
 
     if std::env::args().nth(1).as_deref() == Some("seed") {
-        fixtures::seed(&pool, &tenant).await.context("seeding fixtures")?;
+        fixtures::seed(&pool, &default_tenant).await.context("seeding fixtures")?;
         println!("\nDone. Lance ensuite `cargo run` puis ouvre http://localhost:3000/dev");
         return Ok(());
     }
@@ -66,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
             cookie_key,
             cfg: cfg.clone(),
             http: reqwest::Client::builder().user_agent("lunatech-betting/0.1").build()?,
-            tenant: tenant.clone(),
+            tenants: tenants.clone(),
         };
         notifications::send_match_reminders(&state)
             .await
@@ -84,7 +86,7 @@ async fn main() -> anyhow::Result<()> {
         http: reqwest::Client::builder()
             .user_agent("lunatech-betting/0.1")
             .build()?,
-        tenant,
+        tenants,
     };
 
     if cfg.football_data_api_key.is_some() {
@@ -118,6 +120,10 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .merge(routes::router())
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::resolve_tenant,
+        ))
         .nest_service("/static", ServeDir::new("static"))
         .layer(TraceLayer::new_for_http())
         .with_state(state);

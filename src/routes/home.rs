@@ -7,6 +7,7 @@ use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::routes::auth;
 use crate::state::AppState;
+use crate::tenant::TenantCtx;
 
 #[derive(Template)]
 #[template(path = "home.html")]
@@ -16,10 +17,11 @@ struct HomeTpl {
 
 pub async fn index(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     loc: Locale,
     jar: PrivateCookieJar,
 ) -> AppResult<Response> {
-    if auth::current_user(&state, &jar).await?.is_some() {
+    if auth::current_user(&state, &tenant, &jar).await?.is_some() {
         return Ok(Redirect::to("/matches").into_response());
     }
     Ok(Html(HomeTpl { loc }.render()?).into_response())
