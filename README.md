@@ -1,164 +1,166 @@
 # LunaBet
 
-App de paris sur la Coupe du Monde 2026 pour les employés de Lunatech.
-Score exact, leaderboard, pot pondéré par mise. Bilingue FR / EN.
+FIFA World Cup 2026 betting app for Lunatech employees.
+Exact-score predictions, leaderboard, stake-weighted prize pot. Fully bilingual EN / FR.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-## Aperçu
+## Preview
 
-| Accueil | Album de pronos |
+| Landing | Predictions album |
 |---|---|
-| ![Page d'accueil](docs/screenshots/01-home.png) | ![Page Matches](docs/screenshots/04-matches.png) |
+| ![Home page](docs/screenshots/01-home.png) | ![Matches page](docs/screenshots/04-matches.png) |
 
-| Classement avec scène 3D | Mise dans le pot |
+| Leaderboard with 3D scene | My stake in the pot |
 |---|---|
 | ![Leaderboard](docs/screenshots/05-leaderboard.png) | ![Stake](docs/screenshots/06-stake.png) |
 
-| Admin (gestion des mises) | English version |
+| Admin (stake management) | English version |
 |---|---|
 | ![Admin Stakes](docs/screenshots/07-admin-stakes.png) | ![Leaderboard EN](docs/screenshots/08-leaderboard-en.png) |
 
 ### Emails
 
-Tous les emails sont en **HTML multipart** (avec fallback texte brut), reprennent le branding de l'app (header navy, pelouse, bouton tampon-encreur rouge), embarquent le **logo Lunatech**, et sont :
-- **Magic link** : adapté à la locale du visiteur (FR ou EN selon le cookie `lb_lang` au moment de la requête)
-- **Rappel de match** : bilingue side-by-side (FR + EN dans le même email, vu qu'on ne stocke pas la langue par utilisateur)
+All transactional emails are **multipart HTML** (with a plain-text fallback), match the app's branding (navy header, pitch stripe, red "stamp" CTA button), embed the **Lunatech logo**, and come in two flavors:
+
+- **Magic link** — rendered in the visitor's locale (FR or EN, based on the `lb_lang` cookie at the time of the request).
+- **Match reminder** — bilingual side-by-side (FR + EN in the same email, since per-user language is not stored).
 
 | Magic link (FR) | Magic link (EN) |
 |---|---|
 | ![Magic Link FR](docs/screenshots/09-email-magic-link-fr.png) | ![Magic Link EN](docs/screenshots/10-email-magic-link-en.png) |
 
-| Rappel de match (bilingue) |
+| Match reminder (bilingual) |
 |---|
 | ![Match Reminder](docs/screenshots/11-email-reminder.png) |
 
 <details>
-<summary>Pages d'authentification & mode dev</summary>
+<summary>Auth & dev pages</summary>
 
-| Connexion (magic link) | Mode développement |
+| Sign-in (magic link) | Dev mode |
 |---|---|
 | ![Login](docs/screenshots/02-login.png) | ![Dev page](docs/screenshots/03-dev.png) |
 
 </details>
 
-> Les captures sont générées par [`scripts/screenshots.sh`](scripts/screenshots.sh).
-> Le serveur doit tourner sur `http://127.0.0.1:3000` avec les fixtures chargées (`cargo run -- seed && cargo run`).
-> Le paramètre `?shot=1` fige l'animation 3D du classement sur une frame nette pour la capture.
+> Screenshots are produced by [`scripts/screenshots.sh`](scripts/screenshots.sh).
+> The server must be running at `http://127.0.0.1:3000` with fixtures loaded
+> (`cargo run -- seed && cargo run`). The `?shot=1` query param freezes the
+> 3D goal animation on the leaderboard at a known frame so the capture is clean.
 
 ## Stack
 
-- **Rust + Axum** (web framework async)
-- **PostgreSQL** via SQLx (runtime queries, migrations auto au démarrage)
-- **Askama** (templates compilés à la compilation)
-- **htmx** (interactivité côté client, zéro framework JS)
-- **Three.js** via importmap CDN (ballon de foot 3D, mini-scène tir au but)
-- **lettre** (envoi d'emails SMTP pour les magic links et rappels)
-- **football-data.org** (récupération automatique des matches et résultats, code compétition `WC`)
+- **Rust + Axum** (async web framework)
+- **PostgreSQL** via SQLx (runtime queries, migrations auto-applied at startup)
+- **Askama** (templates compiled into the binary)
+- **htmx** (client-side interactivity, no JS framework)
+- **Three.js** loaded via importmap CDN (3D football, mini goal-shot scene)
+- **lettre** (SMTP sender for magic links and reminders)
+- **football-data.org** (auto-pulls fixtures and results; competition code `WC`)
 
-## Fonctionnalités
+## Features
 
-### Paris
-- Connexion par **magic link** envoyé par email, limitée à `@lunatech.com`
-- Un seul type de pari : **score exact** (ex: 2-1)
-- Les paris ferment **au coup d'envoi** du match
-- Barème :
-  - **3 points** pour un score exact
-  - **1 point** pour le bon vainqueur (ou bon match nul)
-  - **0 point** sinon
-- Tiebreak du classement : points → scores exacts → paris résolus → ancienneté du compte
+### Betting
+- **Magic-link** sign-in, restricted to `@lunatech.com` emails
+- One bet type only: **exact score** (e.g. 2-1)
+- Bets close **at kick-off**
+- Scoring:
+  - **3 points** for an exact score
+  - **1 point** for the right winner (or correct draw)
+  - **0 points** otherwise
+- Leaderboard tiebreak: points → exact scores → settled bets → account age
 
-### Pot et mises
-- 3 paliers : **2€ / 5€ / 10€** (page `/stake`)
-- **Honor system** : l'app ne touche pas à l'argent. Le joueur verse sa mise à l'admin (Lydia, virement, etc.) qui marque "payé" dans la page `/admin/stakes`
-- Date limite par défaut : **fin de la phase de groupes WC2026** (2026-06-27 23:59 UTC), configurable
-- Répartition du pot entre les **3 premiers payeurs** du classement :
-  - `payout_i = pot × (base_i × stake_i) / Σ(base × stake)` avec `base = [0.5, 0.3, 0.2]`
-  - Quand les 3 paliers sont identiques → répartition 50 / 30 / 20 classique
-  - Mise plus élevée = part plus grande de sa tranche
-- Les joueurs **non payés** restent dans le classement avec un badge "non éligible" ; le payout passe au suivant qui a payé
+### Prize pot and stakes
+- Three tiers: **2€ / 5€ / 10€** (chosen on `/stake`)
+- **Honor system** — the app never handles money. Players pay the admin (Lydia, bank transfer, etc.) and the admin marks them "paid" on `/admin/stakes`.
+- Default deadline: **end of the WC2026 group stage** (2026-06-27 23:59 UTC), configurable
+- Pot split between the **top 3 paid players**:
+  - `payout_i = pot × (base_i × stake_i) / Σ(base × stake)` with `base = [0.5, 0.3, 0.2]`
+  - When all three stakes are equal it degenerates to the classic 50 / 30 / 20 split
+  - A higher stake gets a larger slice of its position's share
+- **Unpaid** players stay in the leaderboard with a "not eligible" badge; their payout slot rolls down to the next paid player
 
 ### Notifications
-- Job de fond toutes les 5 min : pour chaque match qui démarre dans `REMINDER_LEAD_MINUTES` minutes et n'a pas encore été annoncé :
-  - **Email** personnalisé à chaque joueur sans pari sur ce match
-  - **Message Slack** dans le canal cible (si `SLACK_WEBHOOK_URL` est défini)
-- Chaque match n'est annoncé qu'une seule fois (`matches.reminded_at`)
+- Background job every 5 min — for every match starting within `REMINDER_LEAD_MINUTES` minutes that hasn't been announced yet:
+  - Per-user **email** to anyone who hasn't placed a bet on that match
+  - **Slack** message to the configured channel (if `SLACK_WEBHOOK_URL` is set)
+- Each match is announced exactly once (`matches.reminded_at`)
 
 ### Internationalisation
-- Interface entièrement bilingue **FR / EN**
-- Switcher de langue dans la topbar (cookie `lb_lang` valable 1 an)
-- Détection automatique via `Accept-Language` au premier accès, fallback FR
+- Fully bilingual **FR / EN** UI
+- Language switcher in the topbar (cookie `lb_lang`, 1-year TTL)
+- First-visit detection via `Accept-Language`, defaults to FR
 
 ### Look & feel
-- Thème **album Panini rétro** : papier crème, navy + rouge + accents or
-- Typo Bebas Neue (titres) + Lora (corps), Google Fonts via CDN
-- Effets foot : pelouse rayée sous la topbar et dans le footer, filet derrière les titres, watermarks ballon, rond de coup d'envoi au footer
-- **Ballon 3D** Three.js dans la topbar (mini, tourne en permanence) et sur la home (grand, flotte)
-- Procedural soccer-ball texture (12 pentagones noirs aux sommets d'un icosaèdre + 30 lignes de couture)
-- **Mini-scène tir au but** animée au-dessus du classement : décor pelouse + ciel, cage avec poteaux/barre/supports, filet en lignes blanches translucides, tir parabolique en lucarne, flash et rebond, en boucle de 3.8 s
-- Logo Lunatech en haut à droite de la topbar et au footer (placeholder SVG à remplacer par le vrai logo dans `static/lunatech-logo.svg`)
+- **Retro Panini sticker-album theme** — cream paper, navy + red + gold accents
+- Bebas Neue (headings) + Lora (body), loaded from Google Fonts
+- Football touches: striped pitch under the topbar and in the footer, goal-net pattern behind titles, ball watermarks on cards, center-circle artwork in the footer
+- **3D football** (Three.js) — a small spinning ball in the topbar and a larger floating one on the landing page
+- Procedural soccer-ball texture (12 black pentagons centered on the vertices of an icosahedron, plus the 30 seam arcs)
+- **3D goal-shot mini-scene** animated above the leaderboard — sky + pitch backdrop, full goal cage with posts/crossbar/supports, translucent white net, parabolic top-corner shot, flash and bounce, looping every 3.8 s
+- Lunatech logo in the top-right of the topbar and in the footer (drop the real SVG into `static/lunatech-logo.svg` to override the placeholder)
 
-## Variables d'environnement
+## Environment variables
 
-Toutes définies dans `.env` (copié depuis `.env.example`).
+All variables are declared in `.env` (copied from `.env.example`).
 
-### Réseau & base de données
-| Variable | Défaut | Description |
+### Network & database
+| Variable | Default | Description |
 |---|---|---|
-| `DATABASE_URL` | _(requis)_ | URL PostgreSQL, ex: `postgres://postgres:postgres@localhost:5434/lunatech_betting` |
-| `BIND_ADDR` | `127.0.0.1:3000` | Adresse + port d'écoute HTTP |
-| `BASE_URL` | `http://localhost:3000` | URL publique de l'app — les magic links en dépendent |
+| `DATABASE_URL` | _(required)_ | PostgreSQL URL, e.g. `postgres://postgres:postgres@localhost:5434/lunatech_betting` |
+| `BIND_ADDR` | `127.0.0.1:3000` | HTTP listen address + port |
+| `BASE_URL` | `http://localhost:3000` | Public URL of the app — magic links use it |
 
-### Sécurité (sessions)
-| Variable | Défaut | Description |
+### Sessions (cookie signing)
+| Variable | Default | Description |
 |---|---|---|
-| `COOKIE_KEY` | _(requis sauf en `DEV_MODE`)_ | Clé base64 de **64+ bytes** pour signer les cookies privés. Générer avec `openssl rand -base64 64`. Si absente et `DEV_MODE=true`, l'app génère une clé aléatoire au démarrage (sessions invalidées à chaque redémarrage). |
+| `COOKIE_KEY` | _(required unless `DEV_MODE`)_ | Base64-encoded **64+ byte** secret used to sign private cookies. Generate with `openssl rand -base64 64`. If missing and `DEV_MODE=true`, the app generates a random key at startup (sessions are wiped on every restart). |
 
-### SMTP (magic links + rappels)
-| Variable | Défaut | Description |
+### SMTP (magic links + reminders)
+| Variable | Default | Description |
 |---|---|---|
-| `SMTP_HOST` | `localhost` | Hôte SMTP (Mailpit en local, SES/Gmail/etc. en prod) |
-| `SMTP_PORT` | `1025` | Port SMTP |
-| `SMTP_USERNAME` | _(vide)_ | Optionnel, si auth |
-| `SMTP_PASSWORD` | _(vide)_ | Optionnel, si auth |
-| `SMTP_STARTTLS` | `false` | `true` pour activer STARTTLS |
-| `MAIL_FROM` | `lunatech-betting@lunatech.com` | Adresse expéditeur des emails |
+| `SMTP_HOST` | `localhost` | SMTP host (Mailpit in dev, SES/Gmail/etc. in prod) |
+| `SMTP_PORT` | `1025` | SMTP port |
+| `SMTP_USERNAME` | _(empty)_ | Optional, when SMTP auth is required |
+| `SMTP_PASSWORD` | _(empty)_ | Optional, when SMTP auth is required |
+| `SMTP_STARTTLS` | `false` | Set to `true` to upgrade the connection with STARTTLS |
+| `MAIL_FROM` | `lunatech-betting@lunatech.com` | "From" address used on outgoing emails |
 
 ### football-data.org
-| Variable | Défaut | Description |
+| Variable | Default | Description |
 |---|---|---|
-| `FOOTBALL_DATA_API_KEY` | _(vide)_ | Clé API gratuite obtenue sur https://www.football-data.org/client/register. Vide → pas de sync (utile en dev avec fixtures) |
-| `FOOTBALL_DATA_COMPETITION` | `WC` | Code de la compétition. `WC` = Coupe du Monde FIFA (free tier) |
+| `FOOTBALL_DATA_API_KEY` | _(empty)_ | Free API key from https://www.football-data.org/client/register. Empty → fixture sync disabled (handy in dev with seeded data). |
+| `FOOTBALL_DATA_COMPETITION` | `WC` | Competition code. `WC` = FIFA World Cup (free tier). |
 
-### Inscriptions & admin
-| Variable | Défaut | Description |
+### Sign-up & admin
+| Variable | Default | Description |
 |---|---|---|
-| `ALLOWED_EMAIL_DOMAIN` | `lunatech.com` | Domaine email autorisé pour la connexion magic link |
-| `ADMIN_EMAILS` | _(vide)_ | Liste d'emails admin séparés par des virgules. À la connexion, ces utilisateurs sont automatiquement promus admin (accès à `/admin/stakes`). |
-| `STAKE_DEADLINE` | `2026-06-27T23:59:00Z` | Timestamp RFC3339 après lequel les joueurs ne peuvent plus s'inscrire au pot |
+| `ALLOWED_EMAIL_DOMAIN` | `lunatech.com` | Email domain allowed to sign in via magic link |
+| `ADMIN_EMAILS` | _(empty)_ | Comma-separated list of admin emails (whitespace ignored, case-insensitive). On every sign-in these users are promoted to admin (access to `/admin/stakes`). Remove an email from the list and the user loses admin on their next sign-in. |
+| `STAKE_DEADLINE` | `2026-06-27T23:59:00Z` | RFC 3339 timestamp after which no new players can join the pot |
 
 ### Notifications
-| Variable | Défaut | Description |
+| Variable | Default | Description |
 |---|---|---|
-| `SLACK_WEBHOOK_URL` | _(vide)_ | URL d'un incoming webhook Slack. Vide → désactivé. Doc : https://api.slack.com/messaging/webhooks |
-| `REMINDER_LEAD_MINUTES` | `120` | Combien de minutes avant le coup d'envoi envoyer les rappels |
+| `SLACK_WEBHOOK_URL` | _(empty)_ | Slack Incoming Webhook URL. Empty → Slack disabled. Docs: https://api.slack.com/messaging/webhooks |
+| `REMINDER_LEAD_MINUTES` | `120` | How many minutes before kick-off the reminder is sent |
 
-### Développement
-| Variable | Défaut | Description |
+### Development
+| Variable | Default | Description |
 |---|---|---|
-| `DEV_MODE` | `false` | Active la page `/dev` (login en un clic), autorise `COOKIE_KEY` absent, ne plante pas si SMTP indispo. **À ne jamais activer en prod.** |
-| `RUST_LOG` | `lunatech_betting=info,tower_http=info` | Niveau de logs (`tracing-subscriber`) |
+| `DEV_MODE` | `false` | Enables `/dev` (one-click sign-in), allows a missing `COOKIE_KEY`, doesn't crash if SMTP is unreachable. **Never enable this in production.** |
+| `RUST_LOG` | `lunatech_betting=info,tower_http=info` | Log level (`tracing-subscriber`) |
 
-## Lancer en prod
+## Running in production
 
-1. Préparer un Postgres et un SMTP fonctionnels, obtenir une clé `football-data.org`.
+1. Provision a Postgres database and a working SMTP relay, and grab a `football-data.org` API key.
 
-2. Générer un `COOKIE_KEY` stable :
+2. Generate a stable `COOKIE_KEY`:
    ```sh
    openssl rand -base64 64 | tr -d '\n'
    ```
 
-3. Définir au minimum ces variables :
+3. Set at least these variables:
    ```sh
    DATABASE_URL=postgres://...
    BASE_URL=https://lunabet.example.com
@@ -172,125 +174,125 @@ Toutes définies dans `.env` (copié depuis `.env.example`).
    ADMIN_EMAILS=nicolas.leroux@lunatech.com,...
    ```
 
-4. Builder en release :
+4. Build in release mode:
    ```sh
    cargo build --release
    ./target/release/lunatech-betting
    ```
 
-   Les migrations sont appliquées au démarrage. Un job de fond synchronise les fixtures, recalcule le scoring et envoie les rappels toutes les 5 minutes.
+   Migrations are applied at startup. A background job syncs fixtures, recomputes scoring, and sends reminders every 5 minutes.
 
-## Lancer en local (dev)
+## Running locally (dev)
 
-1. Démarrer Postgres et Mailpit via docker-compose :
+1. Start Postgres and Mailpit through docker-compose:
    ```sh
    docker compose up -d
    ```
 
-   - Postgres écoute sur **`localhost:5434`** (port décalé pour éviter les conflits avec d'autres projets)
-   - Mailpit : interface web sur http://localhost:8025
+   - Postgres listens on **`localhost:5434`** (the port is shifted to avoid clashing with other projects)
+   - Mailpit web UI: http://localhost:8025
 
-2. Copier la configuration :
+2. Copy the config:
    ```sh
    cp .env.example .env
    ```
 
-   Le `.env.example` a déjà `DEV_MODE=true` et `ADMIN_EMAILS=nicolas.leroux@lunatech.com`. Adapte si besoin.
+   The example already ships with `DEV_MODE=true` and `ADMIN_EMAILS=nicolas.leroux@lunatech.com`. Tweak as needed.
 
-3. Charger les fixtures :
+3. Load the fixtures:
    ```sh
    cargo run -- seed
    ```
 
-   Crée 5 utilisateurs Lunatech fictifs (Nicolas admin avec 10€ payés, Alice 5€ payés, Bruno 2€ payés, Céline 5€ non payés, David sans mise), 8 matches (3 terminés, 5 à venir), 17 paris déjà placés.
+   This creates 5 fake Lunatech users (Nicolas as admin with 10€ paid, Alice 5€ paid, Bruno 2€ paid, Céline 5€ unpaid, David with no stake), 8 matches (3 finished, 5 upcoming), and 17 bets already placed.
 
-4. Lancer l'app :
+4. Start the app:
    ```sh
    cargo run
    ```
 
-5. Ouvrir http://localhost:3000/dev — choisir un utilisateur et cliquer "Se connecter" pour explorer sans magic link.
+5. Open http://localhost:3000/dev — pick a user and click "Sign in" to explore as that person without needing a magic link.
 
-### Tester les emails en local
+### Testing emails locally
 
-- **Magic link** : aller sur http://localhost:3000/login, taper un email `@lunatech.com`, puis ouvrir http://localhost:8025 (Mailpit) pour voir l'email rendu.
-- **Rappel de match** : exécuter `cargo run -- notify` pour déclencher le job une fois manuellement (sans attendre les 5 min de la boucle). Les rappels sont envoyés pour tous les matches qui démarrent dans `REMINDER_LEAD_MINUTES`.
+- **Magic link** — go to http://localhost:3000/login, type any `@lunatech.com` email, then open http://localhost:8025 (Mailpit) to see the rendered email.
+- **Match reminder** — run `cargo run -- notify` to fire the reminder job once manually (no need to wait 5 minutes for the next tick). Reminders go out for every match starting within `REMINDER_LEAD_MINUTES`.
 
-En mode dev :
-- `COOKIE_KEY` est auto-généré si absent
-- Magic links loggués dans la console si SMTP est indispo
-- La page `/dev` renvoie 404 si `DEV_MODE=false`
+In dev mode:
+- `COOKIE_KEY` is auto-generated when missing
+- Magic links are printed to the console when SMTP is unreachable
+- The `/dev` page returns 404 when `DEV_MODE=false`
 
-**N'active jamais `DEV_MODE=true` en production.**
+**Never enable `DEV_MODE=true` in production.**
 
-## Pages
+## Routes
 
-| Route | Accès | Description |
+| Route | Access | Description |
 |---|---|---|
-| `GET /` | public | Landing avec ballon 3D et boutons de connexion (ou redirect `/matches` si connecté) |
-| `GET /login`, `POST /login` | public | Demande de magic link |
-| `GET /login/sent` | public | Confirmation après envoi du magic link |
-| `GET /auth/callback?token=...` | public | Validation du magic link et création de session |
-| `POST /logout` | authentifié | Déconnexion |
-| `GET /matches` | authentifié | Liste des matches à venir + terminés, formulaire de pari |
-| `POST /matches/:id/bet` | authentifié | Place ou met à jour un pari |
-| `GET /leaderboard` | authentifié | Classement avec pot et payouts, mini-scène tir au but 3D |
-| `GET /stake`, `POST /stake` | authentifié | Choix du palier de mise (2/5/10€) |
-| `GET /admin/stakes` | admin | Liste des inscriptions au pot, marquage paiement |
-| `POST /admin/stakes/:user_id/paid` | admin | Marquer un joueur comme ayant payé |
-| `POST /admin/stakes/:user_id/unpaid` | admin | Annuler le paiement |
-| `GET /lang/:code` | public | Bascule la langue (`fr` ou `en`) via cookie |
-| `GET /dev` | dev mode | Liste des utilisateurs de test avec login en un clic |
-| `GET /dev/login?email=...` | dev mode | Login direct sans magic link |
-| `GET /static/*` | public | Assets statiques (CSS, JS, SVG) |
+| `GET /` | public | Landing page with 3D football and sign-in buttons (redirects to `/matches` when signed in) |
+| `GET /login`, `POST /login` | public | Request a magic link |
+| `GET /login/sent` | public | Confirmation page after a magic link is sent |
+| `GET /auth/callback?token=...` | public | Magic-link verification and session creation |
+| `POST /logout` | authenticated | Sign out |
+| `GET /matches` | authenticated | Upcoming + finished matches with the bet form |
+| `POST /matches/:id/bet` | authenticated | Place or update a bet |
+| `GET /leaderboard` | authenticated | Leaderboard with pot, payouts, and the 3D goal-shot mini-scene |
+| `GET /stake`, `POST /stake` | authenticated | Pick a stake tier (2 / 5 / 10€) |
+| `GET /admin/stakes` | admin | List of pot sign-ups, mark payment received |
+| `POST /admin/stakes/:user_id/paid` | admin | Mark a player as paid |
+| `POST /admin/stakes/:user_id/unpaid` | admin | Undo the payment |
+| `GET /lang/:code` | public | Switch language (`fr` or `en`) via cookie |
+| `GET /dev` | dev mode | List of seed users with one-click sign-in |
+| `GET /dev/login?email=...` | dev mode | Direct sign-in (no magic link) |
+| `GET /static/*` | public | Static assets (CSS, JS, SVG) |
 
-## Structure du code
+## Code layout
 
 ```
-migrations/                SQL migrations (sqlx, appliquées au démarrage)
+migrations/                SQL migrations (sqlx, applied at startup)
   20260525000001_init.sql           users, sessions, magic_links, matches, bets
   20260525000002_match_reminders    matches.reminded_at
   20260525000003_stakes             stake_eur, stake_chosen_at, paid_at, paid_by
-  20260525000004_stakes_2_5_10      contrainte CHECK (2, 5, 10)
+  20260525000004_stakes_2_5_10      CHECK constraint (2, 5, 10)
 
 src/
-  main.rs                bootstrap, migrations, jobs de fond
-  config.rs              parsing des variables d'environnement
+  main.rs                bootstrap, migrations, background jobs
+  config.rs              environment-variable parsing
   state.rs               AppState (pool, cookie key, http client, config)
   models.rs              User, Match, Bet
-  i18n.rs                Locale enum (FR/EN), extractor depuis cookie/header
+  i18n.rs                Locale enum (FR/EN), extractor from cookie/header
   error.rs               AppError wrapping anyhow
-  football_data.rs       client API football-data.org
-  scoring.rs             barème + SQL recompute, tests unitaires
-  stakes.rs              pot, top3, formule de payout, tests unitaires
-  notifications.rs       envoi rappels email + Slack
-  mail.rs                wrapper SMTP, rendu HTML multipart (magic link + rappels)
-  fixtures.rs            commande `cargo run -- seed`
+  football_data.rs       football-data.org client
+  scoring.rs             scoring rules + SQL recompute, unit tests
+  stakes.rs              pot, top-3, payout formula, unit tests
+  notifications.rs       reminder dispatch (email + Slack)
+  mail.rs                SMTP wrapper + multipart HTML rendering (magic link + reminders)
+  fixtures.rs            `cargo run -- seed` command
   routes/
-    mod.rs               agrégation du router
-    auth.rs              magic link + sessions + extractor AuthUser
-    home.rs              landing
-    matches.rs           liste des matches
-    bets.rs              placement de pari
-    leaderboard.rs       classement + pot + payouts
-    stake.rs             choix du palier
-    admin.rs             /admin/stakes + extractor AdminUser
-    dev.rs               page /dev (mode développement uniquement)
-    lang.rs              switch FR/EN (cookie)
+    mod.rs               router assembly
+    auth.rs              magic link + sessions + AuthUser extractor
+    home.rs              landing page
+    matches.rs           matches list
+    bets.rs              bet placement
+    leaderboard.rs       leaderboard + pot + payouts
+    stake.rs             stake tier selection
+    admin.rs             /admin/stakes + AdminUser extractor
+    dev.rs               /dev page (dev mode only)
+    lang.rs              FR/EN switch (cookie)
 
-templates/               Askama (compilés à la compilation Rust)
-  base.html              layout (topbar, switcher de langue, footer pelouse)
+templates/               Askama (compiled into the binary)
+  base.html              layout (topbar, language switcher, pitch footer)
   home.html, login.html, login_sent.html
   matches.html, leaderboard.html, stake.html
   admin_stakes.html, dev.html
   emails/
-    magic_link.html      email HTML magic link (bilingue selon Locale)
-    match_reminder.html  email HTML rappel (bilingue FR+EN side-by-side)
+    magic_link.html      HTML magic-link email (Locale-dependent)
+    match_reminder.html  HTML reminder email (bilingual side-by-side)
 
-static/                  assets servis par tower-http ServeDir
-  style.css              thème Panini, palette papier/navy/rouge/or
-  ball.js                Three.js : ballon 3D + mini-scène tir au but
-  lunatech-logo.svg      placeholder (à remplacer par le vrai logo)
+static/                  assets served by tower-http ServeDir
+  style.css              Panini theme, paper/navy/red/gold palette
+  ball.js                Three.js — 3D ball + goal-shot mini-scene
+  lunatech-logo.svg      placeholder (replace with the real logo)
 ```
 
 ## Tests
@@ -299,19 +301,19 @@ static/                  assets servis par tower-http ServeDir
 cargo test
 ```
 
-Couvre :
-- `scoring::compute_points` (4 cas : exact, bon vainqueur, bon nul, raté)
-- `stakes::compute_payouts` (6 cas : mises égales, somme = pot, plus grosse mise = plus grosse part, pot vide, ≤2 winners, 1 winner)
+Covers:
+- `scoring::compute_points` (4 cases: exact, right winner, right draw, missed)
+- `stakes::compute_payouts` (6 cases: equal stakes, sum equals pot, larger stake gets a larger share, empty pot, fewer than 3 winners, single winner)
 
-## Points d'attention pour la prod
+## Production checklist
 
-- `BASE_URL` doit pointer sur l'URL publique (les magic links en dépendent).
-- `COOKIE_KEY` doit être stable (rotation = invalide toutes les sessions).
-- Configurer un vrai SMTP (Gmail SMTP, SES, etc.) au lieu de Mailpit.
-- Snapshot Postgres pendant la compétition (les paris doivent être préservés).
-- Plan gratuit football-data.org : 10 requêtes/minute, le job tourne toutes les 5 min → marge confortable.
-- **Cadre légal** : un pot d'argent réel entre collègues, même via "honor system", peut tomber sous la régulation de l'ANJ en France. Faire valider par les RH ou le service juridique avant ouverture publique. L'app ne touche jamais à l'argent (les paiements se font hors-app), ce qui limite l'exposition mais ne l'élimine pas.
+- `BASE_URL` must point at the real public URL — magic links depend on it.
+- `COOKIE_KEY` must be stable (rotating it invalidates every active session).
+- Use a real SMTP relay (Gmail SMTP, SES, etc.), not Mailpit.
+- Snapshot the Postgres database during the tournament — bets must be preserved.
+- Free tier of football-data.org is rate-limited to 10 requests/minute; the job ticks every 5 minutes so there's plenty of headroom.
+- **Legal note** — a real-money pool between colleagues, even when settled out-of-app ("honor system"), can fall under French ANJ gambling regulation. Run the project past HR or legal before any public rollout. The app never touches the money (payments happen outside the app), which limits exposure but does not eliminate it.
 
-## Licence
+## License
 
-Distribué sous licence [Apache 2.0](LICENSE) — © 2026 Lunatech Labs.
+Distributed under the [Apache 2.0](LICENSE) license — © 2026 Lunatech Labs.
