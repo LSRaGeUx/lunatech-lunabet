@@ -11,13 +11,8 @@
     </p>
     <p>
         {{ loc.f(
-            "Entre ton email",
-            "Enter your"
-        ) }}
-        <code>@{{ domain }}</code>
-        {{ loc.f(
-            ". Tu recevras un lien de connexion par email.",
-            " email. You'll receive a magic link by email."
+            "Entre ton email Lunatech. Tu recevras un lien de connexion par email.",
+            "Enter your Lunatech email. You'll receive a magic link by email."
         ) }}
     </p>
     {% match error %}
@@ -27,7 +22,7 @@
     <form method="post" action="/login">
         <label for="email">{{ loc.f("Email Lunatech", "Lunatech email") }}</label>
         <input id="email" name="email" type="email" required autofocus
-               placeholder="prenom.nom@{{ domain }}">
+               placeholder="prenom.nom@lunatech.com">
         <button class="btn" type="submit">{{ loc.f("Envoyer le lien", "Send link") }}</button>
     </form>
 </section>
