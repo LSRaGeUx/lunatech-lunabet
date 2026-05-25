@@ -37,6 +37,12 @@ pub struct Config {
     /// apex — no tenant resolution, marketing landing. Anything not in this
     /// list with a subdomain is treated as a tenant request.
     pub apex_hosts: HashSet<String>,
+    /// Absolute URL of the platform's marketing apex (e.g. `https://lunabet.eu`).
+    /// When set, `/signup` requests that arrive on a tenant subdomain are
+    /// redirected here so signup stays a platform-level action. Leave unset
+    /// in pre-DNS / single-tenant deployments to keep `/signup` reachable
+    /// from any host.
+    pub platform_url: Option<String>,
 }
 
 impl Config {
@@ -128,6 +134,8 @@ impl Config {
         let default_tenant_name =
             env::var("DEFAULT_TENANT_NAME").unwrap_or_else(|_| "Lunatech".into());
 
+        let platform_url = env::var("PLATFORM_URL").ok().filter(|s| !s.is_empty());
+
         let apex_hosts: HashSet<String> = env::var("APEX_HOSTS")
             .unwrap_or_else(|_| "lunabet.eu,www.lunabet.eu,localhost,127.0.0.1".into())
             .split(',')
@@ -177,6 +185,7 @@ impl Config {
             default_tenant_name,
             super_admin_emails,
             apex_hosts,
+            platform_url,
         })
     }
 }

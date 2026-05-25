@@ -48,10 +48,13 @@ struct SignupSentTpl<'a> {
 }
 
 pub async fn form(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     MaybeTenant(maybe_tenant): MaybeTenant,
     loc: Locale,
-) -> impl IntoResponse {
+) -> Response {
+    if let Some(target) = redirect_to_platform(&state, &maybe_tenant) {
+        return Redirect::to(&target).into_response();
+    }
     let tenant = maybe_tenant.unwrap_or_else(Tenant::platform);
     let tpl = SignupTpl {
         loc,
@@ -59,7 +62,16 @@ pub async fn form(
         form: SignupValues::default(),
         error: None,
     };
-    Html(tpl.render().unwrap_or_else(|e| format!("template error: {e}")))
+    Html(tpl.render().unwrap_or_else(|e| format!("template error: {e}"))).into_response()
+}
+
+/// Returns the platform `/signup` URL if (a) we're inside a tenant and
+/// (b) `PLATFORM_URL` is configured. Signup is platform-level, so once the
+/// apex domain exists we send tenant-side visitors there.
+fn redirect_to_platform(state: &AppState, maybe_tenant: &Option<Tenant>) -> Option<String> {
+    let url = state.cfg.platform_url.as_deref()?;
+    maybe_tenant.as_ref()?;
+    Some(format!("{}/signup", url.trim_end_matches('/')))
 }
 
 #[derive(Deserialize)]
@@ -92,6 +104,9 @@ pub async fn submit(
     loc: Locale,
     Form(form): Form<SignupForm>,
 ) -> AppResult<Response> {
+    if let Some(target) = redirect_to_platform(&state, &maybe_tenant) {
+        return Ok(Redirect::to(&target).into_response());
+    }
     let tenant = maybe_tenant.unwrap_or_else(Tenant::platform);
     let slug = form.slug.trim().to_lowercase();
     let name = form.name.trim().to_string();
