@@ -60,5 +60,7 @@ pub async fn place_or_update(
     .execute(&state.pool)
     .await?;
 
-    Ok(Redirect::to("/matches").into_response())
+    // Keep the user where they were on the matches list. Redirect carries
+    // a fragment so the browser scrolls back to the card they just edited.
+    Ok(Redirect::to(&format!("/matches#match-{match_id}")).into_response())
 }

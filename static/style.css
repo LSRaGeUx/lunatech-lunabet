@@ -506,6 +506,9 @@ canvas.ball3d.ball-hero {
     box-shadow: var(--shadow);
     position: relative;
     overflow: hidden;
+    /* Leave room above when the browser scrolls to #match-{id} after a
+       bet redirect — sticky stage TOC sits at the top of the viewport. */
+    scroll-margin-top: 90px;
 }
 .match::before {
     content: "";
