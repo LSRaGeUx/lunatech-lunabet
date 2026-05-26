@@ -157,7 +157,7 @@ impl Config {
         let platform_url = env::var("PLATFORM_URL").ok().filter(|s| !s.is_empty());
 
         let apex_hosts: HashSet<String> = env::var("APEX_HOSTS")
-            .unwrap_or_else(|_| "lunabet.eu,www.lunabet.eu,localhost,127.0.0.1".into())
+            .unwrap_or_else(|_| "lunabet.eu,www.lunabet.eu".into())
             .split(',')
             .filter_map(|s| {
                 let t = s.trim().to_lowercase();

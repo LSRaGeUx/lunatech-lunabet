@@ -58,9 +58,11 @@ fn classify(req: &Request<Body>, apex_hosts: &std::collections::HashSet<String>)
     if apex_hosts.contains(&host_only) {
         return SlugIntent::Apex;
     }
-    // Bare IPv4/IPv6 → apex (no DNS labels to extract).
+    // Bare IPv4/IPv6 → fall back to the default tenant. Treating them as
+    // apex would break local dev (curl on 127.0.0.1) and any deployment
+    // accessed directly by IP rather than DNS name.
     if host_only.parse::<IpAddr>().is_ok() {
-        return SlugIntent::Apex;
+        return SlugIntent::Default;
     }
     // Two-or-more-dot host where the first label isn't "www" → tenant.
     if host_only.matches('.').count() >= 2 {

@@ -10,7 +10,7 @@
 {% block content %}
 <h1>{{ loc.f("Mes pronos", "My predictions") }}</h1>
 
-{% if upcoming.is_empty() %}
+{% if sections.is_empty() %}
     <p>{{ loc.f(
         "Aucune vignette à coller pour le moment. Les matches arrivent via football-data.org.",
         "No prediction to place yet. Matches will arrive via football-data.org."
@@ -20,79 +20,188 @@
         "« The pitch is huge! » Hang tight, kick-off is coming."
     ) }}</p>
 {% else %}
-<h2>{{ loc.f("Prochaines vignettes à coller", "Upcoming stickers to place") }}</h2>
-<div class="matches">
-    {% for v in upcoming %}
-    <article class="match">
-        <header>
-            <span class="kickoff">{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }}</span>
-            {% match v.m.stage %}{% when Some with (s) %}<span class="stage">{{ s }}</span>{% when None %}{% endmatch %}
-            {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
-        </header>
-        <form method="post" action="/matches/{{ v.m.id }}/bet" class="bet-form">
-            <div class="team home">
-                <span class="code">{% match v.m.home_team_code %}{% when Some with (c) %}{{ c }}{% when None %}---{% endmatch %}</span>
-                <span class="name">{{ v.m.home_team }}</span>
-            </div>
-            <input type="number" name="home_score" min="0" max="30"
-                   value="{% match v.bet_home %}{% when Some with (n) %}{{ n }}{% when None %}{% endmatch %}"
-                   required {% if !v.open %}disabled{% endif %}>
-            <span class="sep">vs</span>
-            <input type="number" name="away_score" min="0" max="30"
-                   value="{% match v.bet_away %}{% when Some with (n) %}{{ n }}{% when None %}{% endmatch %}"
-                   required {% if !v.open %}disabled{% endif %}>
-            <div class="team away">
-                <span class="code">{% match v.m.away_team_code %}{% when Some with (c) %}{{ c }}{% when None %}---{% endmatch %}</span>
-                <span class="name">{{ v.m.away_team }}</span>
-            </div>
-            <div class="submit-row">
-                {% if v.open %}
-                    {% match v.bet_home %}
-                        {% when Some with (_) %}<span class="my-bet">{{ loc.f("Ton pari est noté", "Your bet is in") }}</span><button class="btn" type="submit">{{ loc.f("Modifier", "Change") }}</button>
-                        {% when None %}<span class="my-bet">{{ loc.f("Place ton pronostic", "Place your prediction") }}</span><button class="btn" type="submit">{{ loc.f("Coller la vignette", "Stick the sticker") }}</button>
-                    {% endmatch %}
-                {% else %}
-                    <span class="closed">{{ loc.f("Paris fermés - match en cours", "Bets closed - match in progress") }}</span>
-                {% endif %}
-            </div>
-        </form>
-    </article>
+
+<nav class="stage-toc" aria-label="{{ loc.f("Aller à la phase", "Jump to stage") }}">
+    {% for s in sections %}
+        {% if s.has_any_matches() || !s.groups.is_empty() %}
+            <a href="#{{ s.anchor }}">{{ s.label }}</a>
+        {% endif %}
     {% endfor %}
-</div>
+</nav>
+
+{% for s in sections %}
+<section id="{{ s.anchor }}" class="stage-section">
+    <h2>{{ s.label }}</h2>
+
+    {% if !s.groups.is_empty() %}
+    <div class="groups-overview">
+        {% for g in s.groups %}
+        <article class="group-card">
+            <h3>{{ g.name }}</h3>
+            <ul>
+                {% for t in g.teams %}
+                <li>
+                    <span class="code">{{ t.code }}</span>
+                    <span class="name">{{ t.name }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if !s.upcoming.is_empty() %}
+    <h3 class="stage-subhead">{{ loc.f("À pronostiquer", "To predict") }}</h3>
+    <div class="matches">
+        {% for v in s.upcoming %}
+        <article class="match">
+            <header>
+                <span class="kickoff">{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }}</span>
+                {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
+            </header>
+            <form method="post" action="/matches/{{ v.m.id }}/bet" class="bet-form">
+                <div class="team home">
+                    <span class="code">{% match v.m.home_team_code %}{% when Some with (c) %}{{ c }}{% when None %}---{% endmatch %}</span>
+                    <span class="name">{{ v.m.home_team }}</span>
+                </div>
+                <input type="number" name="home_score" min="0" max="30"
+                       value="{% match v.bet_home %}{% when Some with (n) %}{{ n }}{% when None %}{% endmatch %}"
+                       required {% if !v.open %}disabled{% endif %}>
+                <span class="sep">vs</span>
+                <input type="number" name="away_score" min="0" max="30"
+                       value="{% match v.bet_away %}{% when Some with (n) %}{{ n }}{% when None %}{% endmatch %}"
+                       required {% if !v.open %}disabled{% endif %}>
+                <div class="team away">
+                    <span class="code">{% match v.m.away_team_code %}{% when Some with (c) %}{{ c }}{% when None %}---{% endmatch %}</span>
+                    <span class="name">{{ v.m.away_team }}</span>
+                </div>
+                <div class="submit-row">
+                    {% if v.open %}
+                        {% match v.bet_home %}
+                            {% when Some with (_) %}<span class="my-bet">{{ loc.f("Ton pari est noté", "Your bet is in") }}</span><button class="btn" type="submit">{{ loc.f("Modifier", "Change") }}</button>
+                            {% when None %}<span class="my-bet">{{ loc.f("Place ton pronostic", "Place your prediction") }}</span><button class="btn" type="submit">{{ loc.f("Coller la vignette", "Stick the sticker") }}</button>
+                        {% endmatch %}
+                    {% else %}
+                        <span class="closed">{{ loc.f("Paris fermés - match en cours", "Bets closed - match in progress") }}</span>
+                    {% endif %}
+                </div>
+            </form>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if !s.finished.is_empty() %}
+    <h3 class="stage-subhead">{{ loc.f("Résultats", "Results") }}</h3>
+    <div class="matches">
+        {% for v in s.finished %}
+        <article class="match finished">
+            <header>
+                <span class="kickoff">{{ v.m.kickoff_at.format("%a %d/%m") }}</span>
+                {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
+            </header>
+            <div class="teams-row">
+                <span>{{ v.m.home_team }}</span>
+                <span>{{ v.m.away_team }}</span>
+            </div>
+            <div class="final-score">
+                <span>{% match v.m.home_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
+                <span class="sep">-</span>
+                <span>{% match v.m.away_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
+            </div>
+            <div class="bet-row">
+                {% match v.bet_home %}
+                    {% when Some with (bh) %}
+                        <span>{{ loc.f("Ton pari", "Your bet") }} : <strong>{{ bh }} - {% match v.bet_away %}{% when Some with (ba) %}{{ ba }}{% when None %}?{% endmatch %}</strong></span>
+                        {% match v.points %}
+                            {% when Some with (p) %}<span class="pts pts-{{ p }}">+{{ p }} pts</span>
+                            {% when None %}<em>{{ loc.f("en attente", "pending") }}</em>
+                        {% endmatch %}
+                    {% when None %}<span>{{ loc.f("Pas de pari", "No bet") }}</span><span class="pts pts-0">{{ loc.f("manqué", "missed") }}</span>
+                {% endmatch %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+{% endfor %}
+
 {% endif %}
 
-{% if !finished.is_empty() %}
-<h2>{{ loc.f("Vignettes collées", "Placed stickers") }}</h2>
-<div class="matches">
-    {% for v in finished %}
-    <article class="match finished">
-        <header>
-            <span class="kickoff">{{ v.m.kickoff_at.format("%a %d/%m") }}</span>
-            {% match v.m.stage %}{% when Some with (s) %}<span class="stage">{{ s }}</span>{% when None %}{% endmatch %}
-            {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
-        </header>
-        <div class="teams-row">
-            <span>{{ v.m.home_team }}</span>
-            <span>{{ v.m.away_team }}</span>
-        </div>
-        <div class="final-score">
-            <span>{% match v.m.home_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
-            <span class="sep">-</span>
-            <span>{% match v.m.away_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
-        </div>
-        <div class="bet-row">
-            {% match v.bet_home %}
-                {% when Some with (bh) %}
-                    <span>{{ loc.f("Ton pari", "Your bet") }} : <strong>{{ bh }} - {% match v.bet_away %}{% when Some with (ba) %}{{ ba }}{% when None %}?{% endmatch %}</strong></span>
-                    {% match v.points %}
-                        {% when Some with (p) %}<span class="pts pts-{{ p }}">+{{ p }} pts</span>
-                        {% when None %}<em>{{ loc.f("en attente", "pending") }}</em>
-                    {% endmatch %}
-                {% when None %}<span>{{ loc.f("Pas de pari", "No bet") }}</span><span class="pts pts-0">{{ loc.f("manqué", "missed") }}</span>
-            {% endmatch %}
-        </div>
-    </article>
-    {% endfor %}
-</div>
-{% endif %}
+<style>
+    .stage-toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 0.8rem;
+        margin: 0 0 1.5rem;
+        padding: 0.7rem 1rem;
+        background: var(--paper-light);
+        border: 2px solid var(--ink);
+        border-radius: 6px;
+        box-shadow: var(--shadow);
+        position: sticky;
+        top: 0;
+        z-index: 5;
+    }
+    .stage-toc a {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.06em;
+        color: var(--navy);
+        border: none;
+        padding: 0.2rem 0.6rem;
+        border-radius: 3px;
+        background: var(--paper);
+    }
+    .stage-toc a:hover { background: var(--gold-light); color: var(--ink); }
+    .stage-section { margin: 2rem 0; scroll-margin-top: 80px; }
+    .stage-section > h2 {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.06em;
+        color: var(--red);
+    }
+    .stage-subhead {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.06em;
+        color: var(--navy);
+        margin: 1.5rem 0 0.5rem;
+        font-size: 1.2rem;
+    }
+    .groups-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.8rem;
+        margin: 0.5rem 0 1.2rem;
+    }
+    .group-card {
+        background: var(--paper-light);
+        border: 2px solid var(--ink);
+        border-radius: 6px;
+        padding: 0.7rem 0.9rem;
+        box-shadow: 3px 3px 0 var(--ink);
+    }
+    .group-card h3 {
+        margin: 0 0 0.4rem;
+        font-family: "Bebas Neue", sans-serif;
+        color: var(--gold);
+        background: var(--ink);
+        padding: 0.2rem 0.5rem;
+        display: inline-block;
+        border-radius: 3px;
+        letter-spacing: 0.04em;
+    }
+    .group-card ul { list-style: none; padding: 0; margin: 0; }
+    .group-card li {
+        display: flex; align-items: center; gap: 0.4rem;
+        padding: 0.18rem 0;
+        font-size: 0.92rem;
+    }
+    .group-card .code {
+        background: var(--red); color: var(--paper-light);
+        font-family: "Bebas Neue", sans-serif; font-size: 0.85rem;
+        padding: 0.05rem 0.4rem; border: 1px solid var(--ink);
+        border-radius: 2px; min-width: 38px; text-align: center;
+    }
+</style>
 {% endblock %}
