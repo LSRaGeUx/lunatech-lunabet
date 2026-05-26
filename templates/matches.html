@@ -60,7 +60,11 @@
                 <span class="kickoff">{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }}</span>
                 {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
             </header>
-            <form method="post" action="/matches/{{ v.m.id }}/bet" class="bet-form">
+            <form method="post" action="/matches/{{ v.m.id }}/bet"
+                  hx-post="/matches/{{ v.m.id }}/bet"
+                  hx-target="closest article"
+                  hx-swap="outerHTML"
+                  class="bet-form">
                 <div class="team home">
                     <span class="code">{% match v.m.home_team_code %}{% when Some with (c) %}{{ c }}{% when None %}---{% endmatch %}</span>
                     <span class="name">{{ v.m.home_team }}</span>

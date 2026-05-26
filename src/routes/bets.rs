@@ -1,13 +1,16 @@
+use askama::Template;
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Redirect, Response};
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::Form;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 use crate::error::AppResult;
 use crate::i18n::Locale;
+use crate::models::Match;
 use crate::routes::auth::AuthUser;
+use crate::routes::matches::MatchView;
 use crate::state::AppState;
 use crate::tenant::TenantCtx;
 
@@ -17,12 +20,20 @@ pub struct BetForm {
     away_score: i32,
 }
 
+#[derive(Template)]
+#[template(path = "match_card.html")]
+struct MatchCardTpl {
+    loc: Locale,
+    v: MatchView,
+}
+
 pub async fn place_or_update(
     State(state): State<AppState>,
     TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AuthUser(user): AuthUser,
     Path(match_id): Path<i64>,
+    headers: HeaderMap,
     Form(form): Form<BetForm>,
 ) -> AppResult<Response> {
     if !(0..=30).contains(&form.home_score) || !(0..=30).contains(&form.away_score) {
@@ -60,7 +71,35 @@ pub async fn place_or_update(
     .execute(&state.pool)
     .await?;
 
-    // Keep the user where they were on the matches list. Redirect carries
-    // a fragment so the browser scrolls back to the card they just edited.
+    // htmx submission: return just the updated match card so the form swaps
+    // in place (no full reload, no scroll jump). Fall back to a redirect for
+    // plain-HTML clients.
+    if headers.get("hx-request").is_some() {
+        let m: Match = sqlx::query_as(
+            r#"
+            SELECT id, competition, stage, group_name,
+                   home_team, away_team, home_team_code, away_team_code,
+                   kickoff_at, status, home_score, away_score
+            FROM matches WHERE id = $1
+            "#,
+        )
+        .bind(match_id)
+        .fetch_one(&state.pool)
+        .await?;
+
+        let view = MatchView {
+            open: m.is_open_for_bets(),
+            finished: m.has_final_result(),
+            bet_home: Some(form.home_score),
+            bet_away: Some(form.away_score),
+            points: None,
+            m,
+        };
+        let tpl = MatchCardTpl { loc, v: view };
+        return Ok(Html(tpl.render()?).into_response());
+    }
+
+    // Non-htmx fallback: redirect with a fragment so the browser at least
+    // scrolls back to the card the user just edited.
     Ok(Redirect::to(&format!("/matches#match-{match_id}")).into_response())
 }

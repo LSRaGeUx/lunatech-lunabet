@@ -1228,3 +1228,40 @@ tr.me .player-avatar {
     transform: scale(1.15) rotate(-3deg);
 }
 .player-name { line-height: 1.25; }
+
+/* --- Animation "Enregistré" sur la card après save htmx --- */
+
+.match.just-saved {
+    animation: bet-saved 1.8s ease-out;
+}
+@keyframes bet-saved {
+    0%   { border-color: var(--green); background: #d8efdd; box-shadow: 0 0 0 6px rgba(46, 125, 74, 0.25); }
+    35%  { border-color: var(--green); background: #d8efdd; box-shadow: 0 0 0 4px rgba(46, 125, 74, 0.18); }
+    100% { border-color: var(--ink);   background: var(--paper-light); box-shadow: var(--shadow); }
+}
+.saved-flag {
+    display: inline-block;
+    background: var(--green);
+    color: #fff;
+    padding: 0.15rem 0.55rem;
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    box-shadow: 2px 2px 0 var(--ink);
+    font-family: "Bebas Neue", Impact, sans-serif;
+    letter-spacing: 0.05em;
+    font-size: 0.85rem;
+    margin-left: auto;
+    transform-origin: center;
+    animation: saved-flag-pop 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes saved-flag-pop {
+    0%   { transform: scale(0.2) rotate(-12deg); opacity: 0; }
+    18%  { transform: scale(1.25) rotate(2deg);  opacity: 1; }
+    35%  { transform: scale(1)    rotate(-3deg); opacity: 1; }
+    70%  { transform: scale(1)    rotate(-3deg); opacity: 1; }
+    100% { transform: scale(0.9)  rotate(0);     opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .match.just-saved { animation: none; }
+    .saved-flag { animation: none; opacity: 1; transform: none; }
+}
