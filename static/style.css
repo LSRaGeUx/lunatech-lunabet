@@ -1060,3 +1060,140 @@ canvas.goal3d {
     h1 { font-size: 2rem; }
     .topbar { padding: 0.8rem 1rem; flex-wrap: wrap; gap: 0.6rem; }
 }
+
+/* --- Easter eggs Captain Tsubasa --- */
+
+.ee-olivier-active {
+    position: absolute;
+    z-index: 100;
+    pointer-events: none;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.6rem;
+    animation: ee-olivier-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.ee-olivier-char {
+    width: 90px; height: auto;
+    transform-origin: bottom center;
+    animation: ee-olivier-bob 1.5s ease-in-out infinite;
+    filter: drop-shadow(2px 2px 0 rgba(26, 20, 17, 0.3));
+}
+.ee-bubble {
+    background: var(--paper-light);
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    padding: 0.5rem 0.9rem;
+    box-shadow: 3px 3px 0 var(--ink);
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.05em;
+    font-size: 1rem;
+    color: var(--ink);
+    position: relative;
+    margin-bottom: 36px;
+    white-space: nowrap;
+}
+.ee-bubble::before {
+    content: "";
+    position: absolute;
+    left: -12px; bottom: 10px;
+    border: 8px solid transparent;
+    border-right-color: var(--ink);
+}
+.ee-bubble::after {
+    content: "";
+    position: absolute;
+    left: -8px; bottom: 11px;
+    border: 7px solid transparent;
+    border-right-color: var(--paper-light);
+}
+.ee-fade-out { transition: opacity 0.55s, transform 0.55s; opacity: 0; transform: translateY(-10px); }
+@keyframes ee-olivier-in {
+    0%   { opacity: 0; transform: translateY(24px) scale(0.4); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ee-olivier-bob {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    50%      { transform: translateY(-5px) rotate(-1.5deg); }
+}
+
+/* Tiger streak: 🐯 + "TIR DU TIGRE !" sweeps across the viewport. */
+.ee-tiger-streak {
+    position: fixed; top: 38%;
+    left: 0;
+    z-index: 200;
+    pointer-events: none;
+    display: flex; align-items: center; gap: 1rem;
+    font-family: "Bebas Neue", Impact, sans-serif;
+    font-size: 3rem;
+    letter-spacing: 0.04em;
+    color: var(--red);
+    text-shadow: 3px 3px 0 var(--ink);
+    animation: ee-tiger-cross 1.3s cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+.ee-tiger-emoji { font-size: 4rem; }
+@keyframes ee-tiger-cross {
+    0%   { transform: translateX(-110vw) rotate(-6deg); }
+    100% { transform: translateX(110vw)  rotate(6deg); }
+}
+
+/* Catapulte infernale: full-screen overlay triggered by the Konami code. */
+.ee-catapulte {
+    position: fixed; inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+    animation: ee-cat-flash 2.4s ease-out;
+}
+.ee-catapulte-burst {
+    position: absolute;
+    width: 140vmin; height: 140vmin;
+    animation: ee-cat-burst 2s linear;
+}
+.ee-catapulte-text {
+    position: relative; z-index: 3;
+    font-family: Impact, "Bebas Neue", sans-serif;
+    font-size: 11vmin;
+    color: var(--gold);
+    text-shadow:
+        4px 4px 0 var(--red),
+        8px 8px 0 var(--ink);
+    transform: skew(-6deg);
+    animation: ee-cat-text 2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ee-catapulte-ball {
+    position: absolute;
+    font-size: 8vmin;
+    z-index: 2;
+    animation: ee-cat-ball 2s ease-in-out;
+}
+@keyframes ee-cat-flash {
+    0%, 100% { background: rgba(200, 35, 44, 0); }
+    10%      { background: rgba(200, 35, 44, 0.35); }
+    60%      { background: rgba(200, 35, 44, 0.15); }
+}
+@keyframes ee-cat-burst {
+    from { transform: scale(0)   rotate(0);    opacity: 0; }
+    20%  {                                     opacity: 1; }
+    to   { transform: scale(1.5) rotate(180deg); opacity: 0; }
+}
+@keyframes ee-cat-text {
+    0%   { transform: skew(-6deg) scale(0)   rotate(-25deg); opacity: 0; }
+    30%  { transform: skew(-6deg) scale(1.3) rotate(0);      opacity: 1; }
+    70%  { transform: skew(-6deg) scale(1)   rotate(0);      opacity: 1; }
+    100% { transform: skew(-6deg) scale(1.7);                opacity: 0; }
+}
+@keyframes ee-cat-ball {
+    0%   { transform: translate(-45vmin, -32vmin) scale(0.3) rotate(0);    opacity: 0; }
+    30%  { transform: translate(0, 0)             scale(1.4) rotate(540deg); opacity: 1; }
+    70%  { transform: translate(0, 0)             scale(1.4) rotate(720deg); opacity: 1; }
+    100% { transform: translate(45vmin, 32vmin)   scale(0.3) rotate(900deg); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ee-olivier-char,
+    .ee-tiger-streak,
+    .ee-catapulte-burst,
+    .ee-catapulte-text,
+    .ee-catapulte-ball,
+    .ee-catapulte { animation: none !important; }
+}
