@@ -1197,3 +1197,31 @@ canvas.goal3d {
     .ee-catapulte-ball,
     .ee-catapulte { animation: none !important; }
 }
+
+/* --- Avatars Captain Tsubasa par joueur (leaderboard) --- */
+.player-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 48px;
+}
+.player-avatar {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    background: var(--paper-light);
+    padding: 2px;
+    box-shadow: 2px 2px 0 var(--ink);
+    object-fit: contain;
+    transition: transform 0.15s ease-out;
+}
+tr.me .player-avatar {
+    border-color: var(--red);
+    box-shadow: 2px 2px 0 var(--red);
+}
+.player-cell:hover .player-avatar {
+    transform: scale(1.15) rotate(-3deg);
+}
+.player-name { line-height: 1.25; }

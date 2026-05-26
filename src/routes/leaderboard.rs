@@ -4,6 +4,7 @@ use askama::Template;
 use axum::extract::State;
 use axum::response::{Html, IntoResponse, Response};
 
+use crate::characters;
 use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::routes::auth::AuthUser;
@@ -22,6 +23,8 @@ pub struct Row {
     pub eligible: bool,
     pub payout_eur: Option<f64>,
     pub is_me: bool,
+    /// Public path to the Tsubasa-inspired avatar assigned to this user.
+    pub avatar: String,
 }
 
 #[derive(Template)]
@@ -65,6 +68,7 @@ pub async fn index(
             eligible: r.paid && r.stake_eur.is_some(),
             payout_eur: payout_map.get(&r.user_id).copied(),
             is_me: r.user_id == user.id,
+            avatar: characters::path_for(r.user_id),
         })
         .collect();
 

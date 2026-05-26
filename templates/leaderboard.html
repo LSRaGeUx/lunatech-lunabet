@@ -52,9 +52,12 @@
         {% for r in rows %}
         <tr {% if r.is_me %}class="me"{% endif %}>
             <td>{{ r.rank }}</td>
-            <td>
-                {{ r.display_name }}{% if r.is_me %} ({{ loc.f("toi", "you") }}){% endif %}
-                {% if !r.eligible %}<span class="non-eligible-badge">{{ loc.f("non éligible", "not eligible") }}</span>{% endif %}
+            <td class="player-cell">
+                <img class="player-avatar" src="{{ r.avatar }}" alt="" aria-hidden="true">
+                <span class="player-name">
+                    {{ r.display_name }}{% if r.is_me %} ({{ loc.f("toi", "you") }}){% endif %}
+                    {% if !r.eligible %}<span class="non-eligible-badge">{{ loc.f("non éligible", "not eligible") }}</span>{% endif %}
+                </span>
             </td>
             <td>
                 {% match r.stake_eur %}

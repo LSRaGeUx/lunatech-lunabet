@@ -7,6 +7,7 @@ use sqlx::postgres::PgPoolOptions;
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 
+mod characters;
 mod config;
 mod error;
 mod fixtures;
