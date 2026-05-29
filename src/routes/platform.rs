@@ -51,6 +51,9 @@ struct DashboardTpl<'a> {
     tenants: Vec<TenantRow>,
     total_users: i64,
     total_tenants: i64,
+    /// Slug of the env-bootstrapped tenant; the dashboard hides the delete
+    /// button on that row to prevent an accidental wipe.
+    default_slug: &'a str,
 }
 
 pub struct TenantRow {
@@ -280,8 +283,73 @@ pub async fn dashboard(
         tenants,
         total_users,
         total_tenants,
+        default_slug: &state.cfg.default_tenant_slug,
     };
     Ok(Html(tpl.render()?).into_response())
+}
+
+/// Cascade-delete a tenant and every row that references it. Refuses to
+/// touch the deployment's default tenant (the env-bootstrapped one) so a
+/// stray click doesn't wipe the home tenant. Forward only: there is no
+/// undo, the action is meant for cleaning up abandoned signups or test
+/// tenants.
+pub async fn delete_tenant(
+    State(state): State<AppState>,
+    PlatformAdmin { email }: PlatformAdmin,
+    axum::extract::Path(slug): axum::extract::Path<String>,
+) -> AppResult<Response> {
+    if slug == state.cfg.default_tenant_slug {
+        return Ok((
+            StatusCode::FORBIDDEN,
+            "Refusing to delete the default tenant. Change DEFAULT_TENANT_SLUG first.",
+        )
+            .into_response());
+    }
+
+    let mut tx = state.pool.begin().await?;
+    let tenant_id: Option<Uuid> = sqlx::query_scalar("SELECT id FROM tenants WHERE slug = $1")
+        .bind(&slug)
+        .fetch_optional(&mut *tx)
+        .await?;
+    let Some(tenant_id) = tenant_id else {
+        return Ok((StatusCode::NOT_FOUND, "Tenant not found.").into_response());
+    };
+
+    // Children first, no FK with ON DELETE CASCADE was declared so we
+    // unwind explicitly.
+    for stmt in [
+        "DELETE FROM bets WHERE tenant_id = $1",
+        "DELETE FROM match_reminders WHERE tenant_id = $1",
+        "DELETE FROM magic_links WHERE tenant_id = $1",
+        "DELETE FROM sessions WHERE tenant_id = $1",
+        "DELETE FROM users WHERE tenant_id = $1",
+    ] {
+        sqlx::query(stmt)
+            .bind(tenant_id)
+            .execute(&mut *tx)
+            .await?;
+    }
+    // pending_tenants references the slug (not the tenant id) — clean any
+    // stale reservation so the slug is free for a future signup.
+    sqlx::query("DELETE FROM pending_tenants WHERE slug = $1")
+        .bind(&slug)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM tenants WHERE id = $1")
+        .bind(tenant_id)
+        .execute(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+    state.tenants.invalidate(&slug).await;
+
+    tracing::warn!(
+        super_admin = %email,
+        tenant_slug = %slug,
+        "tenant deleted by platform admin"
+    );
+
+    Ok(Redirect::to("/super-admin/").into_response())
 }
 
 pub async fn logout(_apex: ApexOnly, jar: PrivateCookieJar) -> impl IntoResponse {

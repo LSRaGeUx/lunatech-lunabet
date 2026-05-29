@@ -149,16 +149,17 @@ pub async fn request_magic_link(
             Ok((StatusCode::NOT_FOUND, Html(tpl.render()?)).into_response())
         }
         1 => {
-            // Single match: bounce straight to that tenant's login form with
-            // the email already filled in. The user clicks "Send link" once
-            // and the existing per-tenant magic-link flow takes over.
+            // Single match: send the magic link straight away — no second
+            // form to fill. We render the "check your inbox" page in the
+            // matching tenant's branding so the user sees where the link
+            // will take them.
             let (slug, _name) = &rows[0];
-            let target = format!(
-                "{}/login?email={}",
-                public_url_for_slug(slug, &state.cfg),
-                email_for_query(&email)
-            );
-            Ok(Redirect::to(&target).into_response())
+            let Some(tenant) = state.tenants.resolve(slug).await else {
+                return Ok((StatusCode::INTERNAL_SERVER_ERROR, "tenant lookup failed").into_response());
+            };
+            send_magic_link_for_tenant(&state, &tenant, loc, &email).await?;
+            let tpl = LoginSentTpl { loc, tenant: &tenant };
+            Ok(Html(tpl.render()?).into_response())
         }
         _ => {
             let options: Vec<TenantOption> = rows
@@ -209,6 +210,20 @@ async fn tenant_request_magic_link(
         return Ok((StatusCode::BAD_REQUEST, Html(tpl.render()?)).into_response());
     }
 
+    send_magic_link_for_tenant(&state, &tenant, loc, &email).await?;
+    Ok(Redirect::to("/login/sent").into_response())
+}
+
+/// Generate a magic-link token, persist it in `magic_links`, and send the
+/// email. Used by both the per-tenant `/login` POST (after pattern check)
+/// and the apex 1-match flow (no pattern check needed — the user is
+/// already a member of the tenant).
+async fn send_magic_link_for_tenant(
+    state: &AppState,
+    tenant: &Tenant,
+    loc: Locale,
+    email: &str,
+) -> AppResult<()> {
     let mut raw = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut raw);
     let token = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(raw);
@@ -220,7 +235,7 @@ async fn tenant_request_magic_link(
     )
     .bind(tenant.id)
     .bind(&token_hash)
-    .bind(&email)
+    .bind(email)
     .bind(expires_at)
     .execute(&state.pool)
     .await?;
@@ -228,12 +243,11 @@ async fn tenant_request_magic_link(
     let tenant_url = tenant.public_url(&state.cfg);
     let link = format!("{}/auth/callback?token={}", tenant_url, token);
 
-    if let Err(e) = mail::send_magic_link(&state.cfg, &tenant, loc, &tenant_url, &email, &link).await {
+    if let Err(e) = mail::send_magic_link(&state.cfg, tenant, loc, &tenant_url, email, &link).await {
         tracing::warn!("could not send magic link email to {email}: {e:#}");
         tracing::info!("DEV magic link for {email}: {link}");
     }
-
-    Ok(Redirect::to("/login/sent").into_response())
+    Ok(())
 }
 
 pub async fn login_sent(

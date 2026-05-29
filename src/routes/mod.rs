@@ -32,6 +32,10 @@ pub fn router() -> Router<AppState> {
         )
         .route("/super-admin/auth/callback", get(platform::callback))
         .route("/super-admin/logout", post(platform::logout))
+        .route(
+            "/super-admin/tenants/:slug/delete",
+            post(platform::delete_tenant),
+        )
         .route("/logout", post(auth::logout))
         .route("/matches", get(matches::list))
         .route("/matches/:id/bet", post(bets::place_or_update))

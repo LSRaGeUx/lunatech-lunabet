@@ -39,23 +39,13 @@ async fn main() -> anyhow::Result<()> {
 
     let cfg = config::Config::from_env().context("loading configuration from env")?;
 
-    // RLS policies (migration 0525_07 + 0529_03) FORCE row-level security
-    // on the tenant-scoped tables. The hook flips `app.bypass_rls = on`
-    // on every fresh connection so app queries pass through the policies
-    // unchanged until handlers are refactored to set per-request
-    // `app.current_tenant_id` instead. The defence-in-depth kicks in the
-    // day someone runs the app under a non-owner role or drops the bypass
-    // setting.
+    // No after_connect hook. RLS policies are still installed (0525_07)
+    // but FORCE is off (0529_02 / _04), so the table-owner role our app
+    // connects with bypasses them naturally — same effective behaviour
+    // as the explicit `app.bypass_rls = on` we used before, one less
+    // moving piece to worry about in production.
     let pool = PgPoolOptions::new()
         .max_connections(8)
-        .after_connect(|conn, _meta| {
-            Box::pin(async move {
-                sqlx::query("SELECT set_config('app.bypass_rls', 'on', false)")
-                    .execute(&mut *conn)
-                    .await?;
-                Ok(())
-            })
-        })
         .connect(&cfg.database_url)
         .await
         .context("connecting to Postgres")?;
