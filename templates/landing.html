@@ -26,6 +26,7 @@
             <span class="brand-name">LunaBet</span>
         </a>
         <nav>
+            <a href="/login">{{ loc.f("Se connecter", "Sign in") }}</a>
             <a href="/signup">{{ loc.f("Créer un espace", "Create a space") }}</a>
             <span class="lang-switch">
                 <a href="/lang/fr" class="lang-link{% if loc.code() == "fr" %} active{% endif %}">FR</a>
@@ -57,6 +58,7 @@
             </p>
             <p style="margin-top: 1.5rem;">
                 <a class="btn" href="/signup">{{ loc.f("Créer mon espace", "Create my space") }}</a>
+                <a style="margin-left: 1rem;" href="/login">{{ loc.f("Se connecter", "Sign in") }} →</a>
             </p>
             <span class="rolling-ball" aria-hidden="true">⚽</span>
         </section>
