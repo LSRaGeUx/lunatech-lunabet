@@ -310,6 +310,26 @@ where
     }
 }
 
+/// Reject the request with 404 unless it is targeting the platform apex.
+/// Use this on routes that must only ever respond on `lunabet.eu`, never
+/// on a tenant subdomain (e.g. `/super-admin/*`).
+pub struct ApexOnly;
+
+#[axum::async_trait]
+impl<S> FromRequestParts<S> for ApexOnly
+where
+    S: Send + Sync,
+{
+    type Rejection = Response;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        if parts.extensions.get::<Tenant>().is_some() {
+            return Err((axum::http::StatusCode::NOT_FOUND, "Not found.").into_response());
+        }
+        Ok(ApexOnly)
+    }
+}
+
 pub struct MaybeUnknownSlug(pub Option<String>);
 
 #[axum::async_trait]

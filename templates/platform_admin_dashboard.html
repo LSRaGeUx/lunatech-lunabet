@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="{{ loc.code() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LunaBet · super-admin</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lora:ital,wght@0,400;0,600;0,700&display=swap">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="topbar">
+        <a href="/" class="brand">
+            <span class="brand-name">LunaBet · super-admin</span>
+        </a>
+        <nav>
+            <span class="user">{{ admin_email }}</span>
+            <form method="post" action="/super-admin/logout" class="inline">
+                <button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button>
+            </form>
+        </nav>
+    </header>
+    <div class="pitch-stripe" aria-hidden="true"></div>
+
+    <main>
+        <h1>{{ loc.f("Tableau plateforme", "Platform dashboard") }}</h1>
+
+        <section class="platform-stats">
+            <div class="stat-card">
+                <span class="stat-num">{{ total_tenants }}</span>
+                <span class="stat-label">{{ loc.f("tenants", "tenants") }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-num">{{ total_users }}</span>
+                <span class="stat-label">{{ loc.f("comptes utilisateurs", "user accounts") }}</span>
+            </div>
+        </section>
+
+        {% if tenants.is_empty() %}
+            <p>{{ loc.f("Aucun tenant pour le moment.", "No tenants yet.") }}</p>
+        {% else %}
+        <table class="leaderboard">
+            <thead>
+                <tr>
+                    <th>{{ loc.f("Slug", "Slug") }}</th>
+                    <th>{{ loc.f("Nom", "Name") }}</th>
+                    <th>{{ loc.f("Domaine email", "Email domain") }}</th>
+                    <th>{{ loc.f("Créé le", "Created") }}</th>
+                    <th>{{ loc.f("Utilisateurs", "Users") }}</th>
+                    <th>{{ loc.f("Payés", "Paid") }}</th>
+                    <th>{{ loc.f("Paris", "Bets") }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tenants %}
+                <tr>
+                    <td><code>{{ t.slug }}</code></td>
+                    <td>{{ t.name }}</td>
+                    <td><code>{{ t.allowed_email_pattern }}</code></td>
+                    <td>{{ t.created_at.format("%Y-%m-%d") }}</td>
+                    <td><strong>{{ t.user_count }}</strong></td>
+                    <td>{{ t.paid_count }}</td>
+                    <td>{{ t.bet_count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <p class="note" style="margin-top: 1.5rem;">
+            {{ loc.f(
+                "L'édition fine des tenants (couleurs, deadline, etc.) reste sur",
+                "Fine-grained tenant editing (colours, deadline, etc.) is still on"
+            ) }}
+            <code>/admin/tenants</code>
+            {{ loc.f("via un login tenant.", "via a tenant login.") }}
+        </p>
+    </main>
+
+    <style>
+        .platform-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0 2rem;
+        }
+        .stat-card {
+            background: var(--paper-light);
+            border: 2px solid var(--ink);
+            border-radius: 6px;
+            padding: 1rem 1.4rem;
+            box-shadow: 4px 4px 0 var(--ink);
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        .stat-num {
+            font-family: "Bebas Neue", sans-serif;
+            font-size: 2.4rem;
+            color: var(--red);
+            line-height: 1;
+        }
+        .stat-label {
+            font-family: "Bebas Neue", sans-serif;
+            letter-spacing: 0.06em;
+            color: var(--ink-soft);
+        }
+    </style>
+</body>
+</html>

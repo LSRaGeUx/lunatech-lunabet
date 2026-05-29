@@ -123,6 +123,56 @@ pub async fn send_bet_reminder(
     send_html_email(cfg, &tenant.mail_from, to, &subject, plain, html).await
 }
 
+/// Magic-link email for the platform-level admin login (`/super-admin/`).
+/// Plain text only — the dashboard is internal, no need for the branded
+/// HTML template the tenant login uses.
+pub async fn send_platform_magic_link(
+    cfg: &Config,
+    loc: Locale,
+    base_url: &str,
+    to: &str,
+    link: &str,
+) -> anyhow::Result<()> {
+    let plain = match loc {
+        Locale::Fr => format!(
+            "Salut,\n\n\
+             Voici ton lien de connexion super-admin LunaBet.\n\
+             Il est valable 15 minutes :\n\n\
+             {link}\n\n\
+             Si ce n'est pas toi, ignore cet email.\n\n\
+             - LunaBet platform\n"
+        ),
+        Locale::En => format!(
+            "Hi,\n\n\
+             Here is your LunaBet super-admin sign-in link.\n\
+             It is valid for 15 minutes:\n\n\
+             {link}\n\n\
+             If this wasn't you, just ignore this email.\n\n\
+             - LunaBet platform\n"
+        ),
+    };
+    let html = format!(
+        "<p>{}</p><p><a href=\"{link}\">{link}</a></p><p style=\"color:#888;font-size:0.9em;\">{}</p>",
+        match loc {
+            Locale::Fr => "Ton lien de connexion super-admin LunaBet (15 min) :",
+            Locale::En => "Your LunaBet super-admin sign-in link (15 min):",
+        },
+        match loc {
+            Locale::Fr => "Si ce n'est pas toi, ignore cet email.",
+            Locale::En => "If this wasn't you, just ignore this email.",
+        },
+    );
+
+    let _ = base_url; // base_url reserved for future use (footer links)
+    let subject = match loc {
+        Locale::Fr => "LunaBet · Lien super-admin",
+        Locale::En => "LunaBet · super-admin sign-in",
+    };
+    // Use a platform-neutral From: derived from the SMTP MAIL_FROM (which
+    // belongs to the platform operator), not a per-tenant address.
+    send_html_email(cfg, &cfg.mail_from, to, subject, plain, html).await
+}
+
 pub async fn send_signup_verification(
     cfg: &Config,
     tenant: &Tenant,

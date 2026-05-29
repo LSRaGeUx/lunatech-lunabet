@@ -11,6 +11,7 @@ mod home;
 mod lang;
 mod leaderboard;
 mod matches;
+mod platform;
 mod signup;
 mod stake;
 mod super_admin;
@@ -24,6 +25,13 @@ pub fn router() -> Router<AppState> {
         .route("/auth/callback", get(auth::callback))
         .route("/signup", get(signup::form).post(signup::submit))
         .route("/signup/verify", get(signup::verify))
+        .route("/super-admin/", get(platform::dashboard))
+        .route(
+            "/super-admin/login",
+            get(platform::login_page).post(platform::request_link),
+        )
+        .route("/super-admin/auth/callback", get(platform::callback))
+        .route("/super-admin/logout", post(platform::logout))
         .route("/logout", post(auth::logout))
         .route("/matches", get(matches::list))
         .route("/matches/:id/bet", post(bets::place_or_update))
