@@ -80,7 +80,10 @@ pub async fn send_magic_link(
         Locale::Fr => format!("Ton lien de connexion {}", tenant.name),
         Locale::En => format!("Your {} sign-in link", tenant.name),
     };
-    send_html_email(cfg, &tenant.mail_from, to, &subject, plain, html).await
+    // Always send from the platform's MAIL_FROM: it's the only address our
+    // SMTP relay is verified for. The tenant name still appears in the
+    // subject and body for branding.
+    send_html_email(cfg, &cfg.mail_from, to, &subject, plain, html).await
 }
 
 pub async fn send_bet_reminder(
@@ -120,7 +123,7 @@ pub async fn send_bet_reminder(
     );
 
     let subject = format!("⚽ {home} - {away} - {}", tenant.name);
-    send_html_email(cfg, &tenant.mail_from, to, &subject, plain, html).await
+    send_html_email(cfg, &cfg.mail_from, to, &subject, plain, html).await
 }
 
 /// Magic-link email for the platform-level admin login (`/super-admin/`).
