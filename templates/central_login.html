@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="{{ loc.code() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ loc.f("Connexion", "Sign in") }} - LunaBet</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lora:ital,wght@0,400;0,600;0,700&display=swap">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="topbar">
+        <a href="/" class="brand">
+            <span class="brand-name">LunaBet</span>
+        </a>
+        <nav>
+            <a href="/signup">{{ loc.f("Créer un espace", "Create a space") }}</a>
+            <span class="lang-switch">
+                <a href="/lang/fr" class="lang-link{% if loc.code() == "fr" %} active{% endif %}">FR</a>
+                <span class="lang-sep">|</span>
+                <a href="/lang/en" class="lang-link{% if loc.code() == "en" %} active{% endif %}">EN</a>
+            </span>
+        </nav>
+    </header>
+    <div class="pitch-stripe" aria-hidden="true"></div>
+
+    <main>
+        <section class="card" style="max-width: 480px;">
+            <h1>{{ loc.f("Connexion", "Sign in") }}</h1>
+            <p style="font-style: italic; opacity: 0.75; margin-top: -0.4rem;">
+                {{ loc.f(
+                    "Entre ton email pro et on te dirige vers ton espace.",
+                    "Enter your work email and we'll route you to your space."
+                ) }}
+            </p>
+
+            {% match error %}
+                {% when Some with (msg) %}
+                <p class="error">
+                    {{ msg }}
+                    <br>
+                    <a href="/signup">{{ loc.f("Créer un espace →", "Create a space →") }}</a>
+                </p>
+                {% when None %}
+            {% endmatch %}
+
+            <form method="post" action="/login" class="signup-form">
+                <label>
+                    Email
+                    <input type="email" name="email" required autofocus autocomplete="username"
+                           value="{{ prefilled_email }}"
+                           placeholder="prenom.nom@acme.com">
+                </label>
+                <button class="btn" type="submit">
+                    {{ loc.f("Continuer", "Continue") }}
+                </button>
+            </form>
+        </section>
+    </main>
+
+    <style>
+        .signup-form { display: grid; gap: 1rem; margin-top: 1rem; }
+        .signup-form label { display: flex; flex-direction: column; gap: 0.3rem; font-weight: 700; color: var(--navy); }
+        .signup-form input[type=email] {
+            font: inherit; padding: 0.55rem; border: 2px solid var(--ink);
+            border-radius: 4px; background: var(--paper);
+        }
+    </style>
+</body>
+</html>

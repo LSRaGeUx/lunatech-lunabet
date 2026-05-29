@@ -157,17 +157,24 @@ impl Tenant {
     /// - Otherwise (single-tenant / pre-DNS deployments), falls back to
     ///   `BASE_URL`, which then holds the deployment's single URL.
     pub fn public_url(&self, cfg: &crate::config::Config) -> String {
-        if let Some(platform) = cfg.platform_url.as_deref() {
-            let trimmed = platform.trim_end_matches('/');
-            if let Some(rest) = trimmed.strip_prefix("https://") {
-                return format!("https://{}.{}", self.slug, rest);
-            }
-            if let Some(rest) = trimmed.strip_prefix("http://") {
-                return format!("http://{}.{}", self.slug, rest);
-            }
-        }
-        cfg.base_url.trim_end_matches('/').to_string()
+        public_url_for_slug(&self.slug, cfg)
     }
+}
+
+/// Same as `Tenant::public_url`, but takes a slug directly so callers (e.g.
+/// the central login at the apex) can build a tenant URL without having a
+/// fully hydrated `Tenant`.
+pub fn public_url_for_slug(slug: &str, cfg: &crate::config::Config) -> String {
+    if let Some(platform) = cfg.platform_url.as_deref() {
+        let trimmed = platform.trim_end_matches('/');
+        if let Some(rest) = trimmed.strip_prefix("https://") {
+            return format!("https://{}.{}", slug, rest);
+        }
+        if let Some(rest) = trimmed.strip_prefix("http://") {
+            return format!("http://{}.{}", slug, rest);
+        }
+    }
+    cfg.base_url.trim_end_matches('/').to_string()
 }
 
 /// Load every tenant row in creation order. Used by background jobs that fan

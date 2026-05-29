@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="{{ loc.code() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ loc.f("Choisis ton espace", "Pick your space") }} - LunaBet</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lora:ital,wght@0,400;0,600;0,700&display=swap">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="topbar">
+        <a href="/" class="brand"><span class="brand-name">LunaBet</span></a>
+        <nav>
+            <span class="lang-switch">
+                <a href="/lang/fr" class="lang-link{% if loc.code() == "fr" %} active{% endif %}">FR</a>
+                <span class="lang-sep">|</span>
+                <a href="/lang/en" class="lang-link{% if loc.code() == "en" %} active{% endif %}">EN</a>
+            </span>
+        </nav>
+    </header>
+    <div class="pitch-stripe" aria-hidden="true"></div>
+
+    <main>
+        <section class="card" style="max-width: 560px;">
+            <h1>{{ loc.f("Choisis ton espace", "Pick your space") }}</h1>
+            <p>
+                {{ loc.f(
+                    "Cet email est rattaché à plusieurs espaces. Choisis celui auquel tu veux te connecter.",
+                    "This email is in more than one space. Pick the one you want to sign in to."
+                ) }}
+                <br>
+                <small style="color: var(--ink-soft);">{{ email }}</small>
+            </p>
+
+            <div class="space-grid">
+                {% for opt in options %}
+                <a class="space-card" href="{{ opt.login_url }}">
+                    <span class="space-name">{{ opt.name }}</span>
+                    <span class="space-slug">{{ opt.slug }}.lunabet.eu</span>
+                </a>
+                {% endfor %}
+            </div>
+
+            <p style="margin-top: 1.5rem;">
+                <a href="/login">← {{ loc.f("Email différent", "Use a different email") }}</a>
+            </p>
+        </section>
+    </main>
+
+    <style>
+        .space-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.8rem;
+            margin: 1.2rem 0;
+        }
+        .space-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            padding: 1rem 1.1rem;
+            background: var(--paper-light);
+            border: 2px solid var(--ink);
+            border-radius: 6px;
+            box-shadow: 4px 4px 0 var(--ink);
+            color: var(--ink);
+            text-decoration: none;
+            transition: transform 0.1s, box-shadow 0.1s, background 0.1s;
+        }
+        .space-card:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 5px 5px 0 var(--red);
+            background: var(--gold-light);
+        }
+        .space-name {
+            font-family: "Bebas Neue", sans-serif;
+            font-size: 1.3rem;
+            letter-spacing: 0.05em;
+            color: var(--navy);
+        }
+        .space-slug { font-size: 0.85rem; color: var(--ink-soft); font-family: monospace; }
+    </style>
+</body>
+</html>

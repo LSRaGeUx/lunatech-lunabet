@@ -17,7 +17,7 @@ use crate::i18n::Locale;
 use crate::mail;
 use crate::models::User;
 use crate::state::AppState;
-use crate::tenant::{Tenant, TenantCtx};
+use crate::tenant::{public_url_for_slug, MaybeTenant, Tenant, TenantCtx};
 
 const SESSION_COOKIE: &str = "lb_session";
 const MAGIC_LINK_TTL_MINUTES: i64 = 15;
@@ -29,6 +29,7 @@ struct LoginTpl<'a> {
     loc: Locale,
     error: Option<&'a str>,
     tenant: &'a Tenant,
+    prefilled_email: &'a str,
 }
 
 #[derive(Template)]
@@ -38,17 +39,59 @@ struct LoginSentTpl<'a> {
     tenant: &'a Tenant,
 }
 
+#[derive(Template)]
+#[template(path = "central_login.html")]
+struct CentralLoginTpl<'a> {
+    loc: Locale,
+    error: Option<&'a str>,
+    prefilled_email: &'a str,
+}
+
+#[derive(Template)]
+#[template(path = "central_login_choose.html")]
+struct CentralChooseTpl<'a> {
+    loc: Locale,
+    email: &'a str,
+    options: Vec<TenantOption>,
+}
+
+pub struct TenantOption {
+    pub slug: String,
+    pub name: String,
+    pub login_url: String,
+}
+
+#[derive(Deserialize)]
+pub struct LoginPageQuery {
+    email: Option<String>,
+}
+
 pub async fn login_page(
     _state: State<AppState>,
-    TenantCtx(tenant): TenantCtx,
+    MaybeTenant(maybe_tenant): MaybeTenant,
     loc: Locale,
+    Query(q): Query<LoginPageQuery>,
 ) -> impl IntoResponse {
-    let tpl = LoginTpl {
-        loc,
-        error: None,
-        tenant: &tenant,
-    };
-    Html(tpl.render().unwrap_or_else(|e| format!("template error: {e}")))
+    let prefilled = q.email.as_deref().unwrap_or("");
+    match maybe_tenant {
+        Some(tenant) => {
+            let tpl = LoginTpl {
+                loc,
+                error: None,
+                tenant: &tenant,
+                prefilled_email: prefilled,
+            };
+            Html(tpl.render().unwrap_or_else(|e| format!("template error: {e}"))).into_response()
+        }
+        None => {
+            let tpl = CentralLoginTpl {
+                loc,
+                error: None,
+                prefilled_email: prefilled,
+            };
+            Html(tpl.render().unwrap_or_else(|e| format!("template error: {e}"))).into_response()
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -56,13 +99,99 @@ pub struct LoginForm {
     email: String,
 }
 
+/// Encode an email for use in a `?email=...` query string. The only common
+/// gotcha is `+` (legal in emails like alice+work@acme.com, decoded as space
+/// in query strings), plus `&` and `=` which split parameters. Everything
+/// else permitted in emails (RFC 5322 / 6531) is also legal as-is in a
+/// query value.
+fn email_for_query(s: &str) -> String {
+    s.replace('%', "%25")
+        .replace('+', "%2B")
+        .replace('&', "%26")
+        .replace('=', "%3D")
+        .replace(' ', "%20")
+}
+
 pub async fn request_magic_link(
     State(state): State<AppState>,
-    TenantCtx(tenant): TenantCtx,
+    MaybeTenant(maybe_tenant): MaybeTenant,
     loc: Locale,
     Form(form): Form<LoginForm>,
 ) -> AppResult<Response> {
     let email = form.email.trim().to_lowercase();
+
+    if let Some(tenant) = maybe_tenant {
+        return tenant_request_magic_link(state, tenant, loc, email).await;
+    }
+
+    // Central apex login: figure out which tenant(s) this email is part of.
+    let rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT t.slug, t.name FROM users u \
+         JOIN tenants t ON t.id = u.tenant_id \
+         WHERE u.email = $1 \
+         ORDER BY t.name ASC",
+    )
+    .bind(&email)
+    .fetch_all(&state.pool)
+    .await?;
+
+    match rows.len() {
+        0 => {
+            let msg = loc.f(
+                "Aucun compte LunaBet pour cet email. Tu peux créer un espace via le signup.",
+                "No LunaBet account for this email. You can create a space via signup.",
+            );
+            let tpl = CentralLoginTpl {
+                loc,
+                error: Some(msg),
+                prefilled_email: &email,
+            };
+            Ok((StatusCode::NOT_FOUND, Html(tpl.render()?)).into_response())
+        }
+        1 => {
+            // Single match: bounce straight to that tenant's login form with
+            // the email already filled in. The user clicks "Send link" once
+            // and the existing per-tenant magic-link flow takes over.
+            let (slug, _name) = &rows[0];
+            let target = format!(
+                "{}/login?email={}",
+                public_url_for_slug(slug, &state.cfg),
+                email_for_query(&email)
+            );
+            Ok(Redirect::to(&target).into_response())
+        }
+        _ => {
+            let options: Vec<TenantOption> = rows
+                .into_iter()
+                .map(|(slug, name)| {
+                    let login_url = format!(
+                        "{}/login?email={}",
+                        public_url_for_slug(&slug, &state.cfg),
+                        email_for_query(&email)
+                    );
+                    TenantOption {
+                        slug,
+                        name,
+                        login_url,
+                    }
+                })
+                .collect();
+            let tpl = CentralChooseTpl {
+                loc,
+                email: &email,
+                options,
+            };
+            Ok(Html(tpl.render()?).into_response())
+        }
+    }
+}
+
+async fn tenant_request_magic_link(
+    state: AppState,
+    tenant: Tenant,
+    loc: Locale,
+    email: String,
+) -> AppResult<Response> {
     let domain = email.split_once('@').map(|(_, d)| d);
     let allowed = domain
         .map(|d| tenant.allowed_email_pattern.is_match(d))
@@ -75,6 +204,7 @@ pub async fn request_magic_link(
                 "This app is reserved to this tenant.",
             )),
             tenant: &tenant,
+            prefilled_email: &email,
         };
         return Ok((StatusCode::BAD_REQUEST, Html(tpl.render()?)).into_response());
     }
