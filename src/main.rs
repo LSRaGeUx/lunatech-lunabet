@@ -39,16 +39,23 @@ async fn main() -> anyhow::Result<()> {
 
     let cfg = config::Config::from_env().context("loading configuration from env")?;
 
-    // No after_connect hook: managed Postgres providers (Clever Cloud,
-    // Heroku, ...) typically front the DB with PgBouncer in transaction
-    // pooling mode, which refuses session-level SETs. The previous hook
-    // (set_config app.bypass_rls = on) made every acquire fail and the
-    // pool time out at startup. With FORCE RLS dropped in migration 0529
-    // _02, the table-owner role (the one Clever Cloud gives us)
-    // bypasses RLS automatically, which gives the same effective
-    // behaviour as the explicit bypass.
+    // RLS policies (migration 0525_07 + 0529_03) FORCE row-level security
+    // on the tenant-scoped tables. The hook flips `app.bypass_rls = on`
+    // on every fresh connection so app queries pass through the policies
+    // unchanged until handlers are refactored to set per-request
+    // `app.current_tenant_id` instead. The defence-in-depth kicks in the
+    // day someone runs the app under a non-owner role or drops the bypass
+    // setting.
     let pool = PgPoolOptions::new()
         .max_connections(8)
+        .after_connect(|conn, _meta| {
+            Box::pin(async move {
+                sqlx::query("SELECT set_config('app.bypass_rls', 'on', false)")
+                    .execute(&mut *conn)
+                    .await?;
+                Ok(())
+            })
+        })
         .connect(&cfg.database_url)
         .await
         .context("connecting to Postgres")?;
