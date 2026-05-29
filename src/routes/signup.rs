@@ -346,6 +346,10 @@ pub async fn verify(
     // transaction. If anything fails, nothing is half-created.
     let mut tx = state.pool.begin().await?;
 
+    // The new tenant inherits the platform's MAIL_FROM by default. We can't
+    // guess a verified domain for them, and the platform's address is the
+    // only one we know our SMTP relay accepts. The tenant admin can change
+    // this later via /admin/tenants/<slug>/edit.
     let tenant_id: Uuid = sqlx::query_scalar(
         r#"
         INSERT INTO tenants
@@ -358,7 +362,7 @@ pub async fn verify(
     .bind(&slug)
     .bind(&name)
     .bind(&pattern)
-    .bind(format!("lunabet@{}", slug))
+    .bind(&state.cfg.mail_from)
     .bind(vec![owner_email.clone()])
     .fetch_one(&mut *tx)
     .await?;

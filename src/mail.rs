@@ -183,6 +183,10 @@ pub async fn send_signup_verification(
     new_tenant_name: &str,
     link: &str,
 ) -> anyhow::Result<()> {
+    // Signup is platform-level: the new tenant doesn't exist yet, so we
+    // can't use its mail_from. Always send from the platform's MAIL_FROM,
+    // which the relay knows about.
+    let from = &cfg.mail_from;
     let logo_url = format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/'));
     let html = SignupVerificationHtml {
         loc,
@@ -217,7 +221,7 @@ pub async fn send_signup_verification(
         Locale::Fr => format!("Confirme la création de {new_tenant_name} sur LunaBet"),
         Locale::En => format!("Confirm your LunaBet space for {new_tenant_name}"),
     };
-    send_html_email(cfg, &tenant.mail_from, to, &subject, plain, html).await
+    send_html_email(cfg, from, to, &subject, plain, html).await
 }
 
 async fn send_html_email(
