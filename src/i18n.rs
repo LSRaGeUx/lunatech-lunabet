@@ -6,8 +6,8 @@ use axum::response::Response;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub enum Locale {
-    #[default]
     Fr,
+    #[default]
     En,
 }
 
@@ -39,7 +39,7 @@ impl Locale {
 
     pub fn from_accept_language(header_value: &str) -> Self {
         // Very lightweight Accept-Language parser: pick the first tag that
-        // starts with "fr" or "en"; default to Fr.
+        // starts with "fr" or "en"; default to English.
         for tag in header_value.split(',') {
             let tag = tag.trim().split([';', '-']).next().unwrap_or("").to_ascii_lowercase();
             if tag.starts_with("fr") {
@@ -49,7 +49,7 @@ impl Locale {
                 return Locale::En;
             }
         }
-        Locale::Fr
+        Locale::En
     }
 }
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ loc.code() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -30,12 +30,9 @@
 
             <tr>
                 <td style="padding:30px 32px 24px;">
-                    <h1 style="font-family:Impact,'Arial Narrow',Arial,sans-serif;color:#c8232c;font-size:30px;margin:0 0 6px;letter-spacing:1px;">
-                        ⚽ COUP D'ENVOI BIENTÔT
+                    <h1 style="font-family:Impact,'Arial Narrow',Arial,sans-serif;color:#c8232c;font-size:30px;margin:0 0 22px;letter-spacing:1px;">
+                        {{ loc.f("⚽ COUP D'ENVOI BIENTÔT", "⚽ KICK-OFF SOON") }}
                     </h1>
-                    <p style="font-family:Arial,sans-serif;color:#524535;font-size:13px;margin:0 0 22px;letter-spacing:1px;">
-                        KICK-OFF SOON
-                    </p>
 
                     <!-- match panel -->
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
@@ -52,18 +49,15 @@
                         </tr>
                     </table>
 
-                    <p style="font-size:15px;line-height:1.55;margin:0 0 8px;">
-                        <strong>FR —</strong> Tu n'as pas encore parié sur ce match. Le coup d'envoi approche !
-                    </p>
-                    <p style="font-size:15px;line-height:1.55;margin:0 0 22px;color:#524535;">
-                        <strong>EN —</strong> You haven't bet on this match yet. Kick-off is coming!
+                    <p style="font-size:15px;line-height:1.55;margin:0 0 22px;">
+                        {{ loc.f("Tu n'as pas encore parié sur ce match. Le coup d'envoi approche !", "You haven't bet on this match yet. Kick-off is coming!") }}
                     </p>
 
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px;">
                         <tr><td>
                             <a href="{{ matches_url }}"
                                style="display:inline-block;background:#c8232c;color:#fbf3df;font-family:Impact,'Arial Narrow',Arial,sans-serif;letter-spacing:1.5px;text-decoration:none;padding:14px 28px;border:2px solid #1a1411;border-radius:4px;font-size:18px;box-shadow:3px 3px 0 #1a1411;">
-                                COLLER MA VIGNETTE · PLACE MY BET
+                                {{ loc.f("COLLER MA VIGNETTE", "PLACE MY BET") }}
                             </a>
                         </td></tr>
                     </table>
@@ -73,11 +67,11 @@
 
                     <hr style="border:none;border-top:1px dashed #c79b1e;margin:24px 0 16px;">
                     <p style="font-size:13px;color:#524535;font-style:italic;margin:0 0 10px;">
-                        « Le ballon est ton ami. » — Olivier Atton
+                        {{ loc.f("« Le ballon est ton ami. » - Olivier Atton", "« The ball is your friend. » - Oliver Atton") }}
                     </p>
                     <p style="font-size:13px;color:#524535;font-style:italic;margin:0;">
-                        ★ <strong>3 pts</strong> score exact / exact score &nbsp;·&nbsp;
-                        ★ <strong>1 pt</strong> bon vainqueur / right winner
+                        ★ <strong>3 pts</strong> {{ loc.f("score exact", "exact score") }} &nbsp;·&nbsp;
+                        ★ <strong>1 pt</strong> {{ loc.f("bon vainqueur", "right winner") }}
                     </p>
                 </td>
             </tr>

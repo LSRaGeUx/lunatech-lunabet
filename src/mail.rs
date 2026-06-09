@@ -31,6 +31,7 @@ struct SignupVerificationHtml<'a> {
 #[derive(Template)]
 #[template(path = "emails/match_reminder.html")]
 struct MatchReminderHtml<'a> {
+    loc: Locale,
     tenant: &'a Tenant,
     home: &'a str,
     away: &'a str,
@@ -89,6 +90,7 @@ pub async fn send_magic_link(
 pub async fn send_bet_reminder(
     cfg: &Config,
     tenant: &Tenant,
+    loc: Locale,
     to: &str,
     home: &str,
     away: &str,
@@ -102,6 +104,7 @@ pub async fn send_bet_reminder(
         None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
     };
     let html = MatchReminderHtml {
+        loc,
         tenant,
         home,
         away,
@@ -111,14 +114,19 @@ pub async fn send_bet_reminder(
     }
     .render()?;
 
+    let line1 = match loc {
+        Locale::Fr => format!("{home} - {away} commence bientôt ({kickoff_local}) et tu n'as pas encore parié."),
+        Locale::En => format!("{home} - {away} kicks off soon ({kickoff_local}) and you haven't bet yet."),
+    };
     let plain = format!(
-        "Salut ! / Hi!\n\n\
-         FR - {home} - {away} commence bientôt ({kickoff_local}) et tu n'as pas encore parié.\n\
-         EN - {home} - {away} kicks off soon ({kickoff_local}) and you haven't bet yet.\n\n\
-         FR - Va placer ton pronostic : {matches_url}\n\
-         EN - Place your prediction: {matches_url}\n\n\
-         Bonne chance ! / Good luck!\n\n\
+        "{hi}\n\n\
+         {line1}\n\n\
+         {line2} {matches_url}\n\n\
+         {luck}\n\n\
          - {brand} · LunaBet\n",
+        hi = loc.f("Salut !", "Hi!"),
+        line2 = loc.f("Va placer ton pronostic :", "Place your prediction:"),
+        luck = loc.f("Bonne chance !", "Good luck!"),
         brand = tenant.name,
     );
 
