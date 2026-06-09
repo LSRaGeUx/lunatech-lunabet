@@ -43,6 +43,9 @@ pub struct Config {
     /// in pre-DNS / single-tenant deployments to keep `/signup` reachable
     /// from any host.
     pub platform_url: Option<String>,
+    /// Filesystem directory for user-uploaded assets (tenant logos). Served
+    /// at `/uploads`. Kept outside `static/` so redeploys never clobber it.
+    pub uploads_dir: String,
 }
 
 impl Config {
@@ -156,6 +159,11 @@ impl Config {
 
         let platform_url = env::var("PLATFORM_URL").ok().filter(|s| !s.is_empty());
 
+        let uploads_dir = env::var("UPLOADS_DIR")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "uploads".into());
+
         let apex_hosts: HashSet<String> = env::var("APEX_HOSTS")
             .unwrap_or_else(|_| "lunabet.eu,www.lunabet.eu".into())
             .split(',')
@@ -206,6 +214,7 @@ impl Config {
             super_admin_emails,
             apex_hosts,
             platform_url,
+            uploads_dir,
         })
     }
 }

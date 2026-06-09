@@ -5,6 +5,7 @@
     <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
     <a href="/stake">{{ loc.f("Ma mise", "My stake") }}</a>
     {% if is_admin %}<a href="/admin/stakes">Admin</a>{% endif %}
+    {% if is_admin %}<a href="/admin/settings">{{ loc.f("Réglages", "Settings") }}</a>{% endif %}
     <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
 {% endblock %}
 {% block head %}

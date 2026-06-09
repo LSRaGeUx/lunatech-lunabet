@@ -221,10 +221,12 @@ pub async fn resolve_by_slug(pool: &PgPool, slug: &str) -> anyhow::Result<Option
 /// In-process tenant directory: caches resolved tenants by slug, and exposes a
 /// well-known "default" tenant for requests that don't carry tenant routing
 /// info (no subdomain, no `X-Tenant` header). The cache is positive-only and
-/// has no TTL: a server restart is required to pick up tenant config changes.
+/// has no TTL; edits become visible by calling [`TenantRegistry::invalidate`]
+/// after a write, which drops the slug so the next request re-fetches it.
 #[derive(Clone)]
 pub struct TenantRegistry {
     default: Tenant,
+    default_slug: String,
     cache: Arc<RwLock<HashMap<String, Tenant>>>,
     pool: PgPool,
 }
@@ -234,14 +236,28 @@ impl TenantRegistry {
         let mut seed = HashMap::new();
         seed.insert(default.slug.clone(), default.clone());
         Self {
+            default_slug: default.slug.clone(),
             default,
             cache: Arc::new(RwLock::new(seed)),
             pool,
         }
     }
 
+    /// The startup snapshot of the default tenant. Frozen at boot — prefer
+    /// [`TenantRegistry::resolve_default`] on the request path so edits to the
+    /// default tenant (e.g. via the admin settings page) are picked up without
+    /// a restart. This stays as a last-resort fallback.
     pub fn default_tenant(&self) -> &Tenant {
         &self.default
+    }
+
+    /// Resolve the default tenant through the cache so admin edits are
+    /// reflected after an `invalidate`. Falls back to the boot snapshot if the
+    /// row can't be loaded (e.g. transient DB error).
+    pub async fn resolve_default(&self) -> Tenant {
+        self.resolve(&self.default_slug)
+            .await
+            .unwrap_or_else(|| self.default.clone())
     }
 
     /// Drop a slug from the in-memory cache so the next request re-fetches

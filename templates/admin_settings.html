@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Réglages de l'espace", "Space settings") }} - LunaBet{% endblock %}
+{% block nav %}
+    <span class="user">{{ user_name }} <span class="admin-badge">admin</span></span>
+    <a href="/matches">{{ loc.f("Matches", "Matches") }}</a>
+    <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
+    <a href="/admin/stakes">{{ loc.f("Mises", "Stakes") }}</a>
+    <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
+{% endblock %}
+{% block content %}
+<section class="card">
+    <h1>{{ loc.f("Réglages de l'espace", "Space settings") }}</h1>
+    <p class="settings-intro">{{ loc.f(
+        "Personnalise l'apparence et les réglages de ton espace. Le slug, le domaine email autorisé et la liste des admins restent gérés par l'équipe LunaBet.",
+        "Customise the look and settings of your space. The slug, allowed email domain and admin list stay managed by the LunaBet team."
+    ) }}</p>
+
+    {% if saved %}<p class="success">{{ loc.f("Réglages enregistrés.", "Settings saved.") }}</p>{% endif %}
+    {% match error %}
+        {% when Some with (msg) %}<p class="error">{{ msg }}</p>
+        {% when None %}
+    {% endmatch %}
+
+    <form method="post" action="/admin/settings" enctype="multipart/form-data" class="tenant-form">
+        <label>{{ loc.f("Nom affiché", "Display name") }}
+            <input type="text" name="name" value="{{ form.name }}" required>
+        </label>
+
+        <div class="logo-row">
+            <div class="logo-preview">
+                <span class="logo-label">{{ loc.f("Logo actuel", "Current logo") }}</span>
+                <img src="{{ current_logo }}" alt="logo" height="48">
+            </div>
+            <label>{{ loc.f("Nouveau logo (SVG, PNG, JPG, WEBP - max 2 Mo)", "New logo (SVG, PNG, JPG, WEBP - max 2 MB)") }}
+                <input type="file" name="logo_file" accept="image/svg+xml,image/png,image/jpeg,image/webp">
+            </label>
+            {% if has_custom_logo %}
+            <label class="checkbox-label">
+                <input type="checkbox" name="remove_logo" value="on">
+                {{ loc.f("Revenir au logo par défaut", "Revert to the default logo") }}
+            </label>
+            {% endif %}
+        </div>
+
+        <label>{{ loc.f("Couleur primaire", "Primary color") }}
+            <input type="color" name="primary_color" value="{{ form.primary_color }}">
+        </label>
+        <label>{{ loc.f("Couleur accent", "Accent color") }}
+            <input type="color" name="accent_color" value="{{ form.accent_color }}">
+        </label>
+
+        <label>football-data.org {{ loc.f("code compétition", "competition code") }}
+            <input type="text" name="football_competition" value="{{ form.football_competition }}" required placeholder="WC">
+        </label>
+
+        <label>{{ loc.f("Date limite de mise (UTC)", "Stake deadline (UTC)") }}
+            <input type="datetime-local" name="stake_deadline" value="{{ form.stake_deadline }}" required>
+        </label>
+
+        <label>{{ loc.f("Délai rappel (minutes avant kick-off)", "Reminder lead (minutes before kick-off)") }}
+            <input type="number" name="reminder_lead_minutes" value="{{ form.reminder_lead_minutes }}" min="0" max="10080" required>
+        </label>
+
+        <label>Slack webhook {{ loc.f("(optionnel)", "(optional)") }}
+            <input type="text" name="slack_webhook_url" value="{{ form.slack_webhook_url }}" placeholder="https://hooks.slack.com/...">
+        </label>
+
+        <button class="btn" type="submit">{{ loc.f("Enregistrer", "Save") }}</button>
+    </form>
+</section>
+
+<style>
+    .settings-intro { max-width: 560px; color: var(--ink-soft); }
+    .tenant-form { display: grid; gap: 1rem; max-width: 560px; }
+    .tenant-form label { display: flex; flex-direction: column; gap: 0.25rem; font-weight: 700; color: var(--navy); }
+    .tenant-form input[type=text], .tenant-form input[type=number], .tenant-form input[type=datetime-local] {
+        font: inherit; padding: 0.5rem; border: 2px solid var(--ink); border-radius: 4px; background: var(--paper);
+    }
+    .tenant-form input[type=color] { width: 4rem; height: 2.2rem; border: 2px solid var(--ink); border-radius: 4px; padding: 0; }
+    .logo-row { display: grid; gap: 0.6rem; padding: 0.8rem; border: 2px dashed var(--ink); border-radius: 6px; background: var(--paper-light); }
+    .logo-preview { display: flex; align-items: center; gap: 0.8rem; }
+    .logo-preview .logo-label { font-weight: 700; color: var(--navy); }
+    .checkbox-label { flex-direction: row !important; align-items: center; gap: 0.4rem; font-weight: 400 !important; }
+    .checkbox-label input { width: auto; }
+    .success { color: #1a7f37; font-weight: 700; }
+</style>
+{% endblock %}

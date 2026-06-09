@@ -158,6 +158,12 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // User-uploaded assets (currently tenant logos) live outside the bundled
+    // `static/` tree so they survive redeploys and are never clobbered by the
+    // shipped files. Created on boot so ServeDir always has a directory.
+    std::fs::create_dir_all(&cfg.uploads_dir)
+        .with_context(|| format!("creating uploads dir {}", cfg.uploads_dir))?;
+
     let app = Router::new()
         .merge(routes::router())
         .layer(axum::middleware::from_fn_with_state(
@@ -165,6 +171,7 @@ async fn main() -> anyhow::Result<()> {
             middleware::resolve_tenant,
         ))
         .nest_service("/static", ServeDir::new("static"))
+        .nest_service("/uploads", ServeDir::new(&cfg.uploads_dir))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
