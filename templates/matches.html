@@ -7,6 +7,9 @@
     {% if is_admin %}<a href="/admin/stakes">Admin</a>{% endif %}
     <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
 {% endblock %}
+{% block head %}
+<script defer src="/static/lucky.js"></script>
+{% endblock %}
 {% block content %}
 <h1>{{ loc.f("Mes pronos", "My predictions") }}</h1>
 
@@ -20,6 +23,20 @@
         "« The pitch is huge! » Hang tight, kick-off is coming."
     ) }}</p>
 {% else %}
+
+<div class="lucky-bar">
+    <button type="button" id="feel-lucky" class="btn lucky-btn"
+            data-confirm="{{ loc.f(
+                "Remplir et envoyer un score aléatoire pour tous les matchs ouverts ? Cela remplacera tes paris existants.",
+                "Fill and submit a random score for every open match? This will overwrite your existing bets."
+            ) }}">
+        🍀 {{ loc.f("J'ai de la chance", "I feel lucky") }}
+    </button>
+    <span class="lucky-hint">{{ loc.f(
+        "Un score au hasard pour tous les matchs ouverts.",
+        "A random score for every open match."
+    ) }}</span>
+</div>
 
 <nav class="stage-toc" aria-label="{{ loc.f("Aller à la phase", "Jump to stage") }}">
     {% for s in sections %}
@@ -135,6 +152,23 @@
 {% endif %}
 
 <style>
+    .lucky-bar {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.9rem;
+        margin: 0 0 1rem;
+    }
+    .lucky-btn {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.06em;
+        font-size: 1.05rem;
+    }
+    .lucky-hint {
+        font-style: italic;
+        opacity: 0.75;
+        font-size: 0.9rem;
+    }
     .stage-toc {
         display: flex;
         flex-wrap: wrap;
