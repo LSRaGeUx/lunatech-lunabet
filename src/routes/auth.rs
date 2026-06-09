@@ -305,10 +305,13 @@ pub async fn callback(
         .replace('_', " ");
 
     let is_admin = tenant.is_admin(&email);
+    // Seed `lang` from the locale of this sign-in request for brand-new users.
+    // We intentionally don't overwrite it on conflict: a returning user keeps
+    // whatever language they last chose via the FR/EN switcher.
     let user: User = sqlx::query_as(
         r#"
-        INSERT INTO users (tenant_id, email, display_name, is_admin)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO users (tenant_id, email, display_name, is_admin, lang)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (tenant_id, email) DO UPDATE
             SET email = EXCLUDED.email,
                 is_admin = EXCLUDED.is_admin
@@ -320,6 +323,7 @@ pub async fn callback(
     .bind(&email)
     .bind(&display_name)
     .bind(is_admin)
+    .bind(loc.code())
     .fetch_one(&state.pool)
     .await?;
 

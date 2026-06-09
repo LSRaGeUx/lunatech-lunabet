@@ -94,8 +94,10 @@ pub async fn resolve_tenant(
             // platform marketing pages, TenantCtx redirects to "/".
         }
         SlugIntent::Default => {
+            // Resolve through the cache (not the frozen boot snapshot) so admin
+            // edits to the default tenant take effect without a restart.
             req.extensions_mut()
-                .insert(state.tenants.default_tenant().clone());
+                .insert(state.tenants.resolve_default().await);
         }
         SlugIntent::Slug(s) => match state.tenants.resolve(&s).await {
             Some(t) => {

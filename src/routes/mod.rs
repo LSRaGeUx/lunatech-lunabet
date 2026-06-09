@@ -1,3 +1,4 @@
+use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post};
 use axum::Router;
 
@@ -15,6 +16,7 @@ mod platform;
 mod signup;
 mod stake;
 mod super_admin;
+mod tenant_settings;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -44,6 +46,16 @@ pub fn router() -> Router<AppState> {
         .route("/admin/stakes", get(admin::stakes_page))
         .route("/admin/stakes/:user_id/paid", post(admin::mark_paid))
         .route("/admin/stakes/:user_id/unpaid", post(admin::mark_unpaid))
+        .route(
+            "/admin/settings",
+            get(tenant_settings::page)
+                .post(tenant_settings::update)
+                // Logo uploads are capped at 2 MiB in the handler; raise the
+                // request limit above axum's 2 MiB default so the multipart
+                // body (logo + form fields) isn't rejected before we can
+                // return a friendly error.
+                .layer(DefaultBodyLimit::max(4 * 1024 * 1024)),
+        )
         .route(
             "/admin/tenants",
             get(super_admin::list).post(super_admin::create),

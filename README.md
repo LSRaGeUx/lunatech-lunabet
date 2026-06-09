@@ -72,7 +72,7 @@ All transactional emails are **multipart HTML** (with a plain-text fallback), ma
 
 ### Prize pot and stakes
 - Three tiers: **2€ / 5€ / 10€** (chosen on `/stake`)
-- **Honor system** — the app never handles money. Players pay the admin (Lydia, bank transfer, etc.) and the admin marks them "paid" on `/admin/stakes`.
+- **Honor system**: the app never handles money. Payment is made to the administrator if needed, and the admin marks players "paid" on `/admin/stakes`.
 - Default deadline: **end of the WC2026 group stage** (2026-06-27 23:59 UTC), configurable
 - Pot split between the **top 3 paid players**:
   - `payout_i = pot × (base_i × stake_i) / Σ(base × stake)` with `base = [0.5, 0.3, 0.2]`

@@ -63,9 +63,9 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
             "sending reminders for match {match_id}: {home} - {away}"
         );
 
-        let unbet_users: Vec<(String, String)> = sqlx::query_as(
+        let unbet_users: Vec<(String, String, String)> = sqlx::query_as(
             r#"
-            SELECT email, display_name
+            SELECT email, display_name, lang
             FROM users u
             WHERE u.tenant_id = $1
               AND NOT EXISTS (
@@ -82,10 +82,13 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
         let kickoff_local = kickoff.format("%H:%M UTC").to_string();
         let mut emails_sent = 0usize;
         let mut emails_failed = 0usize;
-        for (email, _name) in &unbet_users {
+        for (email, _name, lang) in &unbet_users {
+            // French only if the user explicitly chose it, English otherwise.
+            let loc = crate::i18n::Locale::from_code(lang).unwrap_or_default();
             match mail::send_bet_reminder(
                 &state.cfg,
                 tenant,
+                loc,
                 email,
                 &home,
                 &away,
