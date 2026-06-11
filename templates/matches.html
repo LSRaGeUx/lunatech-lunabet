@@ -75,7 +75,7 @@
         {% for v in s.upcoming %}
         <article class="match" id="match-{{ v.m.id }}">
             <header>
-                <span class="kickoff">{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }}</span>
+                <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}">{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }} UTC</span>
                 {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
             </header>
             <form method="post" action="/matches/{{ v.m.id }}/bet"
@@ -120,7 +120,7 @@
         {% for v in s.finished %}
         <article class="match finished" id="match-{{ v.m.id }}">
             <header>
-                <span class="kickoff">{{ v.m.kickoff_at.format("%a %d/%m") }}</span>
+                <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}" data-date-only>{{ v.m.kickoff_at.format("%a %d/%m") }} UTC</span>
                 {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
             </header>
             <div class="teams-row">
