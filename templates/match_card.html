@@ -1,6 +1,6 @@
 <article class="match just-saved" id="match-{{ v.m.id }}">
     <header>
-        <span class="kickoff">{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }}</span>
+        <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}">{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }} UTC</span>
         {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
         <span class="saved-flag" aria-live="polite">✓ {{ loc.f("Enregistré", "Saved") }}</span>
     </header>
