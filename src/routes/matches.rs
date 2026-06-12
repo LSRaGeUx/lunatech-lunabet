@@ -59,6 +59,9 @@ struct MatchesTpl<'a> {
     sections: Vec<StageSection>,
     total_points: i32,
     is_admin: bool,
+    /// True when at least one finished match exists, so the template renders
+    /// the Results block at the top of the page.
+    has_results: bool,
 }
 
 pub async fn list(
@@ -139,6 +142,8 @@ pub async fn list(
         sections.push(build_section(&k, views, loc));
     }
 
+    let has_results = sections.iter().any(|s| !s.finished.is_empty());
+
     let tpl = MatchesTpl {
         loc,
         tenant: &tenant,
@@ -146,6 +151,7 @@ pub async fn list(
         sections,
         total_points,
         is_admin: user.is_admin,
+        has_results,
     };
     Ok(Html(tpl.render()?).into_response())
 }
