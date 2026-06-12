@@ -118,7 +118,7 @@
     <h3 class="stage-subhead">{{ loc.f("Résultats", "Results") }}</h3>
     <div class="matches">
         {% for v in s.finished %}
-        <article class="match finished" id="match-{{ v.m.id }}">
+        <article class="match finished{% match v.points %}{% when Some with (p) %} result-{{ p }}{% when None %}{% match v.bet_home %}{% when Some with (_) %} result-pending{% when None %} result-none{% endmatch %}{% endmatch %}" id="match-{{ v.m.id }}">
             <header>
                 <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}" data-date-only>{{ v.m.kickoff_at.format("%a %d/%m") }} UTC</span>
                 {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}

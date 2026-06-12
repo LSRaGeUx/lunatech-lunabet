@@ -679,6 +679,57 @@ canvas.ball3d.ball-hero {
 .pts-1 { color: var(--gold); }
 .pts-0 { color: var(--red); opacity: 0.8; }
 
+/* --- Vignettes de résultat colorées selon les points gagnés --- */
+
+/* Score exact = jackpot : vert pétillant, liseré vert, ombre verte */
+.match.finished.result-3 {
+    background:
+        radial-gradient(circle at 85% 12%, rgba(46, 125, 74, 0.18), transparent 45%),
+        linear-gradient(165deg, #e9faf0 0%, var(--paper-light) 65%);
+    border-color: var(--green);
+    box-shadow: 6px 6px 0 var(--green);
+}
+.match.finished.result-3::after { content: "🎯"; opacity: 0.18; }
+
+/* Bon vainqueur = doré chaleureux */
+.match.finished.result-1 {
+    background: linear-gradient(165deg, #fdf3d6 0%, var(--paper-light) 65%);
+    border-color: var(--gold);
+    box-shadow: 6px 6px 0 var(--gold);
+}
+.match.finished.result-1::after { content: "👍"; opacity: 0.16; }
+
+/* Raté = rouge atténué, ambiance "presque" */
+.match.finished.result-0 {
+    background: linear-gradient(165deg, #fbe7e6 0%, var(--paper-light) 70%);
+    border-color: var(--red);
+}
+.match.finished.result-0::after { content: "😬"; opacity: 0.16; }
+
+/* Pas de pari = terne, vignette grisée */
+.match.finished.result-none {
+    background: repeating-linear-gradient(
+        45deg, var(--paper) 0 10px, var(--paper-dark) 10px 20px);
+    opacity: 0.7;
+}
+.match.finished.result-none::after { content: "🙈"; opacity: 0.18; }
+
+/* En attente du résultat officiel */
+.match.finished.result-pending { background: var(--paper); }
+
+/* Le score final reprend la couleur du résultat */
+.match.finished.result-3 .final-score { color: var(--green); }
+.match.finished.result-1 .final-score { color: #9a7b16; }
+.match.finished.result-0 .final-score { color: var(--red); }
+
+/* Badge de points plus gros et plus claquant sur les vignettes terminées */
+.match.finished .bet-row .pts {
+    font-size: 1.15rem;
+    padding: 0.3rem 0.85rem;
+    transform: rotate(-5deg);
+    box-shadow: 2px 2px 0 rgba(26, 20, 17, 0.25);
+}
+
 /* --- Animations Captain Tsubasa sur /matches --- */
 
 /* 1. Stagger d'arrivée — les vignettes se collent dans l'ordre */
