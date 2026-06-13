@@ -21,7 +21,6 @@ struct MagicLinkHtml<'a> {
 #[template(path = "emails/signup_verification.html")]
 struct SignupVerificationHtml<'a> {
     loc: Locale,
-    tenant: &'a Tenant,
     new_tenant_name: &'a str,
     owner_name: &'a str,
     link: &'a str,
@@ -186,7 +185,6 @@ pub async fn send_platform_magic_link(
 
 pub async fn send_signup_verification(
     cfg: &Config,
-    tenant: &Tenant,
     loc: Locale,
     base_url: &str,
     to: &str,
@@ -201,7 +199,6 @@ pub async fn send_signup_verification(
     let logo_url = format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/'));
     let html = SignupVerificationHtml {
         loc,
-        tenant,
         new_tenant_name,
         owner_name,
         link,
@@ -246,7 +243,6 @@ pub struct TodayMatch {
     pub home: String,
     pub away: String,
     pub kickoff_local: String,
-    pub group: Option<String>,
     pub bet: Option<ScorePair>,
 }
 

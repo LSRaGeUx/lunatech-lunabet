@@ -4,6 +4,7 @@ use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::Form;
 use chrono::Utc;
+use chrono_tz::Europe::Amsterdam;
 use serde::Deserialize;
 
 use crate::error::AppResult;
@@ -27,7 +28,6 @@ struct StakeTpl<'a> {
 }
 
 pub async fn page(
-    State(state): State<AppState>,
     TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AuthUser(user): AuthUser,
@@ -38,7 +38,7 @@ pub async fn page(
         tenant: &tenant,
         user: &user,
         deadline_passed,
-        deadline_local: tenant.stake_deadline.format("%d/%m/%Y %H:%M UTC").to_string(),
+        deadline_local: tenant.stake_deadline.with_timezone(&Amsterdam).format("%d/%m/%Y %H:%M %Z").to_string(),
         paid: user.paid_at.is_some(),
         admin_emails_display: if tenant.admin_emails.is_empty() {
             "admin".into()

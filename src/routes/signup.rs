@@ -272,7 +272,6 @@ pub async fn submit(
 
     if let Err(e) = mail::send_signup_verification(
         &state.cfg,
-        &tenant,
         loc,
         &platform,
         &owner_email,

@@ -45,6 +45,7 @@ pub struct StageSection {
 }
 
 impl StageSection {
+    #[allow(dead_code)]
     pub fn has_any_matches(&self) -> bool {
         !self.upcoming.is_empty() || !self.finished.is_empty()
     }

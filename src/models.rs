@@ -10,8 +10,10 @@ pub struct User {
     pub email: String,
     pub display_name: String,
     pub is_admin: bool,
+    #[allow(dead_code)]
     pub created_at: DateTime<Utc>,
     pub stake_eur: Option<i32>,
+    #[allow(dead_code)]
     pub stake_chosen_at: Option<DateTime<Utc>>,
     pub paid_at: Option<DateTime<Utc>>,
 }
@@ -43,6 +45,7 @@ impl Match {
     /// Localised display label for the match's tournament stage. Falls back
     /// to the raw football-data.org value when the stage isn't one we know
     /// (e.g. competitions other than the World Cup).
+    #[allow(dead_code)]
     pub fn stage_label(&self, loc: Locale) -> Option<&str> {
         self.stage.as_deref().map(|s| stage_label_for(s, loc))
     }
@@ -80,6 +83,7 @@ pub const STAGE_ORDER: &[&str] = &[
 ];
 
 #[derive(Debug, Clone, sqlx::FromRow)]
+#[allow(dead_code)]
 pub struct Bet {
     pub id: Uuid,
     pub user_id: Uuid,

@@ -14,6 +14,7 @@ pub struct LeaderboardRow {
     pub settled_bets: i64,
     pub stake_eur: Option<i32>,
     pub paid: bool,
+    #[allow(dead_code)]
     pub created_at: DateTime<Utc>,
 }
 
@@ -21,14 +22,18 @@ pub struct LeaderboardRow {
 pub struct PotState {
     pub total_eur: i64,
     pub paid_count: i64,
+    #[allow(dead_code)]
     pub deadline: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PayoutEntry {
     pub user_id: Uuid,
+    #[allow(dead_code)]
     pub display_name: String,
+    #[allow(dead_code)]
     pub rank: usize,
+    #[allow(dead_code)]
     pub stake_eur: i32,
     pub payout_eur: f64,
 }

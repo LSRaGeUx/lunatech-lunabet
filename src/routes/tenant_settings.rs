@@ -101,6 +101,40 @@ fn logo_extension(content_type: Option<&str>, file_name: &str) -> Option<&'stati
     }
 }
 
+/// Validate that the file bytes match the expected content type's magic numbers.
+/// This prevents attackers from uploading malicious files with spoofed Content-Type.
+fn validate_logo_magic_numbers(bytes: &[u8], content_type: Option<&str>) -> bool {
+    let ct = content_type.unwrap_or("").to_ascii_lowercase();
+    match ct.as_str() {
+        "image/svg+xml" => {
+            // SVG must start with <?xml or <svg
+            bytes.len() >= 5 
+                && (bytes.starts_with(b"<?xml") || bytes.starts_with(b"<svg"))
+        }
+        "image/png" => {
+            // PNG magic number: \x89PNG\r\n\x1a\n
+            bytes.len() >= 8 
+                && bytes[0] == 0x89 
+                && &bytes[1..4] == b"PNG"
+                && bytes[4] == 0x0D 
+                && bytes[5] == 0x0A
+                && bytes[6] == 0x1A
+                && bytes[7] == 0x0A
+        }
+        "image/jpeg" => {
+            // JPEG magic number: FF D8 FF
+            bytes.len() >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF
+        }
+        "image/webp" => {
+            // WebP magic number: RIFF....WEBP
+            bytes.len() >= 12 
+                && &bytes[0..4] == b"RIFF"
+                && &bytes[8..12] == b"WEBP"
+        }
+        _ => false,
+    }
+}
+
 pub async fn update(
     State(state): State<AppState>,
     TenantCtx(tenant): TenantCtx,
@@ -199,6 +233,17 @@ pub async fn update(
                 values,
             );
         };
+        // Validate magic numbers to prevent Content-Type spoofing
+        if !validate_logo_magic_numbers(&bytes, content_type.as_deref()) {
+            return render_error(
+                loc.f(
+                    "Le fichier ne correspond pas au type d'image déclaré.",
+                    "File content does not match the declared image type.",
+                )
+                .to_string(),
+                values,
+            );
+        }
         // Content-hash the bytes so the filename changes whenever the image
         // does — that doubles as cache-busting for the <img src>.
         let digest = Sha256::digest(&bytes);
