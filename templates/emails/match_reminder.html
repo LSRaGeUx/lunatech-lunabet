@@ -49,15 +49,25 @@
                         </tr>
                     </table>
 
+                    {% match bet %}
+                    {% when Some with (b) %}
+                    <p style="font-size:15px;line-height:1.55;margin:0 0 6px;">
+                        {{ loc.f("Ton prono actuel :", "Your current prediction:") }} <strong>{{ b.home }} - {{ b.away }}</strong>
+                    </p>
+                    <p style="font-size:15px;line-height:1.55;margin:0 0 22px;color:#524535;">
+                        {{ loc.f("Il est encore temps de le changer avant le coup d'envoi !", "There is still time to change it before kick-off!") }}
+                    </p>
+                    {% when None %}
                     <p style="font-size:15px;line-height:1.55;margin:0 0 22px;">
                         {{ loc.f("Tu n'as pas encore parié sur ce match. Le coup d'envoi approche !", "You haven't bet on this match yet. Kick-off is coming!") }}
                     </p>
+                    {% endmatch %}
 
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px;">
                         <tr><td>
                             <a href="{{ matches_url }}"
                                style="display:inline-block;background:#c8232c;color:#fbf3df;font-family:Impact,'Arial Narrow',Arial,sans-serif;letter-spacing:1.5px;text-decoration:none;padding:14px 28px;border:2px solid #1a1411;border-radius:4px;font-size:18px;box-shadow:3px 3px 0 #1a1411;">
-                                {{ loc.f("COLLER MA VIGNETTE", "PLACE MY BET") }}
+                                {% match bet %}{% when Some with (_) %}{{ loc.f("MODIFIER MON PRONO", "CHANGE MY BET") }}{% when None %}{{ loc.f("COLLER MA VIGNETTE", "PLACE MY BET") }}{% endmatch %}
                             </a>
                         </td></tr>
                     </table>

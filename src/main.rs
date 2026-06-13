@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use anyhow::Context;
 use axum::Router;
 use axum_extra::extract::cookie::Key;
+use chrono::Timelike;
 use sqlx::postgres::PgPoolOptions;
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
@@ -88,6 +89,29 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    if std::env::args().nth(1).as_deref() == Some("daily-digest") {
+        // One-off: send the daily recap once and exit. Optional date arg
+        // (YYYY-MM-DD, UTC); defaults to yesterday.
+        let cookie_key = Key::from(&vec![0u8; 64]);
+        let state = AppState {
+            pool: pool.clone(),
+            cookie_key,
+            cfg: cfg.clone(),
+            http: reqwest::Client::builder().user_agent("lunatech-betting/0.1").build()?,
+            tenants: tenants.clone(),
+            signup_limiter: signup_limiter.clone(),
+        };
+        let date = std::env::args()
+            .nth(2)
+            .and_then(|s| chrono::NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d").ok())
+            .unwrap_or_else(|| (chrono::Utc::now() - chrono::Duration::days(1)).date_naive());
+        notifications::send_daily_digest(&state, date)
+            .await
+            .context("running daily digest")?;
+        println!("Daily digest job completed for {date}.");
+        return Ok(());
+    }
+
     let cookie_key = Key::from(&cfg.cookie_key_bytes);
 
     let state = AppState {
@@ -154,6 +178,32 @@ async fn main() -> anyhow::Result<()> {
                     Err(e) => tracing::warn!("pending_tenants cleanup failed: {e:#}"),
                 }
                 s.signup_limiter.purge_empty();
+            }
+        });
+    }
+
+    // Daily recap email: from DAILY_DIGEST_HOUR (UTC) each morning, send the
+    // previous day's digest once. The check ticks every 15 min; send_daily_digest
+    // is idempotent per (tenant, day) via the daily_digests table, so repeated
+    // ticks after the hour are harmless no-ops.
+    {
+        let s = state.clone();
+        let digest_hour = cfg.daily_digest_hour;
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(std::time::Duration::from_secs(900));
+            ticker.tick().await;
+            loop {
+                ticker.tick().await;
+                let now = chrono::Utc::now();
+                if now.hour() < digest_hour {
+                    continue;
+                }
+                let Some(yesterday) = now.date_naive().pred_opt() else {
+                    continue;
+                };
+                if let Err(e) = notifications::send_daily_digest(&s, yesterday).await {
+                    tracing::warn!("daily digest failed: {e:#}");
+                }
             }
         });
     }

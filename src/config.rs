@@ -46,6 +46,9 @@ pub struct Config {
     /// Filesystem directory for user-uploaded assets (tenant logos). Served
     /// at `/uploads`. Kept outside `static/` so redeploys never clobber it.
     pub uploads_dir: String,
+    /// UTC hour (0-23) at which the daily recap email goes out. Each morning
+    /// from this hour, the digest for the previous calendar day is sent once.
+    pub daily_digest_hour: u32,
 }
 
 impl Config {
@@ -164,6 +167,12 @@ impl Config {
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| "uploads".into());
 
+        let daily_digest_hour = env::var("DAILY_DIGEST_HOUR")
+            .ok()
+            .and_then(|s| s.trim().parse::<u32>().ok())
+            .filter(|h| *h <= 23)
+            .unwrap_or(8);
+
         let apex_hosts: HashSet<String> = env::var("APEX_HOSTS")
             .unwrap_or_else(|_| "lunabet.eu,www.lunabet.eu".into())
             .split(',')
@@ -215,6 +224,7 @@ impl Config {
             apex_hosts,
             platform_url,
             uploads_dir,
+            daily_digest_hour,
         })
     }
 }

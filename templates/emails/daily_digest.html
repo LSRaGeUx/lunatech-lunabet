@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="{{ loc.code() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LunaBet</title>
+</head>
+<body style="margin:0;padding:0;background:#f3e6c4;font-family:Georgia,'Times New Roman',serif;color:#1a1411;-webkit-text-size-adjust:100%;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3e6c4;">
+    <tr><td align="center" style="padding:24px 12px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#fbf3df;border:2px solid #1a1411;border-radius:6px;">
+
+            <!-- header navy + logo -->
+            <tr>
+                <td style="background:#1d3557;padding:18px 24px;border-bottom:5px solid #c79b1e;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td style="color:#f0c75c;font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:24px;letter-spacing:2px;">
+                                ★ LUNABET
+                            </td>
+                            <td align="right" valign="middle">
+                                <img src="{{ logo_url }}" alt="{{ tenant.name }}" height="28" style="display:inline-block;height:28px;">
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            <tr><td style="background:#2e7d4a;height:10px;line-height:10px;font-size:0;">&nbsp;</td></tr>
+
+            <tr>
+                <td style="padding:30px 32px 24px;">
+                    <h1 style="font-family:Impact,'Arial Narrow',Arial,sans-serif;color:#c8232c;font-size:28px;margin:0 0 4px;letter-spacing:1px;">
+                        📊 {{ loc.f("RÉCAP DU JOUR", "DAILY RECAP") }}
+                    </h1>
+                    <p style="font-family:Arial,sans-serif;color:#524535;font-size:13px;margin:0 0 22px;letter-spacing:1px;">
+                        {{ day_label }}
+                    </p>
+
+                    <!-- résultats du jour -->
+                    <h2 style="font-family:Impact,Arial,sans-serif;color:#1d3557;font-size:18px;letter-spacing:1px;margin:0 0 10px;">
+                        {{ loc.f("Résultats", "Results") }}
+                    </h2>
+                    {% if results.is_empty() %}
+                    <p style="font-size:14px;color:#524535;margin:0 0 20px;">
+                        {{ loc.f("Aucun match terminé ce jour-là.", "No match finished that day.") }}
+                    </p>
+                    {% else %}
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                           style="background:#f3e6c4;border:2px solid #1a1411;border-radius:6px;margin:0 0 22px;">
+                        {% for r in results %}
+                        <tr style="border-bottom:1px solid rgba(26,20,17,0.12);">
+                            <td style="padding:9px 14px;font-size:15px;text-align:right;width:42%;">{{ r.home }}</td>
+                            <td style="padding:9px 6px;font-family:Impact,Arial,sans-serif;color:#1d3557;font-size:18px;text-align:center;white-space:nowrap;">
+                                {{ r.home_score }} <span style="color:#c8232c;">-</span> {{ r.away_score }}
+                            </td>
+                            <td style="padding:9px 14px;font-size:15px;text-align:left;width:42%;">{{ r.away }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                    {% endif %}
+
+                    <!-- points du jour -->
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;">
+                        <tr>
+                            <td align="center" style="background:#2e7d4a;border:2px solid #1a1411;border-radius:6px;padding:14px;">
+                                <div style="font-family:Arial,sans-serif;color:#eafaf0;font-size:13px;letter-spacing:1px;">
+                                    {{ loc.f("TES POINTS DU JOUR", "YOUR POINTS TODAY") }}
+                                </div>
+                                <div style="font-family:Impact,Arial,sans-serif;color:#fff;font-size:34px;line-height:1.1;">
+                                    +{{ my_points }} pts
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- classement -->
+                    <h2 style="font-family:Impact,Arial,sans-serif;color:#1d3557;font-size:18px;letter-spacing:1px;margin:0 0 10px;">
+                        {{ loc.f("Classement", "Leaderboard") }}
+                    </h2>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                           style="border:2px solid #1a1411;border-radius:6px;margin:0 0 8px;">
+                        {% for s in standings %}
+                        <tr style="{% if s.is_me %}background:#f0c75c;{% else %}background:#fbf3df;{% endif %}border-bottom:1px solid rgba(26,20,17,0.12);">
+                            <td style="padding:8px 12px;font-family:Impact,Arial,sans-serif;color:#1d3557;font-size:15px;width:36px;">{{ s.rank }}</td>
+                            <td style="padding:8px 6px;font-size:14px;{% if s.is_me %}font-weight:bold;{% endif %}">{{ s.name }}</td>
+                            <td style="padding:8px 12px;font-size:14px;text-align:right;font-weight:bold;color:#2e7d4a;white-space:nowrap;">{{ s.points }} pts</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                    <p style="font-size:13px;color:#524535;margin:0 0 22px;">
+                        {{ loc.f("Tu es", "You are") }}
+                        <strong>{% if loc.code() == "fr" %}{{ my_rank }}<sup>e</sup>{% else %}#{{ my_rank }}{% endif %}</strong>
+                        {{ loc.f("avec", "with") }} <strong>{{ my_total }} pts</strong> {{ loc.f("au total.", "total.") }}
+                    </p>
+
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px;">
+                        <tr><td>
+                            <a href="{{ leaderboard_url }}"
+                               style="display:inline-block;background:#c8232c;color:#fbf3df;font-family:Impact,'Arial Narrow',Arial,sans-serif;letter-spacing:1.5px;text-decoration:none;padding:14px 28px;border:2px solid #1a1411;border-radius:4px;font-size:18px;box-shadow:3px 3px 0 #1a1411;">
+                                {{ loc.f("VOIR LE CLASSEMENT", "VIEW THE LEADERBOARD") }}
+                            </a>
+                        </td></tr>
+                    </table>
+                </td>
+            </tr>
+
+            <tr>
+                <td style="background:#2e7d4a;padding:18px;text-align:center;color:#fff8e0;font-family:Arial,sans-serif;font-size:12px;border-top:5px solid #c79b1e;">
+                    <img src="{{ logo_url }}" alt="{{ tenant.name }}" height="22" style="display:inline-block;height:22px;vertical-align:middle;margin-bottom:6px;"><br>
+                    <span style="opacity:0.9;">{{ tenant.name }} · Coupe du Monde 2026 · <em>powered by LunaBet</em></span>
+                </td>
+            </tr>
+        </table>
+    </td></tr>
+</table>
+</body>
+</html>

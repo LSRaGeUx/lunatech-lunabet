@@ -1,8 +1,12 @@
-use chrono::{DateTime, Duration, Utc};
+use std::collections::HashMap;
+
+use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use serde_json::json;
+use uuid::Uuid;
 
 use crate::mail;
 use crate::state::AppState;
+use crate::stakes;
 use crate::tenant::{self, Tenant};
 
 pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
@@ -63,15 +67,16 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
             "sending reminders for match {match_id}: {home} - {away}"
         );
 
-        let unbet_users: Vec<(String, String, String)> = sqlx::query_as(
+        // Everyone gets a reminder. Those who already bet are nudged that they
+        // can still change their score (LEFT JOIN yields NULL scores for the
+        // others).
+        let recipients: Vec<(String, String, Option<i32>, Option<i32>)> = sqlx::query_as(
             r#"
-            SELECT email, display_name, lang
+            SELECT u.email, u.lang, b.home_score, b.away_score
             FROM users u
+            LEFT JOIN bets b
+              ON b.user_id = u.id AND b.match_id = $2 AND b.tenant_id = u.tenant_id
             WHERE u.tenant_id = $1
-              AND NOT EXISTS (
-                SELECT 1 FROM bets b
-                WHERE b.user_id = u.id AND b.match_id = $2 AND b.tenant_id = u.tenant_id
-              )
             "#,
         )
         .bind(tenant.id)
@@ -82,9 +87,13 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
         let kickoff_local = kickoff.format("%H:%M UTC").to_string();
         let mut emails_sent = 0usize;
         let mut emails_failed = 0usize;
-        for (email, _name, lang) in &unbet_users {
+        for (email, lang, bet_home, bet_away) in &recipients {
             // French only if the user explicitly chose it, English otherwise.
             let loc = crate::i18n::Locale::from_code(lang).unwrap_or_default();
+            let bet = match (bet_home, bet_away) {
+                (Some(h), Some(a)) => Some((*h, *a)),
+                _ => None,
+            };
             match mail::send_bet_reminder(
                 &state.cfg,
                 tenant,
@@ -94,6 +103,7 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
                 &away,
                 &kickoff_local,
                 &tenant_url,
+                bet,
             )
             .await
             {
@@ -106,8 +116,8 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
         }
         tracing::info!(
             tenant = %tenant.slug,
-            "match {match_id}: {emails_sent} reminder emails sent, {emails_failed} failed, {} users without bet",
-            unbet_users.len()
+            "match {match_id}: {emails_sent} reminder emails sent, {emails_failed} failed, {} recipients",
+            recipients.len()
         );
 
         if let Some(webhook) = &tenant.slack_webhook_url {
@@ -164,5 +174,164 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
         .await?;
     }
 
+    Ok(())
+}
+
+/// Daily recap: for the given UTC calendar `date`, email every user of every
+/// tenant the day's results, the points they earned that day, and the current
+/// leaderboard. Idempotent per (tenant, date) via the `daily_digests` table, so
+/// it's safe to call repeatedly. Days with no finished match are skipped.
+pub async fn send_daily_digest(state: &AppState, date: NaiveDate) -> anyhow::Result<()> {
+    let start = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap());
+    let end = start + Duration::days(1);
+    let day_label = date.format("%d/%m/%Y").to_string();
+
+    // Matches aren't tenant-scoped yet (Phase 1), so the day's results are the
+    // same set for everyone; fetch them once.
+    let rows: Vec<(String, String, i32, i32, Option<String>)> = sqlx::query_as(
+        r#"
+        SELECT home_team, away_team, home_score, away_score, group_name
+        FROM matches
+        WHERE status = 'FINISHED' AND home_score IS NOT NULL AND away_score IS NOT NULL
+          AND kickoff_at >= $1 AND kickoff_at < $2
+        ORDER BY kickoff_at ASC
+        "#,
+    )
+    .bind(start)
+    .bind(end)
+    .fetch_all(&state.pool)
+    .await?;
+
+    if rows.is_empty() {
+        tracing::info!("daily digest {day_label}: no finished matches, skipping");
+        return Ok(());
+    }
+
+    let results: Vec<mail::DigestResult> = rows
+        .into_iter()
+        .map(|(home, away, hs, as_, group)| mail::DigestResult {
+            home,
+            away,
+            home_score: hs,
+            away_score: as_,
+            group,
+        })
+        .collect();
+
+    for t in tenant::load_all(&state.pool).await? {
+        if let Err(e) = digest_for_tenant(state, &t, date, &day_label, &results, start, end).await {
+            tracing::warn!(tenant = %t.slug, "daily digest failed: {e:#}");
+        }
+    }
+    Ok(())
+}
+
+async fn digest_for_tenant(
+    state: &AppState,
+    tenant: &Tenant,
+    date: NaiveDate,
+    day_label: &str,
+    results: &[mail::DigestResult],
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) -> anyhow::Result<()> {
+    let already: Option<i32> =
+        sqlx::query_scalar("SELECT 1 FROM daily_digests WHERE tenant_id = $1 AND digest_date = $2")
+            .bind(tenant.id)
+            .bind(date)
+            .fetch_optional(&state.pool)
+            .await?;
+    if already.is_some() {
+        return Ok(());
+    }
+
+    let board = stakes::load_leaderboard(&state.pool, tenant.id).await?;
+    if board.is_empty() {
+        return Ok(());
+    }
+
+    // Points each user earned on this day.
+    let day_rows: Vec<(Uuid, i64)> = sqlx::query_as(
+        r#"
+        SELECT b.user_id, COALESCE(SUM(b.points), 0)::BIGINT
+        FROM bets b
+        JOIN matches m ON m.id = b.match_id
+        WHERE b.tenant_id = $1
+          AND m.status = 'FINISHED'
+          AND m.kickoff_at >= $2 AND m.kickoff_at < $3
+          AND b.points IS NOT NULL
+        GROUP BY b.user_id
+        "#,
+    )
+    .bind(tenant.id)
+    .bind(start)
+    .bind(end)
+    .fetch_all(&state.pool)
+    .await?;
+    let day_points: HashMap<Uuid, i64> = day_rows.into_iter().collect();
+
+    let contacts: Vec<(Uuid, String, String)> =
+        sqlx::query_as("SELECT id, email, lang FROM users WHERE tenant_id = $1")
+            .bind(tenant.id)
+            .fetch_all(&state.pool)
+            .await?;
+    let contact_map: HashMap<Uuid, (String, String)> =
+        contacts.into_iter().map(|(id, e, l)| (id, (e, l))).collect();
+
+    // Top 10 standings, shared base; `is_me` is set per recipient.
+    let top: Vec<(Uuid, usize, String, i64)> = board
+        .iter()
+        .enumerate()
+        .take(10)
+        .map(|(i, r)| (r.user_id, i + 1, r.display_name.clone(), r.points))
+        .collect();
+
+    let tenant_url = tenant.public_url(&state.cfg);
+    let mut sent = 0usize;
+    let mut failed = 0usize;
+    for (idx, row) in board.iter().enumerate() {
+        let Some((email, lang)) = contact_map.get(&row.user_id) else {
+            continue;
+        };
+        let loc = crate::i18n::Locale::from_code(lang).unwrap_or_default();
+        let standings: Vec<mail::DigestStanding> = top
+            .iter()
+            .map(|(uid, rank, name, points)| mail::DigestStanding {
+                rank: *rank,
+                name: name.clone(),
+                points: *points,
+                is_me: *uid == row.user_id,
+            })
+            .collect();
+        let my_points = day_points.get(&row.user_id).copied().unwrap_or(0);
+        match mail::send_daily_digest_email(
+            &state.cfg,
+            tenant,
+            loc,
+            email,
+            day_label,
+            results,
+            my_points,
+            idx + 1,
+            row.points,
+            &standings,
+            &tenant_url,
+        )
+        .await
+        {
+            Ok(_) => sent += 1,
+            Err(e) => {
+                failed += 1;
+                tracing::warn!("digest to {email} failed: {e:#}");
+            }
+        }
+    }
+
+    sqlx::query("INSERT INTO daily_digests (tenant_id, digest_date) VALUES ($1, $2) ON CONFLICT DO NOTHING")
+        .bind(tenant.id)
+        .bind(date)
+        .execute(&state.pool)
+        .await?;
+    tracing::info!(tenant = %tenant.slug, "daily digest {day_label}: {sent} sent, {failed} failed");
     Ok(())
 }
