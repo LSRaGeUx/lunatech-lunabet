@@ -34,6 +34,6 @@ thiserror = "2"
 
 rand = "0.8"
 base64 = "0.22"
-sha2 = "0.10"
+sha2 = "0.11"
 time = "0.3"
 regex = "1"
