@@ -5,6 +5,7 @@ use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum_extra::extract::cookie::PrivateCookieJar;
 use chrono::{DateTime, Utc};
+use chrono_tz::Europe::Amsterdam;
 use uuid::Uuid;
 
 use crate::error::AppResult;
@@ -103,7 +104,7 @@ pub async fn stakes_page(
         pot_total_eur: pot.total_eur,
         paid_count: pot.paid_count,
         rows,
-        deadline_local: tenant.stake_deadline.format("%d/%m/%Y %H:%M UTC").to_string(),
+        deadline_local: tenant.stake_deadline.with_timezone(&Amsterdam).format("%d/%m/%Y %H:%M %Z").to_string(),
         deadline_passed: Utc::now() > tenant.stake_deadline,
     };
     Ok(Html(tpl.render()?).into_response())

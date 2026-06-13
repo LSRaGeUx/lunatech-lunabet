@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
+use chrono_tz::Europe::Amsterdam;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -84,7 +85,7 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
         .fetch_all(&state.pool)
         .await?;
 
-        let kickoff_local = kickoff.format("%H:%M UTC").to_string();
+        let kickoff_local = kickoff.with_timezone(&Amsterdam).format("%H:%M %Z").to_string();
         let mut emails_sent = 0usize;
         let mut emails_failed = 0usize;
         for (email, lang) in &unbet_users {
@@ -421,7 +422,7 @@ async fn today_matches_for_tenant(
             .map(|(id, home, away, kickoff, _group)| mail::TodayMatch {
                 home: home.clone(),
                 away: away.clone(),
-                kickoff_local: kickoff.format("%H:%M UTC").to_string(),
+                kickoff_local: kickoff.with_timezone(&Amsterdam).format("%H:%M %Z").to_string(),
                 bet: bets
                     .get(&(*uid, *id))
                     .map(|(h, a)| mail::ScorePair { home: *h, away: *a }),
