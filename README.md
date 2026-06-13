@@ -86,6 +86,7 @@ All transactional emails are **multipart HTML** (with a plain-text fallback), ma
   - **Slack** message to the configured channel (if `SLACK_WEBHOOK_URL` is set)
 - Each match is announced exactly once (`matches.reminded_at`)
 - **Daily recap email**: from `DAILY_DIGEST_HOUR` (UTC) each morning, every user gets a digest of the previous day's results, the points they earned that day, and the current leaderboard. Localised per user (FR/EN), sent at most once per day per tenant (`daily_digests` table), and skipped on days with no finished match.
+- **Today's matches email**: same morning slot, every user gets the list of matches kicking off that day with their current prediction for each and a "still time to change it" nudge. Localised per user, sent at most once per day per tenant (`today_matches_emails` table), and skipped when no match is scheduled that day.
 
 ### Internationalisation
 - Fully bilingual **FR / EN** UI
@@ -220,6 +221,7 @@ All variables are declared in `.env` (copied from `.env.example`).
 - **Magic link** — go to http://localhost:3000/login, type any `@lunatech.com` email, then open http://localhost:8025 (Mailpit) to see the rendered email.
 - **Match reminder** — run `cargo run -- notify` to fire the reminder job once manually (no need to wait 5 minutes for the next tick). Reminders go out for every match starting within `REMINDER_LEAD_MINUTES`.
 - **Daily recap** — run `cargo run -- daily-digest` to send the recap once (defaults to yesterday). Pass a date to target a specific day, e.g. `cargo run -- daily-digest 2026-06-10`.
+- **Today's matches** — run `cargo run -- today-matches` to send the day's match preview once (defaults to today). Pass a date to target a specific day, e.g. `cargo run -- today-matches 2026-06-13`.
 
 In dev mode:
 - `COOKIE_KEY` is auto-generated when missing

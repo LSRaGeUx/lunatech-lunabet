@@ -30,49 +30,53 @@
 
             <tr>
                 <td style="padding:30px 32px 24px;">
-                    <h1 style="font-family:Impact,'Arial Narrow',Arial,sans-serif;color:#c8232c;font-size:30px;margin:0 0 22px;letter-spacing:1px;">
-                        {{ loc.f("⚽ COUP D'ENVOI BIENTÔT", "⚽ KICK-OFF SOON") }}
+                    <h1 style="font-family:Impact,'Arial Narrow',Arial,sans-serif;color:#c8232c;font-size:28px;margin:0 0 4px;letter-spacing:1px;">
+                        ⚽ {{ loc.f("LES MATCHS DU JOUR", "TODAY'S MATCHES") }}
                     </h1>
+                    <p style="font-family:Arial,sans-serif;color:#524535;font-size:13px;margin:0 0 22px;letter-spacing:1px;">
+                        {{ day_label }}
+                    </p>
 
-                    <!-- match panel -->
+                    {% for m in matches %}
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-                           style="background:#f3e6c4;border:2px solid #1a1411;border-radius:6px;margin:0 0 22px;">
+                           style="background:#f3e6c4;border:2px solid #1a1411;border-radius:6px;margin:0 0 12px;">
                         <tr>
-                            <td align="center" style="padding:18px 16px;">
-                                <div style="font-family:Impact,Arial,sans-serif;color:#1d3557;font-size:24px;letter-spacing:1px;">
-                                    {{ home }} <span style="color:#c8232c;">vs</span> {{ away }}
+                            <td style="padding:12px 16px;">
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                    <tr>
+                                        <td style="font-family:Impact,Arial,sans-serif;color:#1d3557;font-size:18px;">
+                                            {{ m.home }} <span style="color:#c8232c;">vs</span> {{ m.away }}
+                                        </td>
+                                        <td align="right" style="font-family:Arial,sans-serif;color:#524535;font-size:13px;white-space:nowrap;">
+                                            {{ m.kickoff_local }}
+                                        </td>
+                                    </tr>
+                                </table>
+                                {% match m.bet %}
+                                {% when Some with (b) %}
+                                <div style="margin-top:8px;font-size:14px;">
+                                    {{ loc.f("Ton prono", "Your prediction") }} :
+                                    <strong style="color:#1d3557;">{{ b.home }} - {{ b.away }}</strong>
+                                    <span style="color:#2e7d4a;font-style:italic;"> · {{ loc.f("il est encore temps de le changer", "still time to change it") }}</span>
                                 </div>
-                                <div style="font-family:Arial,sans-serif;color:#524535;font-size:13px;margin-top:6px;">
-                                    {{ kickoff_local }}
+                                {% when None %}
+                                <div style="margin-top:8px;font-size:14px;color:#c8232c;font-style:italic;">
+                                    {{ loc.f("Tu n'as pas encore parié, place ton prono !", "You haven't bet yet, place your prediction!") }}
                                 </div>
+                                {% endmatch %}
                             </td>
                         </tr>
                     </table>
+                    {% endfor %}
 
-                    <p style="font-size:15px;line-height:1.55;margin:0 0 22px;">
-                        {{ loc.f("Tu n'as pas encore parié sur ce match. Le coup d'envoi approche !", "You haven't bet on this match yet. Kick-off is coming!") }}
-                    </p>
-
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0 8px;">
                         <tr><td>
                             <a href="{{ matches_url }}"
                                style="display:inline-block;background:#c8232c;color:#fbf3df;font-family:Impact,'Arial Narrow',Arial,sans-serif;letter-spacing:1.5px;text-decoration:none;padding:14px 28px;border:2px solid #1a1411;border-radius:4px;font-size:18px;box-shadow:3px 3px 0 #1a1411;">
-                                {{ loc.f("COLLER MA VIGNETTE", "PLACE MY BET") }}
+                                {{ loc.f("CHANGER MES PRONOS", "CHANGE MY PREDICTIONS") }}
                             </a>
                         </td></tr>
                     </table>
-                    <p style="font-size:12px;color:#524535;margin:10px 0 0;">
-                        {{ matches_url }}
-                    </p>
-
-                    <hr style="border:none;border-top:1px dashed #c79b1e;margin:24px 0 16px;">
-                    <p style="font-size:13px;color:#524535;font-style:italic;margin:0 0 10px;">
-                        {{ loc.f("« Le ballon est ton ami. » - Olivier Atton", "« The ball is your friend. » - Oliver Atton") }}
-                    </p>
-                    <p style="font-size:13px;color:#524535;font-style:italic;margin:0;">
-                        ★ <strong>3 pts</strong> {{ loc.f("score exact", "exact score") }} &nbsp;·&nbsp;
-                        ★ <strong>1 pt</strong> {{ loc.f("bon vainqueur", "right winner") }}
-                    </p>
                 </td>
             </tr>
 
