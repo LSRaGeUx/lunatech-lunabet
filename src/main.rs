@@ -70,6 +70,8 @@ async fn main() -> anyhow::Result<()> {
 
     let signup_limiter =
         rate_limit::SignupRateLimiter::new(std::time::Duration::from_secs(3600), 5);
+    let endpoint_limiter =
+        rate_limit::EndpointRateLimiter::new(std::time::Duration::from_secs(60), 10);
 
     if std::env::args().nth(1).as_deref() == Some("notify") {
         // One-off: run the match-reminder job once and exit (for testing).
@@ -81,6 +83,7 @@ async fn main() -> anyhow::Result<()> {
             http: reqwest::Client::builder().user_agent("lunatech-betting/0.1").build()?,
             tenants: tenants.clone(),
             signup_limiter: signup_limiter.clone(),
+            endpoint_limiter: endpoint_limiter.clone(),
         };
         notifications::send_match_reminders(&state)
             .await
@@ -100,6 +103,7 @@ async fn main() -> anyhow::Result<()> {
             http: reqwest::Client::builder().user_agent("lunatech-betting/0.1").build()?,
             tenants: tenants.clone(),
             signup_limiter: signup_limiter.clone(),
+            endpoint_limiter: endpoint_limiter.clone(),
         };
         let date = std::env::args()
             .nth(2)
@@ -123,6 +127,7 @@ async fn main() -> anyhow::Result<()> {
             http: reqwest::Client::builder().user_agent("lunatech-betting/0.1").build()?,
             tenants: tenants.clone(),
             signup_limiter: signup_limiter.clone(),
+            endpoint_limiter: endpoint_limiter.clone(),
         };
         let date = std::env::args()
             .nth(2)
@@ -146,6 +151,7 @@ async fn main() -> anyhow::Result<()> {
             .build()?,
         tenants,
         signup_limiter,
+        endpoint_limiter,
     };
 
     if cfg.football_data_api_key.is_some() {
@@ -178,7 +184,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Hourly cleanup: drop pending signups that expired more than a day ago
-    // and shrink the in-memory signup rate limiter's bucket map.
+    // and shrink the in-memory rate limiter bucket maps.
     {
         let s = state.clone();
         tokio::spawn(async move {
@@ -201,6 +207,7 @@ async fn main() -> anyhow::Result<()> {
                     Err(e) => tracing::warn!("pending_tenants cleanup failed: {e:#}"),
                 }
                 s.signup_limiter.purge_empty();
+                s.endpoint_limiter.purge_empty();
             }
         });
     }

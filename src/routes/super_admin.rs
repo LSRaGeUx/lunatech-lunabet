@@ -44,6 +44,7 @@ impl FromRequestParts<AppState> for SuperAdmin {
 }
 
 struct TenantRow {
+    #[allow(dead_code)]
     id: Uuid,
     slug: String,
     name: String,

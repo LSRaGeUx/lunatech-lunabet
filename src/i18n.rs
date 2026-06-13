@@ -88,25 +88,6 @@ where
     }
 }
 
-/// Used by handlers that don't want the heavy extractor wiring but still need
-/// the locale (e.g., logout that doesn't read the body).
-pub fn from_response_parts(parts: &Parts) -> Locale {
-    if let Some(cookie_header) = parts.headers.get(axum::http::header::COOKIE) {
-        if let Ok(s) = cookie_header.to_str() {
-            for kv in s.split(';') {
-                let mut split = kv.trim().splitn(2, '=');
-                let k = split.next().unwrap_or("");
-                let v = split.next().unwrap_or("");
-                if k == LANG_COOKIE {
-                    if let Some(l) = Locale::from_code(v) {
-                        return l;
-                    }
-                }
-            }
-        }
-    }
-    Locale::default()
-}
 
 #[allow(dead_code)]
 fn _ensure_response_compiles(_r: Response) {}

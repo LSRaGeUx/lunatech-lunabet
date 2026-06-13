@@ -16,6 +16,7 @@ use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::mail;
 use crate::models::User;
+use crate::rate_limit::client_ip;
 use crate::state::AppState;
 use crate::tenant::{public_url_for_slug, MaybeTenant, Tenant, TenantCtx};
 
@@ -116,12 +117,23 @@ pub async fn request_magic_link(
     State(state): State<AppState>,
     MaybeTenant(maybe_tenant): MaybeTenant,
     loc: Locale,
+    headers: axum::http::HeaderMap,
     Form(form): Form<LoginForm>,
 ) -> AppResult<Response> {
+    // Rate limiting: max 10 requests per minute per IP for login endpoint
+    let endpoint = "/login";
+    let ip = client_ip(&headers);
+    if let Some(ip) = ip {
+        if !state.endpoint_limiter.check_and_record(endpoint, ip) {
+            return Ok(StatusCode::TOO_MANY_REQUESTS.into_response());
+        }
+    }
+    // If we can't determine IP (local dev), allow through
+
     let email = form.email.trim().to_lowercase();
 
     if let Some(tenant) = maybe_tenant {
-        return tenant_request_magic_link(state, tenant, loc, email).await;
+        return tenant_request_magic_link(state.clone(), tenant, loc, email).await;
     }
 
     // Central apex login: figure out which tenant(s) this email is part of.

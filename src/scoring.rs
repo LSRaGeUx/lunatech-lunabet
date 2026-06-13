@@ -3,6 +3,7 @@ use sqlx::PgPool;
 pub const POINTS_EXACT: i32 = 3;
 pub const POINTS_OUTCOME: i32 = 1;
 
+#[allow(dead_code)]
 pub fn compute_points(
     bet_home: i32,
     bet_away: i32,

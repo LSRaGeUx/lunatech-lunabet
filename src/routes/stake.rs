@@ -27,7 +27,6 @@ struct StakeTpl<'a> {
 }
 
 pub async fn page(
-    State(state): State<AppState>,
     TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AuthUser(user): AuthUser,

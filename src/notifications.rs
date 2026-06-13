@@ -418,11 +418,10 @@ async fn today_matches_for_tenant(
         let loc = crate::i18n::Locale::from_code(lang).unwrap_or_default();
         let matches: Vec<mail::TodayMatch> = match_rows
             .iter()
-            .map(|(id, home, away, kickoff, group)| mail::TodayMatch {
+            .map(|(id, home, away, kickoff, _group)| mail::TodayMatch {
                 home: home.clone(),
                 away: away.clone(),
                 kickoff_local: kickoff.format("%H:%M UTC").to_string(),
-                group: group.clone(),
                 bet: bets
                     .get(&(*uid, *id))
                     .map(|(h, a)| mail::ScorePair { home: *h, away: *a }),

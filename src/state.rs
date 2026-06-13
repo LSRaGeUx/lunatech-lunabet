@@ -3,7 +3,7 @@ use axum_extra::extract::cookie::Key;
 use sqlx::PgPool;
 
 use crate::config::Config;
-use crate::rate_limit::SignupRateLimiter;
+use crate::rate_limit::{EndpointRateLimiter, SignupRateLimiter};
 use crate::tenant::TenantRegistry;
 
 #[derive(Clone)]
@@ -19,6 +19,8 @@ pub struct AppState {
     pub tenants: TenantRegistry,
     /// Anti-abuse for `POST /signup`. Clones share state via Arc.
     pub signup_limiter: SignupRateLimiter,
+    /// Rate limiter for other endpoints (e.g., /login).
+    pub endpoint_limiter: EndpointRateLimiter,
 }
 
 impl FromRef<AppState> for Key {
