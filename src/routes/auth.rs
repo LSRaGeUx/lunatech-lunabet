@@ -360,7 +360,6 @@ pub async fn callback(
         builder = builder.domain(domain);
     }
     let jar = jar.add(builder.build());
-
     Ok((jar, Redirect::to("/matches")).into_response())
 }
 
