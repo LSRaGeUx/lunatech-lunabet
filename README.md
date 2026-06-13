@@ -85,6 +85,7 @@ All transactional emails are **multipart HTML** (with a plain-text fallback), ma
   - Per-user **email** to anyone who hasn't placed a bet on that match
   - **Slack** message to the configured channel (if `SLACK_WEBHOOK_URL` is set)
 - Each match is announced exactly once (`matches.reminded_at`)
+- **Daily recap email**: from `DAILY_DIGEST_HOUR` (UTC) each morning, every user gets a digest of the previous day's results, the points they earned that day, and the current leaderboard. Localised per user (FR/EN), sent at most once per day per tenant (`daily_digests` table), and skipped on days with no finished match.
 
 ### Internationalisation
 - Fully bilingual **FR / EN** UI
@@ -144,6 +145,7 @@ All variables are declared in `.env` (copied from `.env.example`).
 |---|---|---|
 | `SLACK_WEBHOOK_URL` | _(empty)_ | Slack Incoming Webhook URL. Empty → Slack disabled. Docs: https://api.slack.com/messaging/webhooks |
 | `REMINDER_LEAD_MINUTES` | `120` | How many minutes before kick-off the reminder is sent |
+| `DAILY_DIGEST_HOUR` | `8` | UTC hour (0-23) from which the daily recap email goes out, covering the previous day |
 
 ### Development
 | Variable | Default | Description |
@@ -217,6 +219,7 @@ All variables are declared in `.env` (copied from `.env.example`).
 
 - **Magic link** — go to http://localhost:3000/login, type any `@lunatech.com` email, then open http://localhost:8025 (Mailpit) to see the rendered email.
 - **Match reminder** — run `cargo run -- notify` to fire the reminder job once manually (no need to wait 5 minutes for the next tick). Reminders go out for every match starting within `REMINDER_LEAD_MINUTES`.
+- **Daily recap** — run `cargo run -- daily-digest` to send the recap once (defaults to yesterday). Pass a date to target a specific day, e.g. `cargo run -- daily-digest 2026-06-10`.
 
 In dev mode:
 - `COOKIE_KEY` is auto-generated when missing
