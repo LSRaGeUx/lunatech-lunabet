@@ -28,12 +28,6 @@ struct SignupVerificationHtml<'a> {
     logo_url: &'a str,
 }
 
-/// The recipient's existing prediction on the match, when they already bet.
-pub struct ReminderBet {
-    pub home: i32,
-    pub away: i32,
-}
-
 #[derive(Template)]
 #[template(path = "emails/match_reminder.html")]
 struct MatchReminderHtml<'a> {
@@ -44,9 +38,6 @@ struct MatchReminderHtml<'a> {
     kickoff_local: &'a str,
     matches_url: &'a str,
     logo_url: &'a str,
-    /// `Some` when the user already placed a bet: the reminder then nudges them
-    /// that there is still time to change it, rather than to place one.
-    bet: Option<ReminderBet>,
 }
 
 pub async fn send_magic_link(
@@ -96,7 +87,6 @@ pub async fn send_magic_link(
     send_html_email(cfg, &cfg.mail_from, to, &subject, plain, html).await
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn send_bet_reminder(
     cfg: &Config,
     tenant: &Tenant,
@@ -106,7 +96,6 @@ pub async fn send_bet_reminder(
     away: &str,
     kickoff_local: &str,
     base_url: &str,
-    bet: Option<(i32, i32)>,
 ) -> anyhow::Result<()> {
     let matches_url = format!("{}/matches", base_url.trim_end_matches('/'));
     let logo_url = match tenant.logo_url.as_deref() {
@@ -122,25 +111,14 @@ pub async fn send_bet_reminder(
         kickoff_local,
         matches_url: &matches_url,
         logo_url: &logo_url,
-        bet: bet.map(|(h, a)| ReminderBet { home: h, away: a }),
     }
     .render()?;
 
-    let line1 = match (loc, bet) {
-        (Locale::Fr, Some((h, a))) => format!(
-            "{home} - {away} commence bientôt ({kickoff_local}). Ton prono : {h}-{a}. Il est encore temps de le changer !"
-        ),
-        (Locale::En, Some((h, a))) => format!(
-            "{home} - {away} kicks off soon ({kickoff_local}). Your prediction: {h}-{a}. There is still time to change it!"
-        ),
-        (Locale::Fr, None) => format!("{home} - {away} commence bientôt ({kickoff_local}) et tu n'as pas encore parié."),
-        (Locale::En, None) => format!("{home} - {away} kicks off soon ({kickoff_local}) and you haven't bet yet."),
+    let line1 = match loc {
+        Locale::Fr => format!("{home} - {away} commence bientôt ({kickoff_local}) et tu n'as pas encore parié."),
+        Locale::En => format!("{home} - {away} kicks off soon ({kickoff_local}) and you haven't bet yet."),
     };
-    let line2 = if bet.is_some() {
-        loc.f("Modifie ton prono :", "Change your prediction:")
-    } else {
-        loc.f("Va placer ton pronostic :", "Place your prediction:")
-    };
+    let line2 = loc.f("Va placer ton pronostic :", "Place your prediction:");
     let plain = format!(
         "{hi}\n\n\
          {line1}\n\n\
@@ -255,6 +233,102 @@ pub async fn send_signup_verification(
         Locale::En => format!("Confirm your LunaBet space for {new_tenant_name}"),
     };
     send_html_email(cfg, from, to, &subject, plain, html).await
+}
+
+/// A score the user predicted (home, away).
+pub struct ScorePair {
+    pub home: i32,
+    pub away: i32,
+}
+
+/// One of today's matches, with the recipient's current prediction (if any).
+pub struct TodayMatch {
+    pub home: String,
+    pub away: String,
+    pub kickoff_local: String,
+    pub group: Option<String>,
+    pub bet: Option<ScorePair>,
+}
+
+#[derive(Template)]
+#[template(path = "emails/today_matches.html")]
+struct TodayMatchesHtml<'a> {
+    loc: Locale,
+    tenant: &'a Tenant,
+    logo_url: &'a str,
+    day_label: &'a str,
+    matches: &'a [TodayMatch],
+    matches_url: &'a str,
+}
+
+/// Morning preview of the day's matches: lists every match kicking off today
+/// and, for each, the recipient's current prediction with a nudge that there
+/// is still time to change it. Localised per recipient.
+pub async fn send_today_matches_email(
+    cfg: &Config,
+    tenant: &Tenant,
+    loc: Locale,
+    to: &str,
+    day_label: &str,
+    matches: &[TodayMatch],
+    base_url: &str,
+) -> anyhow::Result<()> {
+    let matches_url = format!("{}/matches", base_url.trim_end_matches('/'));
+    let logo_url = match tenant.logo_url.as_deref() {
+        Some(u) if u.starts_with("http") => u.to_string(),
+        Some(rel) => format!("{}{}", base_url.trim_end_matches('/'), rel),
+        None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
+    };
+    let html = TodayMatchesHtml {
+        loc,
+        tenant,
+        logo_url: &logo_url,
+        day_label,
+        matches,
+        matches_url: &matches_url,
+    }
+    .render()?;
+
+    let mut body = String::new();
+    for m in matches {
+        let when = &m.kickoff_local;
+        match &m.bet {
+            Some(b) => body.push_str(&format!(
+                "  {} - {} ({when}) : {} {}-{} {}\n",
+                m.home,
+                m.away,
+                loc.f("ton prono", "your prediction"),
+                b.home,
+                b.away,
+                loc.f("(encore temps de changer)", "(still time to change)"),
+            )),
+            None => body.push_str(&format!(
+                "  {} - {} ({when}) : {}\n",
+                m.home,
+                m.away,
+                loc.f("pas encore de prono", "no prediction yet"),
+            )),
+        }
+    }
+    let plain = format!(
+        "{hi}\n\n\
+         {intro}\n{body}\n\
+         {nudge}\n{matches_url}\n\n\
+         - {brand} · LunaBet\n",
+        hi = loc.f("Salut !", "Hi!"),
+        intro = loc.f("Les matchs du jour :", "Today's matches:"),
+        nudge = loc.f(
+            "Il est encore temps de changer tes pronos :",
+            "There is still time to change your predictions:"
+        ),
+        brand = tenant.name,
+    );
+
+    let subject = match loc {
+        Locale::Fr => format!("⚽ Les matchs du {day_label} - {}", tenant.name),
+        Locale::En => format!("⚽ {day_label} matches - {}", tenant.name),
+    };
+    send_html_email(cfg, &cfg.mail_from, to, &subject, plain, html).await
 }
 
 /// One finished match in the daily recap.

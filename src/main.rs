@@ -112,6 +112,29 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    if std::env::args().nth(1).as_deref() == Some("today-matches") {
+        // One-off: send the "today's matches" preview once and exit. Optional
+        // date arg (YYYY-MM-DD, UTC); defaults to today.
+        let cookie_key = Key::from(&vec![0u8; 64]);
+        let state = AppState {
+            pool: pool.clone(),
+            cookie_key,
+            cfg: cfg.clone(),
+            http: reqwest::Client::builder().user_agent("lunatech-betting/0.1").build()?,
+            tenants: tenants.clone(),
+            signup_limiter: signup_limiter.clone(),
+        };
+        let date = std::env::args()
+            .nth(2)
+            .and_then(|s| chrono::NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d").ok())
+            .unwrap_or_else(|| chrono::Utc::now().date_naive());
+        notifications::send_today_matches(&state, date)
+            .await
+            .context("running today's matches email")?;
+        println!("Today's matches email job completed for {date}.");
+        return Ok(());
+    }
+
     let cookie_key = Key::from(&cfg.cookie_key_bytes);
 
     let state = AppState {
@@ -203,6 +226,10 @@ async fn main() -> anyhow::Result<()> {
                 };
                 if let Err(e) = notifications::send_daily_digest(&s, yesterday).await {
                     tracing::warn!("daily digest failed: {e:#}");
+                }
+                // Same morning slot: preview of today's matches.
+                if let Err(e) = notifications::send_today_matches(&s, now.date_naive()).await {
+                    tracing::warn!("today's matches email failed: {e:#}");
                 }
             }
         });

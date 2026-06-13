@@ -67,16 +67,16 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
             "sending reminders for match {match_id}: {home} - {away}"
         );
 
-        // Everyone gets a reminder. Those who already bet are nudged that they
-        // can still change their score (LEFT JOIN yields NULL scores for the
-        // others).
-        let recipients: Vec<(String, String, Option<i32>, Option<i32>)> = sqlx::query_as(
+        // Only users who haven't bet on this match get a kick-off reminder.
+        let unbet_users: Vec<(String, String)> = sqlx::query_as(
             r#"
-            SELECT u.email, u.lang, b.home_score, b.away_score
+            SELECT u.email, u.lang
             FROM users u
-            LEFT JOIN bets b
-              ON b.user_id = u.id AND b.match_id = $2 AND b.tenant_id = u.tenant_id
             WHERE u.tenant_id = $1
+              AND NOT EXISTS (
+                SELECT 1 FROM bets b
+                WHERE b.user_id = u.id AND b.match_id = $2 AND b.tenant_id = u.tenant_id
+              )
             "#,
         )
         .bind(tenant.id)
@@ -87,13 +87,9 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
         let kickoff_local = kickoff.format("%H:%M UTC").to_string();
         let mut emails_sent = 0usize;
         let mut emails_failed = 0usize;
-        for (email, lang, bet_home, bet_away) in &recipients {
+        for (email, lang) in &unbet_users {
             // French only if the user explicitly chose it, English otherwise.
             let loc = crate::i18n::Locale::from_code(lang).unwrap_or_default();
-            let bet = match (bet_home, bet_away) {
-                (Some(h), Some(a)) => Some((*h, *a)),
-                _ => None,
-            };
             match mail::send_bet_reminder(
                 &state.cfg,
                 tenant,
@@ -103,7 +99,6 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
                 &away,
                 &kickoff_local,
                 &tenant_url,
-                bet,
             )
             .await
             {
@@ -116,8 +111,8 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
         }
         tracing::info!(
             tenant = %tenant.slug,
-            "match {match_id}: {emails_sent} reminder emails sent, {emails_failed} failed, {} recipients",
-            recipients.len()
+            "match {match_id}: {emails_sent} reminder emails sent, {emails_failed} failed, {} users without bet",
+            unbet_users.len()
         );
 
         if let Some(webhook) = &tenant.slack_webhook_url {
@@ -333,5 +328,124 @@ async fn digest_for_tenant(
         .execute(&state.pool)
         .await?;
     tracing::info!(tenant = %tenant.slug, "daily digest {day_label}: {sent} sent, {failed} failed");
+    Ok(())
+}
+
+/// Morning preview: for the given UTC `date`, email every user of every tenant
+/// the list of matches kicking off that day, each annotated with their current
+/// prediction and a "still time to change it" nudge. Idempotent per (tenant,
+/// date) via `today_matches_emails`. Skipped when no match is scheduled.
+pub async fn send_today_matches(state: &AppState, date: NaiveDate) -> anyhow::Result<()> {
+    let start = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap());
+    let end = start + Duration::days(1);
+    let day_label = date.format("%d/%m/%Y").to_string();
+
+    let match_rows: Vec<(i64, String, String, DateTime<Utc>, Option<String>)> = sqlx::query_as(
+        r#"
+        SELECT id, home_team, away_team, kickoff_at, group_name
+        FROM matches
+        WHERE kickoff_at >= $1 AND kickoff_at < $2
+        ORDER BY kickoff_at ASC
+        "#,
+    )
+    .bind(start)
+    .bind(end)
+    .fetch_all(&state.pool)
+    .await?;
+
+    if match_rows.is_empty() {
+        tracing::info!("today's matches {day_label}: none scheduled, skipping");
+        return Ok(());
+    }
+    let match_ids: Vec<i64> = match_rows.iter().map(|r| r.0).collect();
+
+    for t in tenant::load_all(&state.pool).await? {
+        if let Err(e) =
+            today_matches_for_tenant(state, &t, date, &day_label, &match_rows, &match_ids).await
+        {
+            tracing::warn!(tenant = %t.slug, "today's matches email failed: {e:#}");
+        }
+    }
+    Ok(())
+}
+
+async fn today_matches_for_tenant(
+    state: &AppState,
+    tenant: &Tenant,
+    date: NaiveDate,
+    day_label: &str,
+    match_rows: &[(i64, String, String, DateTime<Utc>, Option<String>)],
+    match_ids: &[i64],
+) -> anyhow::Result<()> {
+    let already: Option<i32> = sqlx::query_scalar(
+        "SELECT 1 FROM today_matches_emails WHERE tenant_id = $1 AND match_date = $2",
+    )
+    .bind(tenant.id)
+    .bind(date)
+    .fetch_optional(&state.pool)
+    .await?;
+    if already.is_some() {
+        return Ok(());
+    }
+
+    let contacts: Vec<(Uuid, String, String)> =
+        sqlx::query_as("SELECT id, email, lang FROM users WHERE tenant_id = $1")
+            .bind(tenant.id)
+            .fetch_all(&state.pool)
+            .await?;
+    if contacts.is_empty() {
+        return Ok(());
+    }
+
+    // Each user's prediction on today's matches.
+    let bet_rows: Vec<(Uuid, i64, i32, i32)> = sqlx::query_as(
+        "SELECT user_id, match_id, home_score, away_score \
+         FROM bets WHERE tenant_id = $1 AND match_id = ANY($2)",
+    )
+    .bind(tenant.id)
+    .bind(match_ids)
+    .fetch_all(&state.pool)
+    .await?;
+    let bets: HashMap<(Uuid, i64), (i32, i32)> = bet_rows
+        .into_iter()
+        .map(|(uid, mid, h, a)| ((uid, mid), (h, a)))
+        .collect();
+
+    let tenant_url = tenant.public_url(&state.cfg);
+    let mut sent = 0usize;
+    let mut failed = 0usize;
+    for (uid, email, lang) in &contacts {
+        let loc = crate::i18n::Locale::from_code(lang).unwrap_or_default();
+        let matches: Vec<mail::TodayMatch> = match_rows
+            .iter()
+            .map(|(id, home, away, kickoff, group)| mail::TodayMatch {
+                home: home.clone(),
+                away: away.clone(),
+                kickoff_local: kickoff.format("%H:%M UTC").to_string(),
+                group: group.clone(),
+                bet: bets
+                    .get(&(*uid, *id))
+                    .map(|(h, a)| mail::ScorePair { home: *h, away: *a }),
+            })
+            .collect();
+        match mail::send_today_matches_email(
+            &state.cfg, tenant, loc, email, day_label, &matches, &tenant_url,
+        )
+        .await
+        {
+            Ok(_) => sent += 1,
+            Err(e) => {
+                failed += 1;
+                tracing::warn!("today's matches email to {email} failed: {e:#}");
+            }
+        }
+    }
+
+    sqlx::query("INSERT INTO today_matches_emails (tenant_id, match_date) VALUES ($1, $2) ON CONFLICT DO NOTHING")
+        .bind(tenant.id)
+        .bind(date)
+        .execute(&state.pool)
+        .await?;
+    tracing::info!(tenant = %tenant.slug, "today's matches {day_label}: {sent} sent, {failed} failed");
     Ok(())
 }
