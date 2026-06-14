@@ -1633,6 +1633,8 @@ tr.me .player-avatar {
     .celebrate-overlay,
     .celebrate-burst,
     .celebrate-line { animation: none; }
+}
+
 /* --- kickoff countdown (countdown.js) --- */
 .countdown {
     margin-left: auto;
