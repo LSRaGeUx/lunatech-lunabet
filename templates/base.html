@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}LunaBet{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <!-- PWA: installable app with a per-tenant manifest + service worker. -->
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/static/favicon.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="{{ tenant.name }}">
+    <script defer src="/static/pwa.js"></script>
     <!-- SEO: default to noindex (the app sits behind login); public pages opt in. -->
     <meta name="robots" content="{% block robots %}noindex, nofollow{% endblock %}">
     <meta name="description" content="{{ loc.f(
