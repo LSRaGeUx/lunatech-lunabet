@@ -60,6 +60,7 @@ struct MatchesTpl<'a> {
     sections: Vec<StageSection>,
     total_points: i32,
     is_admin: bool,
+    nav_active: &'static str,
     /// True when at least one finished match exists (links to /results).
     has_results: bool,
     /// True when at least one match is still to predict.
@@ -75,6 +76,7 @@ struct ResultsTpl<'a> {
     sections: Vec<StageSection>,
     total_points: i32,
     is_admin: bool,
+    nav_active: &'static str,
     /// True when at least one finished match exists.
     has_results: bool,
     /// True when at least one match is still to predict (links to /matches).
@@ -98,6 +100,7 @@ pub async fn list(
         sections,
         total_points,
         is_admin: user.is_admin,
+        nav_active: "matches",
         has_results,
         has_upcoming,
     };
@@ -121,6 +124,7 @@ pub async fn results(
         sections,
         total_points,
         is_admin: user.is_admin,
+        nav_active: "results",
         has_results,
         has_upcoming,
     };

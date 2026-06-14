@@ -1,14 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Admin - {{ loc.f("Mises", "Stakes") }} - LunaBet{% endblock %}
-{% block nav %}
-    <span class="user">{{ user_name }} <span class="admin-badge">admin</span></span>
-    <a href="/today">{{ loc.f("Aujourd'hui", "Today") }}</a>
-    <a href="/matches">{{ loc.f("Mes pronos", "Predictions") }}</a>
-    <a href="/results">{{ loc.f("Résultats", "Results") }}</a>
-    <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
-    <a href="/admin/settings">{{ loc.f("Réglages", "Settings") }}</a>
-    <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
-{% endblock %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
 {% block content %}
 <h1>Admin - {{ loc.f("Gestion des mises", "Stake management") }}</h1>
 

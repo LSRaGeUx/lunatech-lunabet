@@ -1,14 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ loc.f("Réglages de l'espace", "Space settings") }} - LunaBet{% endblock %}
-{% block nav %}
-    <span class="user">{{ user_name }} <span class="admin-badge">admin</span></span>
-    <a href="/today">{{ loc.f("Aujourd'hui", "Today") }}</a>
-    <a href="/matches">{{ loc.f("Mes pronos", "Predictions") }}</a>
-    <a href="/results">{{ loc.f("Résultats", "Results") }}</a>
-    <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
-    <a href="/admin/stakes">{{ loc.f("Mises", "Stakes") }}</a>
-    <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
-{% endblock %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
 {% block content %}
 <section class="card">
     <h1>{{ loc.f("Réglages de l'espace", "Space settings") }}</h1>

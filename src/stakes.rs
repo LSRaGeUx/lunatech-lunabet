@@ -132,6 +132,15 @@ pub async fn load_leaderboard(
         .collect())
 }
 
+/// Total points scored by a single user, derived from a loaded leaderboard.
+/// Returns 0 when the user has no settled bets yet (or is absent).
+pub fn points_for(rows: &[LeaderboardRow], user_id: Uuid) -> i32 {
+    rows.iter()
+        .find(|r| r.user_id == user_id)
+        .map(|r| r.points as i32)
+        .unwrap_or(0)
+}
+
 pub async fn load_pot(
     pool: &PgPool,
     tenant_id: Uuid,

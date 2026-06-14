@@ -21,6 +21,10 @@ struct StakeTpl<'a> {
     loc: Locale,
     tenant: &'a Tenant,
     user: &'a User,
+    user_name: &'a str,
+    total_points: i32,
+    is_admin: bool,
+    nav_active: &'static str,
     deadline_passed: bool,
     deadline_local: String,
     paid: bool,
@@ -28,15 +32,21 @@ struct StakeTpl<'a> {
 }
 
 pub async fn page(
+    State(state): State<AppState>,
     TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AuthUser(user): AuthUser,
 ) -> AppResult<Response> {
     let deadline_passed = Utc::now() > tenant.stake_deadline;
+    let board = stakes::load_leaderboard(&state.pool, tenant.id).await?;
     let tpl = StakeTpl {
         loc,
         tenant: &tenant,
         user: &user,
+        user_name: &user.display_name,
+        total_points: stakes::points_for(&board, user.id),
+        is_admin: user.is_admin,
+        nav_active: "stake",
         deadline_passed,
         deadline_local: tenant.stake_deadline.with_timezone(&Amsterdam).format("%d/%m/%Y %H:%M %Z").to_string(),
         paid: user.paid_at.is_some(),
