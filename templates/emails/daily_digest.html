@@ -37,7 +37,7 @@
                         {{ day_label }}
                     </p>
 
-                    <!-- résultats du jour -->
+                    <!-- day's results -->
                     <h2 style="font-family:Impact,Arial,sans-serif;color:#1d3557;font-size:18px;letter-spacing:1px;margin:0 0 10px;">
                         {{ loc.f("Résultats", "Results") }}
                     </h2>
@@ -60,6 +60,7 @@
                     </table>
                     {% endif %}
 
+                    <!-- day's points -->
                     <!-- joueur du jour -->
                     {% match potd %}
                     {% when Some with (p) %}
@@ -95,7 +96,7 @@
                         </tr>
                     </table>
 
-                    <!-- classement -->
+                    <!-- leaderboard -->
                     <h2 style="font-family:Impact,Arial,sans-serif;color:#1d3557;font-size:18px;letter-spacing:1px;margin:0 0 10px;">
                         {{ loc.f("Classement", "Leaderboard") }}
                     </h2>
