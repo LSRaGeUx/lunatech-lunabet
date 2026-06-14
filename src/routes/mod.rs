@@ -38,6 +38,11 @@ pub fn router() -> Router<AppState> {
             "/super-admin/tenants/:slug/delete",
             post(platform::delete_tenant),
         )
+        .route("/super-admin/send-results", post(platform::send_results))
+        .route(
+            "/super-admin/send-today-matches",
+            post(platform::send_today_matches),
+        )
         .route("/logout", post(auth::logout))
         .route("/matches", get(matches::list))
         .route("/matches/:id/bet", post(bets::place_or_update))

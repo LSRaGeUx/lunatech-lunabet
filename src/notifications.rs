@@ -177,7 +177,13 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
 /// tenant the day's results, the points they earned that day, and the current
 /// leaderboard. Idempotent per (tenant, date) via the `daily_digests` table, so
 /// it's safe to call repeatedly. Days with no finished match are skipped.
-pub async fn send_daily_digest(state: &AppState, date: NaiveDate) -> anyhow::Result<()> {
+/// When `force` is set the per-tenant idempotency check is bypassed, so a
+/// super-admin can resend the digest on demand even after the scheduled run.
+pub async fn send_daily_digest(
+    state: &AppState,
+    date: NaiveDate,
+    force: bool,
+) -> anyhow::Result<()> {
     let start = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap());
     let end = start + Duration::days(1);
     let day_label = date.format("%d/%m/%Y").to_string();
@@ -215,7 +221,9 @@ pub async fn send_daily_digest(state: &AppState, date: NaiveDate) -> anyhow::Res
         .collect();
 
     for t in tenant::load_all(&state.pool).await? {
-        if let Err(e) = digest_for_tenant(state, &t, date, &day_label, &results, start, end).await {
+        if let Err(e) =
+            digest_for_tenant(state, &t, date, &day_label, &results, start, end, force).await
+        {
             tracing::warn!(tenant = %t.slug, "daily digest failed: {e:#}");
         }
     }
@@ -230,15 +238,19 @@ async fn digest_for_tenant(
     results: &[mail::DigestResult],
     start: DateTime<Utc>,
     end: DateTime<Utc>,
+    force: bool,
 ) -> anyhow::Result<()> {
-    let already: Option<i32> =
-        sqlx::query_scalar("SELECT 1 FROM daily_digests WHERE tenant_id = $1 AND digest_date = $2")
-            .bind(tenant.id)
-            .bind(date)
-            .fetch_optional(&state.pool)
-            .await?;
-    if already.is_some() {
-        return Ok(());
+    if !force {
+        let already: Option<i32> = sqlx::query_scalar(
+            "SELECT 1 FROM daily_digests WHERE tenant_id = $1 AND digest_date = $2",
+        )
+        .bind(tenant.id)
+        .bind(date)
+        .fetch_optional(&state.pool)
+        .await?;
+        if already.is_some() {
+            return Ok(());
+        }
     }
 
     let board = stakes::load_leaderboard(&state.pool, tenant.id).await?;
@@ -336,7 +348,13 @@ async fn digest_for_tenant(
 /// the list of matches kicking off that day, each annotated with their current
 /// prediction and a "still time to change it" nudge. Idempotent per (tenant,
 /// date) via `today_matches_emails`. Skipped when no match is scheduled.
-pub async fn send_today_matches(state: &AppState, date: NaiveDate) -> anyhow::Result<()> {
+/// When `force` is set the per-tenant idempotency check is bypassed, so a
+/// super-admin can resend the preview on demand even after the scheduled run.
+pub async fn send_today_matches(
+    state: &AppState,
+    date: NaiveDate,
+    force: bool,
+) -> anyhow::Result<()> {
     let start = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap());
     let end = start + Duration::days(1);
     let day_label = date.format("%d/%m/%Y").to_string();
@@ -362,7 +380,8 @@ pub async fn send_today_matches(state: &AppState, date: NaiveDate) -> anyhow::Re
 
     for t in tenant::load_all(&state.pool).await? {
         if let Err(e) =
-            today_matches_for_tenant(state, &t, date, &day_label, &match_rows, &match_ids).await
+            today_matches_for_tenant(state, &t, date, &day_label, &match_rows, &match_ids, force)
+                .await
         {
             tracing::warn!(tenant = %t.slug, "today's matches email failed: {e:#}");
         }
@@ -377,16 +396,19 @@ async fn today_matches_for_tenant(
     day_label: &str,
     match_rows: &[(i64, String, String, DateTime<Utc>, Option<String>)],
     match_ids: &[i64],
+    force: bool,
 ) -> anyhow::Result<()> {
-    let already: Option<i32> = sqlx::query_scalar(
-        "SELECT 1 FROM today_matches_emails WHERE tenant_id = $1 AND match_date = $2",
-    )
-    .bind(tenant.id)
-    .bind(date)
-    .fetch_optional(&state.pool)
-    .await?;
-    if already.is_some() {
-        return Ok(());
+    if !force {
+        let already: Option<i32> = sqlx::query_scalar(
+            "SELECT 1 FROM today_matches_emails WHERE tenant_id = $1 AND match_date = $2",
+        )
+        .bind(tenant.id)
+        .bind(date)
+        .fetch_optional(&state.pool)
+        .await?;
+        if already.is_some() {
+            return Ok(());
+        }
     }
 
     let contacts: Vec<(Uuid, String, String)> =
