@@ -205,17 +205,21 @@ async fn tenant_request_magic_link(
     loc: Locale,
     email: String,
 ) -> AppResult<Response> {
-    let domain = email.split_once('@').map(|(_, d)| d);
-    let allowed = domain
-        .map(|d| tenant.allowed_email_pattern.is_match(d))
-        .unwrap_or(false);
-    if !allowed {
-        let tpl = LoginTpl {
-            loc,
-            error: Some(loc.f(
+    if !is_login_allowed(&state, &tenant, &email).await? {
+        let error = if tenant.is_invite_mode() {
+            loc.f(
+                "Cet espace est sur invitation. Demande à un membre de t'inviter.",
+                "This space is invite-only. Ask a member to invite you.",
+            )
+        } else {
+            loc.f(
                 "Cette app est réservée à ce tenant.",
                 "This app is reserved to this tenant.",
-            )),
+            )
+        };
+        let tpl = LoginTpl {
+            loc,
+            error: Some(error),
             tenant: &tenant,
             prefilled_email: &email,
         };
@@ -224,6 +228,46 @@ async fn tenant_request_magic_link(
 
     send_magic_link_for_tenant(&state, &tenant, loc, &email).await?;
     Ok(Redirect::to("/login/sent").into_response())
+}
+
+/// Decide whether `email` may sign in to `tenant`. Allowed if any holds:
+/// 1. an account already exists for this email in the tenant (established
+///    member), or
+/// 2. the tenant is in `domain` mode and the email's domain matches its
+///    `allowed_email_pattern` (company auto-join), or
+/// 3. a live (pending, non-expired) invitation exists for this email.
+///
+/// This unifies both membership modes: in `invite` mode the pattern is the
+/// match-nothing `(?!)`, so only conditions 1 and 3 can open the door.
+async fn is_login_allowed(state: &AppState, tenant: &Tenant, email: &str) -> AppResult<bool> {
+    let is_member: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM users WHERE tenant_id = $1 AND email = $2)",
+    )
+    .bind(tenant.id)
+    .bind(email)
+    .fetch_one(&state.pool)
+    .await?;
+    if is_member {
+        return Ok(true);
+    }
+
+    if !tenant.is_invite_mode() {
+        if let Some(domain) = email.split_once('@').map(|(_, d)| d) {
+            if tenant.allowed_email_pattern.is_match(domain) {
+                return Ok(true);
+            }
+        }
+    }
+
+    let invited: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM invitations \
+         WHERE tenant_id = $1 AND email = $2 AND status = 'pending' AND expires_at > NOW())",
+    )
+    .bind(tenant.id)
+    .bind(email)
+    .fetch_one(&state.pool)
+    .await?;
+    Ok(invited)
 }
 
 /// Generate a magic-link token, persist it in `magic_links`, and send the

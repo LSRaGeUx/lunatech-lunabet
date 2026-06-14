@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Membres", "Members") }} - LunaBet{% endblock %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block content %}
+<h1>{{ loc.f("Membres", "Members") }}</h1>
+
+{% match notice %}{% when Some with (n) %}<p class="flash-notice">{{ n }}</p>{% when None %}{% endmatch %}
+{% match error %}{% when Some with (e) %}<p class="error">{{ e }}</p>{% when None %}{% endmatch %}
+
+{% if can_invite %}
+<section class="card invite-card">
+    <h2>{{ loc.f("Inviter", "Invite") }}</h2>
+    <p class="muted">{{ loc.f(
+        "Une ou plusieurs adresses email, séparées par des virgules, espaces ou retours à la ligne. Chaque invité reçoit un lien pour rejoindre.",
+        "One or more email addresses, separated by commas, spaces or new lines. Each invitee gets a link to join."
+    ) }}</p>
+    <form method="post" action="/invitations" class="invite-form">
+        <textarea name="emails" rows="3" required
+                  placeholder="alice@example.com, bob@example.com"></textarea>
+        <button class="btn" type="submit">{{ loc.f("Envoyer les invitations", "Send invitations") }}</button>
+    </form>
+</section>
+{% endif %}
+
+<section class="card">
+    <h2>{{ loc.f("Invitations en cours", "Pending invitations") }}</h2>
+    {% if invites.is_empty() %}
+        <p class="muted">{{ loc.f("Aucune invitation en cours.", "No pending invitation.") }}</p>
+    {% else %}
+    <table class="members-table">
+        <thead>
+            <tr>
+                <th>{{ loc.f("Email", "Email") }}</th>
+                <th>{{ loc.f("Expire le", "Expires") }}</th>
+                {% if can_invite %}<th></th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for i in invites %}
+            <tr>
+                <td data-label="{{ loc.f("Email", "Email") }}">{{ i.email }}</td>
+                <td data-label="{{ loc.f("Expire le", "Expires") }}">{{ i.expires_label }}</td>
+                {% if can_invite %}
+                <td class="row-actions">
+                    <form method="post" action="/invitations/{{ i.id }}/revoke" class="inline">
+                        <button class="link danger" type="submit">{{ loc.f("Révoquer", "Revoke") }}</button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2>{{ loc.f("Membres de l'espace", "Space members") }} ({{ members.len() }})</h2>
+    <table class="members-table">
+        <thead>
+            <tr>
+                <th>{{ loc.f("Nom", "Name") }}</th>
+                <th>{{ loc.f("Email", "Email") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for m in members %}
+            <tr>
+                <td data-label="{{ loc.f("Nom", "Name") }}">
+                    {{ m.name }}{% if m.is_admin %} <span class="admin-tag">admin</span>{% endif %}
+                </td>
+                <td data-label="{{ loc.f("Email", "Email") }}">{{ m.email }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<style>
+    .invite-card { margin-bottom: 1.2rem; }
+    .invite-form { display: grid; gap: 0.7rem; max-width: 520px; }
+    .invite-form textarea {
+        font: inherit; padding: 0.55rem; border: 2px solid var(--ink);
+        border-radius: 4px; background: var(--paper); resize: vertical;
+    }
+    .flash-notice {
+        background: var(--gold-light); border: 2px solid var(--ink);
+        border-radius: 4px; padding: 0.5rem 0.8rem; font-weight: 700;
+    }
+    .members-table { width: 100%; border-collapse: collapse; margin-top: 0.4rem; }
+    .members-table th, .members-table td {
+        text-align: left; padding: 0.5rem 0.7rem;
+        border-bottom: 1px solid rgba(26, 20, 17, 0.1);
+    }
+    .members-table th {
+        font-family: "Bebas Neue", sans-serif; letter-spacing: 0.04em; color: var(--navy);
+    }
+    .row-actions { text-align: right; }
+    .admin-tag {
+        background: var(--navy); color: var(--paper-light);
+        font-size: 0.7rem; padding: 0.05rem 0.4rem; border-radius: 3px;
+        letter-spacing: 0.04em; vertical-align: middle;
+    }
+    .link.danger { color: var(--red); }
+    @media (max-width: 640px) {
+        .members-table thead { display: none; }
+        .members-table tr { display: block; border-bottom: 2px solid var(--paper-dark); padding: 0.4rem 0; }
+        .members-table td { display: flex; justify-content: space-between; border: none; padding: 0.25rem 0.2rem; }
+        .members-table td::before { content: attr(data-label); font-weight: 700; color: var(--navy); }
+        .row-actions { justify-content: flex-end; }
+        .row-actions::before { content: none; }
+    }
+</style>
+{% endblock %}

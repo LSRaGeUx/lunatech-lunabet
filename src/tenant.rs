@@ -28,6 +28,11 @@ pub struct Tenant {
     pub slack_webhook_url: Option<String>,
     pub mail_from: String,
     pub admin_emails: HashSet<String>,
+    /// `domain` (company: auto-join by email domain) or `invite` (friends:
+    /// join only via an invitation).
+    pub membership_mode: String,
+    /// Whether non-admin members may send invitations.
+    pub members_can_invite: bool,
 }
 
 #[derive(sqlx::FromRow)]
@@ -45,6 +50,8 @@ struct TenantRow {
     slack_webhook_url: Option<String>,
     mail_from: String,
     admin_emails: Vec<String>,
+    membership_mode: String,
+    members_can_invite: bool,
 }
 
 impl TryFrom<TenantRow> for Tenant {
@@ -71,6 +78,8 @@ impl TryFrom<TenantRow> for Tenant {
             slack_webhook_url: r.slack_webhook_url,
             mail_from: r.mail_from,
             admin_emails: r.admin_emails.into_iter().collect(),
+            membership_mode: r.membership_mode,
+            members_can_invite: r.members_can_invite,
         })
     }
 }
@@ -103,7 +112,7 @@ pub async fn ensure_default(pool: &PgPool, cfg: &Config) -> anyhow::Result<Tenan
         RETURNING id, slug, name, allowed_email_pattern, logo_url,
                   primary_color, accent_color, football_competition,
                   stake_deadline, reminder_lead_minutes, slack_webhook_url,
-                  mail_from, admin_emails
+                  mail_from, admin_emails, membership_mode, members_can_invite
         "#,
     )
     .bind(&cfg.default_tenant_slug)
@@ -139,6 +148,11 @@ pub async fn ensure_default(pool: &PgPool, cfg: &Config) -> anyhow::Result<Tenan
 impl Tenant {
     pub fn is_admin(&self, email: &str) -> bool {
         self.admin_emails.contains(&email.to_lowercase())
+    }
+
+    /// True when this space grows by invitation rather than by email domain.
+    pub fn is_invite_mode(&self) -> bool {
+        self.membership_mode == "invite"
     }
 
     /// Resolved logo URL for templates: the tenant's own override if set,
@@ -186,7 +200,7 @@ pub async fn load_all(pool: &PgPool) -> anyhow::Result<Vec<Tenant>> {
         SELECT id, slug, name, allowed_email_pattern, logo_url,
                primary_color, accent_color, football_competition,
                stake_deadline, reminder_lead_minutes, slack_webhook_url,
-               mail_from, admin_emails
+               mail_from, admin_emails, membership_mode, members_can_invite
         FROM tenants
         ORDER BY created_at ASC
         "#,
@@ -205,7 +219,7 @@ pub async fn resolve_by_slug(pool: &PgPool, slug: &str) -> anyhow::Result<Option
         SELECT id, slug, name, allowed_email_pattern, logo_url,
                primary_color, accent_color, football_competition,
                stake_deadline, reminder_lead_minutes, slack_webhook_url,
-               mail_from, admin_emails
+               mail_from, admin_emails, membership_mode, members_can_invite
         FROM tenants
         WHERE slug = $1
         "#,
@@ -394,6 +408,8 @@ impl Tenant {
             slack_webhook_url: None,
             mail_from: "noreply@lunabet.eu".into(),
             admin_emails: HashSet::new(),
+            membership_mode: "domain".into(),
+            members_can_invite: false,
         }
     }
 }

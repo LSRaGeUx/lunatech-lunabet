@@ -34,6 +34,7 @@ struct FormValues {
     stake_deadline: String,
     reminder_lead_minutes: String,
     slack_webhook_url: String,
+    members_can_invite: bool,
 }
 
 #[derive(Template)]
@@ -61,6 +62,7 @@ fn values_from_tenant(t: &Tenant) -> FormValues {
         stake_deadline: t.stake_deadline.format("%Y-%m-%dT%H:%M").to_string(),
         reminder_lead_minutes: t.reminder_lead_minutes.to_string(),
         slack_webhook_url: t.slack_webhook_url.clone().unwrap_or_default(),
+        members_can_invite: t.members_can_invite,
     }
 }
 
@@ -168,6 +170,10 @@ pub async fn update(
     }
 
     let get = |k: &str| fields.get(k).map(|s| s.trim().to_string()).unwrap_or_default();
+    let members_can_invite = matches!(
+        fields.get("members_can_invite").map(|s| s.as_str()),
+        Some("on") | Some("1") | Some("true")
+    );
     let mut values = FormValues {
         name: get("name"),
         primary_color: get("primary_color"),
@@ -176,6 +182,7 @@ pub async fn update(
         stake_deadline: get("stake_deadline"),
         reminder_lead_minutes: get("reminder_lead_minutes"),
         slack_webhook_url: get("slack_webhook_url"),
+        members_can_invite,
     };
     let remove_logo = fields.get("remove_logo").map(|v| v == "on" || v == "1").unwrap_or(false);
 
@@ -286,7 +293,8 @@ pub async fn update(
             stake_deadline = $6,
             reminder_lead_minutes = $7,
             slack_webhook_url = $8,
-            logo_url = $9
+            logo_url = $9,
+            members_can_invite = $10
         WHERE id = $1
         "#,
     )
@@ -299,6 +307,7 @@ pub async fn update(
     .bind(lead)
     .bind(slack)
     .bind(new_logo_url.as_deref())
+    .bind(values.members_can_invite)
     .execute(&state.pool)
     .await?;
 
