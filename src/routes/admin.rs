@@ -50,6 +50,9 @@ struct AdminStakesTpl<'a> {
     loc: Locale,
     tenant: &'a Tenant,
     user_name: &'a str,
+    total_points: i32,
+    is_admin: bool,
+    nav_active: &'static str,
     pot_total_eur: i64,
     paid_count: i64,
     rows: Vec<StakeRow>,
@@ -96,11 +99,15 @@ pub async fn stakes_page(
 
     let pot =
         crate::stakes::load_pot(&state.pool, tenant.id, tenant.stake_deadline).await?;
+    let board = crate::stakes::load_leaderboard(&state.pool, tenant.id).await?;
 
     let tpl = AdminStakesTpl {
         loc,
         tenant: &tenant,
         user_name: &admin.display_name,
+        total_points: crate::stakes::points_for(&board, admin.id),
+        is_admin: true,
+        nav_active: "admin_stakes",
         pot_total_eur: pot.total_eur,
         paid_count: pot.paid_count,
         rows,

@@ -42,6 +42,9 @@ struct SettingsTpl<'a> {
     loc: Locale,
     tenant: &'a Tenant,
     user_name: &'a str,
+    total_points: i32,
+    is_admin: bool,
+    nav_active: &'static str,
     form: FormValues,
     current_logo: &'a str,
     has_custom_logo: bool,
@@ -62,14 +65,19 @@ fn values_from_tenant(t: &Tenant) -> FormValues {
 }
 
 pub async fn page(
+    State(state): State<AppState>,
     TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AdminUser(admin): AdminUser,
 ) -> AppResult<Response> {
+    let board = crate::stakes::load_leaderboard(&state.pool, tenant.id).await?;
     let tpl = SettingsTpl {
         loc,
         tenant: &tenant,
         user_name: &admin.display_name,
+        total_points: crate::stakes::points_for(&board, admin.id),
+        is_admin: true,
+        nav_active: "admin_settings",
         form: values_from_tenant(&tenant),
         current_logo: tenant.logo_url_or_default(),
         has_custom_logo: tenant.logo_url.is_some(),
@@ -171,12 +179,18 @@ pub async fn update(
     };
     let remove_logo = fields.get("remove_logo").map(|v| v == "on" || v == "1").unwrap_or(false);
 
+    let board = crate::stakes::load_leaderboard(&state.pool, tenant.id).await?;
+    let total_points = crate::stakes::points_for(&board, admin.id);
+
     // Re-render the form with an error message, preserving what was typed.
     let render_error = |msg: String, values: FormValues| -> AppResult<Response> {
         let tpl = SettingsTpl {
             loc,
             tenant: &tenant,
             user_name: &admin.display_name,
+            total_points,
+            is_admin: true,
+            nav_active: "admin_settings",
             form: values,
             current_logo: tenant.logo_url_or_default(),
             has_custom_logo: tenant.logo_url.is_some(),
@@ -311,6 +325,9 @@ pub async fn update(
         loc,
         tenant: &fresh,
         user_name: &admin.display_name,
+        total_points,
+        is_admin: true,
+        nav_active: "admin_settings",
         form: values,
         current_logo: fresh.logo_url_or_default(),
         has_custom_logo: fresh.logo_url.is_some(),
