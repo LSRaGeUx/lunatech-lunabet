@@ -258,6 +258,13 @@ async fn digest_for_tenant(
         return Ok(());
     }
 
+    // Best predictor of the day, recorded so the Today screen can show it too.
+    let potd = crate::highlights::upsert_player_of_the_day(&state.pool, tenant.id, date).await?;
+    let digest_potd = potd.as_ref().map(|p| mail::DigestPotd {
+        name: p.display_name.clone(),
+        points: p.points,
+    });
+
     // Points each user earned on this day.
     let day_rows: Vec<(Uuid, i64)> = sqlx::query_as(
         r#"
@@ -319,6 +326,7 @@ async fn digest_for_tenant(
             email,
             day_label,
             results,
+            digest_potd.as_ref(),
             my_points,
             idx + 1,
             row.points,
