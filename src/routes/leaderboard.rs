@@ -21,6 +21,7 @@ pub struct BadgeChip {
 
 pub struct Row {
     pub rank: usize,
+    pub user_id: uuid::Uuid,
     pub display_name: String,
     pub points: i64,
     pub exact: i64,
@@ -87,6 +88,7 @@ pub async fn index(
                 .collect();
             Row {
             rank: i + 1,
+            user_id: r.user_id,
             display_name: r.display_name.clone(),
             points: r.points,
             exact: r.exact_count,

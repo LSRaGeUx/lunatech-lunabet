@@ -1,22 +1,54 @@
 {% extends "base.html" %}
-{% block title %}{{ loc.f("Mon profil", "My profile") }} - LunaBet{% endblock %}
+{% block title %}{% if is_me %}{{ loc.f("Mon profil", "My profile") }}{% else %}{{ subject_name }}{% endif %} - LunaBet{% endblock %}
 {% block nav %}{% include "_nav.html" %}{% endblock %}
 {% block content %}
-<h1>{{ loc.f("Mon profil", "My profile") }}</h1>
 
-{% if !unlocked.is_empty() %}
+{% if is_me && !unlocked.is_empty() %}
 <div class="badge-toast" role="status">
     🏅 {{ loc.f("Badge débloqué :", "Badge unlocked:") }}
     {% for n in unlocked %}<strong>{{ n }}</strong>{% if !loop.last %}, {% endif %}{% endfor %}
 </div>
 {% endif %}
 
+<div class="profile-title">
+    <img class="profile-avatar" src="{{ subject_avatar }}" alt="" aria-hidden="true">
+    <h1>{% if is_me %}{{ loc.f("Mon profil", "My profile") }}{% else %}{{ subject_name }}{% endif %}</h1>
+    {% if !is_me %}
+    <a class="btn h2h-btn" href="/h2h/{{ subject_id }}">⚔️ {{ loc.f("Défier", "Challenge") }}</a>
+    {% endif %}
+</div>
+
 <section class="profile-head">
-    <div class="profile-stat"><span class="stat-value">{{ total_points }}</span><span class="stat-label">{{ loc.f("Points", "Points") }}</span></div>
+    <div class="profile-stat"><span class="stat-value">{{ points }}</span><span class="stat-label">{{ loc.f("Points", "Points") }}</span></div>
+    <div class="profile-stat"><span class="stat-value">{% match exact_pct %}{% when Some with (p) %}{{ p }}{% when None %}—{% endmatch %}</span><span class="stat-label">{{ loc.f("Précision exacte", "Exact accuracy") }}</span></div>
+    <div class="profile-stat"><span class="stat-value">{% match result_pct %}{% when Some with (p) %}{{ p }}{% when None %}—{% endmatch %}</span><span class="stat-label">{{ loc.f("Bon résultat", "Right result") }}</span></div>
     <div class="profile-stat"><span class="stat-value">🔥 {{ current_streak }}</span><span class="stat-label">{{ loc.f("Série actuelle", "Current streak") }}</span></div>
     <div class="profile-stat"><span class="stat-value">{{ best_streak }}</span><span class="stat-label">{{ loc.f("Meilleure série", "Best streak") }}</span></div>
     <div class="profile-stat"><span class="stat-value">{{ earned_count }} / {{ total_badges }}</span><span class="stat-label">{{ loc.f("Badges", "Badges") }}</span></div>
 </section>
+
+{% if settled_bets == 0 %}
+<p class="muted">{{ loc.f("Pas encore de résultats.", "No results yet.") }}</p>
+{% else %}
+<section class="calls">
+    {% match best_call %}
+        {% when Some with (c) %}
+        <div class="call call-best">
+            <span class="call-label">🎯 {{ loc.f("Meilleur prono", "Best call") }}</span>
+            <span class="call-match">{{ c.home_team }} {{ c.actual }} {{ c.away_team }}</span>
+            <span class="call-note">{{ loc.f("score exact", "exact score") }}</span>
+        </div>
+        {% when None %}{% endmatch %}
+    {% match worst_call %}
+        {% when Some with (c) %}
+        <div class="call call-worst">
+            <span class="call-label">🧱 {{ loc.f("Pire prono", "Worst call") }}</span>
+            <span class="call-match">{{ c.home_team }} {{ c.actual }} {{ c.away_team }}</span>
+            {% match c.predicted %}{% when Some with (p) %}<span class="call-note">{{ loc.f("pronostiqué", "predicted") }} {{ p }}</span>{% when None %}{% endmatch %}
+        </div>
+        {% when None %}{% endmatch %}
+</section>
+{% endif %}
 
 <section class="card">
     <h2>{{ loc.f("Badges", "Badges") }}</h2>
@@ -42,6 +74,13 @@
         background: var(--gold-light); border: 2px solid var(--ink);
         border-radius: 4px; padding: 0.6rem 0.9rem; margin-bottom: 1rem; font-weight: 700;
     }
+    .profile-title { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .profile-title h1 { margin: 0; }
+    .profile-avatar {
+        width: 56px; height: 56px; border: 2px solid var(--ink); border-radius: 50%;
+        background: var(--paper-light);
+    }
+    .h2h-btn { margin-left: auto; }
     .profile-head { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.2rem; }
     .profile-stat {
         display: flex; flex-direction: column; align-items: center; min-width: 90px;
@@ -50,6 +89,17 @@
     }
     .stat-value { font-family: "Bebas Neue", sans-serif; font-size: 1.8rem; color: var(--navy); line-height: 1; }
     .stat-label { font-size: 0.8rem; opacity: 0.7; }
+    .calls { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.2rem; }
+    .call {
+        display: flex; flex-direction: column; gap: 0.2rem; flex: 1; min-width: 220px;
+        border: 2px solid var(--ink); border-radius: 6px; padding: 0.7rem 0.9rem;
+        background: var(--paper-light);
+    }
+    .call-best { border-left: 6px solid var(--green, #2e7d4a); }
+    .call-worst { border-left: 6px solid var(--red); }
+    .call-label { font-weight: 700; color: var(--navy); }
+    .call-match { font-family: "Bebas Neue", sans-serif; font-size: 1.3rem; letter-spacing: 0.03em; }
+    .call-note { font-size: 0.82rem; opacity: 0.75; }
     .badge-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.8rem; }
     .badge {
         display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem;

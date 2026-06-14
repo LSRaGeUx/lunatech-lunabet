@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Tête-à-tête", "Head to head") }} - LunaBet{% endblock %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block content %}
+<h1>{{ loc.f("Tête-à-tête", "Head to head") }}</h1>
+
+<section class="h2h-head">
+    <div class="h2h-player">
+        <img class="h2h-avatar" src="{{ me_avatar }}" alt="" aria-hidden="true">
+        <span class="h2h-name">{{ me_name }} ({{ loc.f("toi", "you") }})</span>
+    </div>
+    <div class="h2h-score">
+        <span class="h2h-tally win">{{ wins }}</span>
+        <span class="h2h-sep">-</span>
+        <span class="h2h-tally draw">{{ draws }}</span>
+        <span class="h2h-sep">-</span>
+        <span class="h2h-tally loss">{{ losses }}</span>
+        <span class="h2h-legend">{{ loc.f("V - N - D", "W - D - L") }}</span>
+    </div>
+    <div class="h2h-player">
+        <img class="h2h-avatar" src="{{ them_avatar }}" alt="" aria-hidden="true">
+        <span class="h2h-name"><a href="/profile/{{ their_id }}">{{ them_name }}</a></span>
+    </div>
+</section>
+
+{% if matches.is_empty() %}
+<p class="muted">{{ loc.f("Pas assez de données : aucun match en commun pour l'instant.", "Not enough data: no matches in common yet.") }}</p>
+{% else %}
+<section class="h2h-totals">
+    <span><strong>{{ my_total }}</strong> {{ loc.f("pts pour toi", "pts for you") }}</span>
+    <span><strong>{{ their_total }}</strong> {{ loc.f("pts pour", "pts for") }} {{ them_name }}</span>
+    <span class="muted">{{ matches.len() }} {{ loc.f("matchs en commun", "matches in common") }}</span>
+</section>
+
+<table class="h2h-table">
+    <thead>
+        <tr>
+            <th>{{ loc.f("Match", "Match") }}</th>
+            <th>{{ loc.f("Toi", "You") }}</th>
+            <th>{{ them_name }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in matches %}
+        <tr class="h2h-row {{ m.outcome }}">
+            <td data-label="{{ loc.f("Match", "Match") }}">{{ m.home_team }} - {{ m.away_team }}</td>
+            <td data-label="{{ loc.f("Toi", "You") }}"><strong>{{ m.my_points }}</strong></td>
+            <td data-label="{{ them_name }}"><strong>{{ m.their_points }}</strong></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<style>
+    .h2h-head {
+        display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        flex-wrap: wrap; margin-bottom: 1.2rem;
+    }
+    .h2h-player { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; min-width: 110px; }
+    .h2h-avatar { width: 64px; height: 64px; border: 2px solid var(--ink); border-radius: 50%; background: var(--paper-light); }
+    .h2h-name { font-weight: 700; color: var(--navy); text-align: center; }
+    .h2h-score { display: flex; align-items: baseline; gap: 0.3rem; position: relative; }
+    .h2h-tally { font-family: "Bebas Neue", sans-serif; font-size: 2.4rem; line-height: 1; }
+    .h2h-tally.win { color: var(--green, #2e7d4a); }
+    .h2h-tally.draw { color: var(--navy); opacity: 0.7; }
+    .h2h-tally.loss { color: var(--red); }
+    .h2h-sep { font-size: 1.6rem; opacity: 0.4; }
+    .h2h-legend {
+        position: absolute; bottom: -1.1rem; left: 0; right: 0; text-align: center;
+        font-size: 0.72rem; letter-spacing: 0.08em; opacity: 0.6;
+    }
+    .h2h-totals { display: flex; flex-wrap: wrap; gap: 1.2rem; margin: 1.4rem 0 1rem; }
+    .h2h-table { width: 100%; border-collapse: collapse; }
+    .h2h-table th, .h2h-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--ink); text-align: left; }
+    .h2h-table th:not(:first-child), .h2h-table td:not(:first-child) { text-align: center; width: 80px; }
+    .h2h-row.win td:nth-child(2) { color: var(--green, #2e7d4a); }
+    .h2h-row.loss td:nth-child(3) { color: var(--green, #2e7d4a); }
+</style>
+{% endblock %}
