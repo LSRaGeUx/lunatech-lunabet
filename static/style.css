@@ -112,6 +112,10 @@ canvas.ball3d.ball-mini {
 }
 
 .topbar nav { display: flex; gap: 1.25rem; align-items: center; font-family: "Bebas Neue", Impact, sans-serif; letter-spacing: 0.06em; font-size: 1.05rem; flex-wrap: wrap; }
+.topbar nav a.active {
+    color: var(--gold-light);
+    border-bottom: 2px solid var(--gold);
+}
 .user { color: var(--gold-light); }
 .admin-badge {
     display: inline-block;
@@ -617,6 +621,8 @@ canvas.ball3d.ball-hero {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.8rem;
     margin-top: 0.8rem;
 }
 .closed {
@@ -880,6 +886,77 @@ canvas.goal3d {
 }
 @media (max-width: 640px) {
     canvas.goal3d { height: 160px; }
+
+    /* match cards stack in a single column to avoid horizontal overflow */
+    .matches { grid-template-columns: 1fr; }
+
+    /* roomier tap targets in the top bar on phones */
+    .topbar nav { gap: 0.3rem 0.9rem; }
+    .topbar nav a,
+    .topbar nav .link,
+    .topbar nav .user { padding: 0.35rem 0; }
+    .lang-link { padding: 0.35rem 0.25rem; }
+
+    /* leaderboard turns into stacked sticker-cards (the 7-column table does
+       not fit on a phone) */
+    table.leaderboard {
+        border: none;
+        box-shadow: none;
+        background: transparent;
+        overflow: visible;
+    }
+    table.leaderboard thead { display: none; }
+    table.leaderboard tbody,
+    table.leaderboard tr,
+    table.leaderboard td { display: block; width: auto; }
+    table.leaderboard tr {
+        background: var(--paper-light);
+        border: 2px solid var(--ink);
+        border-radius: 6px;
+        box-shadow: var(--shadow);
+        padding: 0.5rem 0.9rem 0.7rem;
+        margin-bottom: 0.9rem;
+    }
+    table.leaderboard tbody tr:nth-child(odd) td,
+    table.leaderboard tr.me td { background: transparent; }
+    table.leaderboard tr.me {
+        background: rgba(199, 155, 30, 0.25);
+        border-color: var(--red);
+    }
+    table.leaderboard td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        width: auto;
+        padding: 0.3rem 0;
+        text-align: right;
+        border-bottom: 1px dotted var(--paper-dark);
+    }
+    table.leaderboard td:last-child { border-bottom: none; }
+    table.leaderboard td::before {
+        content: attr(data-label);
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.04em;
+        font-size: 0.85rem;
+        color: var(--ink-soft);
+        text-align: left;
+    }
+    /* rank heads the card */
+    table.leaderboard td:first-child {
+        width: auto;
+        font-size: 1.5rem;
+        border-bottom: 2px dotted var(--paper-dark);
+        padding-bottom: 0.4rem;
+        margin-bottom: 0.2rem;
+    }
+    table.leaderboard tr.me td:first-child::before { content: attr(data-label); }
+    /* player name on its own full-width line, no inline label */
+    table.leaderboard td.player-cell {
+        justify-content: flex-start;
+        text-align: left;
+    }
+    table.leaderboard td.player-cell::before { content: none; }
 }
 
 /* --- widget Pot (cagnotte) --- */
