@@ -23,6 +23,8 @@ pub struct Row {
     pub eligible: bool,
     pub payout_eur: Option<f64>,
     pub is_me: bool,
+    pub current_streak: i32,
+    pub best_streak: i32,
     /// Public path to the Tsubasa-inspired avatar assigned to this user.
     pub avatar: String,
 }
@@ -70,6 +72,8 @@ pub async fn index(
             eligible: r.paid && r.stake_eur.is_some(),
             payout_eur: payout_map.get(&r.user_id).copied(),
             is_me: r.user_id == user.id,
+            current_streak: r.current_streak,
+            best_streak: r.best_streak,
             avatar: characters::path_for(r.user_id),
         })
         .collect();

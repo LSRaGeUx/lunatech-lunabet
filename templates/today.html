@@ -4,6 +4,13 @@
 {% block content %}
 <h1>{{ loc.f("Aujourd'hui", "Today") }}</h1>
 
+{% if current_streak > 0 %}
+<p class="streak-chip">
+    <span class="flame">🔥</span>
+    {{ loc.f("Série en cours", "Current streak") }} : <strong>{{ current_streak }}</strong>
+    {% if best_streak > current_streak %}<span class="streak-best">{{ loc.f("record", "best") }} {{ best_streak }}</span>{% endif %}
+</p>
+{% endif %}
 {% match player_of_day %}
 {% when Some with (p) %}
 <div class="potd-banner{% if p.is_me %} potd-me{% endif %}">
@@ -135,7 +142,7 @@
         {% for s in standings %}
         <tr{% if s.is_me %} class="me"{% endif %}>
             <td class="rk">{{ s.rank }}</td>
-            <td class="nm">{{ s.name }}</td>
+            <td class="nm">{{ s.name }}{% if s.current_streak >= 3 %} <span class="streak-mini" title="{{ loc.f("Série en cours", "Current streak") }}">🔥{{ s.current_streak }}</span>{% endif %}</td>
             <td class="pt">{{ s.points }} pts</td>
         </tr>
         {% endfor %}
@@ -169,6 +176,19 @@
     .today-board .pt { text-align: right; font-weight: 700; color: var(--green); white-space: nowrap; }
     .today-board tr.me { background: var(--gold-light); }
     .today-board tr.me .nm { font-weight: 700; }
+    .streak-chip {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        background: var(--paper-light); border: 2px solid var(--red);
+        border-radius: 999px; padding: 0.25rem 0.8rem; margin: 0.2rem 0 0.6rem;
+        font-family: "Bebas Neue", sans-serif; letter-spacing: 0.04em;
+        color: var(--ink); box-shadow: var(--shadow);
+    }
+    .streak-chip .flame { font-size: 1.1rem; }
+    .streak-chip strong { color: var(--red); font-size: 1.15rem; }
+    .streak-chip .streak-best { opacity: 0.65; font-size: 0.85rem; }
+    .streak-mini {
+        font-family: "Bebas Neue", sans-serif; color: var(--red);
+        font-size: 0.85rem; white-space: nowrap; margin-left: 0.2rem;
     .potd-banner {
         display: flex; align-items: center; gap: 0.7rem;
         background: var(--gold-light); border: 2px solid var(--ink);

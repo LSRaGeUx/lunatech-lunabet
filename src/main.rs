@@ -25,6 +25,7 @@ mod routes;
 mod scoring;
 mod stakes;
 mod state;
+mod streaks;
 mod tenant;
 
 use state::AppState;
@@ -142,6 +143,16 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    if std::env::args().nth(1).as_deref() == Some("recompute-streaks") {
+        // One-off: recompute every user's streaks from the settled-bet history
+        // and exit. Useful to backfill after the migration; the running server
+        // does this automatically on each scoring tick.
+        scoring::recompute_all(&pool).await.context("recomputing points")?;
+        streaks::recompute_all(&pool).await.context("recomputing streaks")?;
+        println!("Streaks recomputed.");
+        return Ok(());
+    }
+
     let cookie_key = Key::from(&cfg.cookie_key_bytes);
 
     let state = AppState {
@@ -177,6 +188,9 @@ async fn main() -> anyhow::Result<()> {
                 }
                 if let Err(e) = scoring::recompute_all(&s.pool).await {
                     tracing::warn!("scoring recompute failed: {e:#}");
+                }
+                if let Err(e) = streaks::recompute_all(&s.pool).await {
+                    tracing::warn!("streak recompute failed: {e:#}");
                 }
                 if let Err(e) = notifications::send_match_reminders(&s).await {
                     tracing::warn!("match reminders failed: {e:#}");
