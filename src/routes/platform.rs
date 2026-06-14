@@ -20,6 +20,7 @@ use uuid::Uuid;
 use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::mail;
+use crate::notifications;
 use crate::state::AppState;
 use crate::tenant::ApexOnly;
 
@@ -54,6 +55,8 @@ struct DashboardTpl<'a> {
     /// Slug of the env-bootstrapped tenant; the dashboard hides the delete
     /// button on that row to prevent an accidental wipe.
     default_slug: &'a str,
+    /// One-shot banner after a manual email trigger: "results" or "today".
+    sent: Option<String>,
 }
 
 pub struct TenantRow {
@@ -225,10 +228,17 @@ pub async fn callback(
     Ok((jar, Redirect::to("/super-admin/")).into_response())
 }
 
+#[derive(Deserialize)]
+pub struct DashboardQuery {
+    /// Set by the manual email triggers to flash a confirmation banner.
+    sent: Option<String>,
+}
+
 pub async fn dashboard(
     State(state): State<AppState>,
     PlatformAdmin { email }: PlatformAdmin,
     loc: Locale,
+    Query(q): Query<DashboardQuery>,
 ) -> AppResult<Response> {
     let rows: Vec<(
         Uuid,
@@ -284,8 +294,35 @@ pub async fn dashboard(
         total_users,
         total_tenants,
         default_slug: &state.cfg.default_tenant_slug,
+        sent: q.sent,
     };
     Ok(Html(tpl.render()?).into_response())
+}
+
+/// Manually fire the daily results recap for every tenant, covering the
+/// previous UTC calendar day. Forced, so it sends even if the scheduled run
+/// already went out today. Redirects back to the dashboard with a banner.
+pub async fn send_results(
+    State(state): State<AppState>,
+    PlatformAdmin { email }: PlatformAdmin,
+) -> AppResult<Response> {
+    let yesterday = (Utc::now() - Duration::days(1)).date_naive();
+    tracing::info!(super_admin = %email, "manual daily digest trigger for {yesterday}");
+    notifications::send_daily_digest(&state, yesterday, true).await?;
+    Ok(Redirect::to("/super-admin/?sent=results").into_response())
+}
+
+/// Manually fire the "today's matches" preview for every tenant, covering the
+/// current UTC calendar day. Forced, so it sends even if the scheduled run
+/// already went out today. Redirects back to the dashboard with a banner.
+pub async fn send_today_matches(
+    State(state): State<AppState>,
+    PlatformAdmin { email }: PlatformAdmin,
+) -> AppResult<Response> {
+    let today = Utc::now().date_naive();
+    tracing::info!(super_admin = %email, "manual today's matches trigger for {today}");
+    notifications::send_today_matches(&state, today, true).await?;
+    Ok(Redirect::to("/super-admin/?sent=today").into_response())
 }
 
 /// Cascade-delete a tenant and every row that references it. Refuses to

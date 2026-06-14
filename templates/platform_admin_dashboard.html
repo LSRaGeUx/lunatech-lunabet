@@ -27,6 +27,31 @@
     <main>
         <h1>{{ loc.f("Tableau plateforme", "Platform dashboard") }}</h1>
 
+        {% match sent %}
+        {% when Some with (kind) %}
+            <p class="flash-ok">
+                {% if kind == "results" %}
+                    {{ loc.f("Mail des résultats déclenché.", "Results email triggered.") }}
+                {% else if kind == "today" %}
+                    {{ loc.f("Mail des matches à venir déclenché.", "Upcoming matches email triggered.") }}
+                {% else %}
+                    {{ loc.f("Action effectuée.", "Done.") }}
+                {% endif %}
+            </p>
+        {% when None %}
+        {% endmatch %}
+
+        <section class="email-triggers">
+            <form method="post" action="/super-admin/send-results" class="inline"
+                  onsubmit="return confirm('{{ loc.f("Envoyer maintenant le mail des résultats à tous les tenants ?", "Send the results email to all tenants now?") }}');">
+                <button type="submit" class="btn">{{ loc.f("Envoyer les résultats", "Send results") }}</button>
+            </form>
+            <form method="post" action="/super-admin/send-today-matches" class="inline"
+                  onsubmit="return confirm('{{ loc.f("Envoyer maintenant le mail des matches à venir à tous les tenants ?", "Send the upcoming matches email to all tenants now?") }}');">
+                <button type="submit" class="btn">{{ loc.f("Envoyer les matches à venir", "Send upcoming matches") }}</button>
+            </form>
+        </section>
+
         <section class="platform-stats">
             <div class="stat-card">
                 <span class="stat-num">{{ total_tenants }}</span>
@@ -93,6 +118,21 @@
     </main>
 
     <style>
+        .flash-ok {
+            background: var(--paper-light);
+            border: 2px solid var(--ink);
+            border-left: 6px solid var(--green, #2e7d32);
+            border-radius: 6px;
+            padding: 0.8rem 1rem;
+            margin: 1rem 0;
+            font-weight: 600;
+        }
+        .email-triggers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            margin: 1.2rem 0 0.5rem;
+        }
         .platform-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

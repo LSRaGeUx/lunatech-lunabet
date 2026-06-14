@@ -110,7 +110,7 @@ async fn main() -> anyhow::Result<()> {
             .nth(2)
             .and_then(|s| chrono::NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d").ok())
             .unwrap_or_else(|| (chrono::Utc::now() - chrono::Duration::days(1)).date_naive());
-        notifications::send_daily_digest(&state, date)
+        notifications::send_daily_digest(&state, date, false)
             .await
             .context("running daily digest")?;
         println!("Daily digest job completed for {date}.");
@@ -134,7 +134,7 @@ async fn main() -> anyhow::Result<()> {
             .nth(2)
             .and_then(|s| chrono::NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d").ok())
             .unwrap_or_else(|| chrono::Utc::now().date_naive());
-        notifications::send_today_matches(&state, date)
+        notifications::send_today_matches(&state, date, false)
             .await
             .context("running today's matches email")?;
         println!("Today's matches email job completed for {date}.");
@@ -234,13 +234,16 @@ async fn main() -> anyhow::Result<()> {
                 let local_hour = now.with_timezone(&Amsterdam).hour();
                 if local_hour >= digest_hour {
                     if let Some(yesterday) = now.date_naive().pred_opt() {
-                        if let Err(e) = notifications::send_daily_digest(&s, yesterday).await {
+                        if let Err(e) = notifications::send_daily_digest(&s, yesterday, false).await
+                        {
                             tracing::warn!("daily digest failed: {e:#}");
                         }
                     }
                 }
                 if local_hour >= today_matches_hour {
-                    if let Err(e) = notifications::send_today_matches(&s, now.date_naive()).await {
+                    if let Err(e) =
+                        notifications::send_today_matches(&s, now.date_naive(), false).await
+                    {
                         tracing::warn!("today's matches email failed: {e:#}");
                     }
                 }
