@@ -126,7 +126,7 @@ async fn load_leaderboard_filtered(
             u.id,
             u.display_name,
             COALESCE(SUM(b.points), 0)::BIGINT AS points,
-            COALESCE(SUM(CASE WHEN b.points = 3 THEN 1 ELSE 0 END), 0)::BIGINT AS exact_count,
+            COALESCE(SUM(CASE WHEN b.points >= 3 THEN 1 ELSE 0 END), 0)::BIGINT AS exact_count,
             COALESCE(COUNT(b.id) FILTER (WHERE b.points IS NOT NULL), 0)::BIGINT AS settled_bets,
             u.stake_eur,
             u.paid_at,

@@ -17,6 +17,10 @@ pub struct MatchView {
     pub points: Option<i32>,
     pub open: bool,
     pub finished: bool,
+    /// This bet is the player's joker for its phase (points doubled).
+    pub is_joker: bool,
+    /// Jokers are enabled for the tenant (drives the joker button's visibility).
+    pub jokers_enabled: bool,
 }
 
 /// A team as displayed in a group-stage overview card.
@@ -166,8 +170,8 @@ async fn load_sections(
     .fetch_all(&state.pool)
     .await?;
 
-    let bets: Vec<(i64, i32, i32, Option<i32>)> = sqlx::query_as(
-        "SELECT match_id, home_score, away_score, points FROM bets \
+    let bets: Vec<(i64, i32, i32, Option<i32>, i32)> = sqlx::query_as(
+        "SELECT match_id, home_score, away_score, points, multiplier FROM bets \
          WHERE user_id = $1 AND tenant_id = $2",
     )
     .bind(user.id)
@@ -175,13 +179,13 @@ async fn load_sections(
     .fetch_all(&state.pool)
     .await?;
 
-    let mut bet_map: HashMap<i64, (i32, i32, Option<i32>)> = HashMap::new();
+    let mut bet_map: HashMap<i64, (i32, i32, Option<i32>, i32)> = HashMap::new();
     let mut total_points = 0i32;
-    for (mid, h, a, p) in bets {
+    for (mid, h, a, p, mult) in bets {
         if let Some(pts) = p {
             total_points += pts;
         }
-        bet_map.insert(mid, (h, a, p));
+        bet_map.insert(mid, (h, a, p, mult));
     }
 
     // Bucket matches by their stage key (or "OTHER" when missing). Within
@@ -194,9 +198,11 @@ async fn load_sections(
         let view = MatchView {
             open: m.is_open_for_bets(),
             finished: m.has_final_result(),
-            bet_home: bet.map(|(h, _, _)| h),
-            bet_away: bet.map(|(_, a, _)| a),
-            points: bet.and_then(|(_, _, p)| p),
+            bet_home: bet.map(|(h, _, _, _)| h),
+            bet_away: bet.map(|(_, a, _, _)| a),
+            points: bet.and_then(|(_, _, p, _)| p),
+            is_joker: bet.map(|(_, _, _, mult)| mult == 2).unwrap_or(false),
+            jokers_enabled: tenant.jokers_enabled,
             m,
         };
         by_stage.entry(key).or_default().push(view);

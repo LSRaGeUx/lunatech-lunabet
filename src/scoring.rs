@@ -22,10 +22,16 @@ pub fn compute_points(
 }
 
 pub async fn recompute_all(pool: &PgPool) -> anyhow::Result<()> {
+    // `points` stores the EFFECTIVE score: the base (3 / 1 / 0) times the bet's
+    // joker multiplier (1 or 2). Storing it pre-multiplied means every ranking
+    // sum (leaderboard, profile, digest, …) reflects the joker for free. The
+    // flip side: "exact score" can no longer be detected as `points = 3` — an
+    // exact bet now scores 3 or 6 — so callers test `points >= 3` instead (safe
+    // because an outcome-only bet scores at most 2; see the multiplier CHECK).
     sqlx::query(
         r#"
         UPDATE bets b
-        SET points = CASE
+        SET points = b.multiplier * CASE
             WHEN b.home_score = m.home_score AND b.away_score = m.away_score THEN $1
             WHEN sign(b.home_score - b.away_score) = sign(m.home_score - m.away_score) THEN $2
             ELSE 0

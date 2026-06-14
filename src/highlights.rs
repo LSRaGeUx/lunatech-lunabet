@@ -36,7 +36,7 @@ pub async fn upsert_player_of_the_day(
         SELECT u.id,
                u.display_name,
                COALESCE(SUM(b.points), 0)::BIGINT AS points,
-               COALESCE(SUM(CASE WHEN b.points = 3 THEN 1 ELSE 0 END), 0)::BIGINT AS exact_count
+               COALESCE(SUM(CASE WHEN b.points >= 3 THEN 1 ELSE 0 END), 0)::BIGINT AS exact_count
         FROM users u
         JOIN bets b ON b.user_id = u.id AND b.tenant_id = u.tenant_id
         JOIN matches m ON m.id = b.match_id

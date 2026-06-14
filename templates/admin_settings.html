@@ -64,6 +64,11 @@
             {{ loc.f("Autoriser les membres à inviter", "Allow members to invite") }}
         </label>
 
+        <label class="checkbox-label">
+            <input type="checkbox" name="jokers_enabled" value="on"{% if form.jokers_enabled %} checked{% endif %}>
+            {{ loc.f("Activer les jokers (x2 sur un match par phase)", "Enable jokers (x2 on one match per phase)") }}
+        </label>
+
         <button class="btn" type="submit">{{ loc.f("Enregistrer", "Save") }}</button>
     </form>
 </section>
