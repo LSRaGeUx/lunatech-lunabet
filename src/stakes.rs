@@ -99,6 +99,27 @@ pub async fn load_leaderboard(
     pool: &PgPool,
     tenant_id: Uuid,
 ) -> anyhow::Result<Vec<LeaderboardRow>> {
+    load_leaderboard_filtered(pool, tenant_id, None).await
+}
+
+/// Leaderboard for a single league: the same ranking, restricted to the
+/// members of `league_id`.
+pub async fn load_league_leaderboard(
+    pool: &PgPool,
+    tenant_id: Uuid,
+    league_id: Uuid,
+) -> anyhow::Result<Vec<LeaderboardRow>> {
+    load_leaderboard_filtered(pool, tenant_id, Some(league_id)).await
+}
+
+/// Shared leaderboard query. When `league_id` is `Some`, only the users that
+/// belong to that league are returned; the points, tiebreaks and ordering are
+/// identical to the global board.
+async fn load_leaderboard_filtered(
+    pool: &PgPool,
+    tenant_id: Uuid,
+    league_id: Option<Uuid>,
+) -> anyhow::Result<Vec<LeaderboardRow>> {
     let rows: Vec<LeaderboardQueryRow> = sqlx::query_as(
         r#"
         SELECT
@@ -115,6 +136,8 @@ pub async fn load_leaderboard(
         FROM users u
         LEFT JOIN bets b ON b.user_id = u.id AND b.tenant_id = u.tenant_id
         WHERE u.tenant_id = $1
+          AND ($2::uuid IS NULL
+               OR u.id IN (SELECT user_id FROM league_members WHERE league_id = $2))
         GROUP BY u.id, u.display_name, u.stake_eur, u.paid_at,
                  u.current_streak, u.best_streak, u.created_at
         ORDER BY points DESC NULLS LAST,
@@ -124,6 +147,7 @@ pub async fn load_leaderboard(
         "#,
     )
     .bind(tenant_id)
+    .bind(league_id)
     .fetch_all(pool)
     .await?;
 

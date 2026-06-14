@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ league_name }} - LunaBet{% endblock %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block content %}
+<p class="back-link"><a href="/leagues">← {{ loc.f("Toutes mes ligues", "All my leagues") }}</a></p>
+<h1>{{ league_name }}</h1>
+
+<section class="card join-share">
+    <div>
+        <span class="muted">{{ loc.f("Code d'invitation", "Join code") }}</span>
+        <span class="league-code" id="join-code">{{ join_code }}</span>
+    </div>
+    <button type="button" class="btn copy-btn" data-code="{{ join_code }}">{{ loc.f("Copier", "Copy") }}</button>
+</section>
+
+{% if rows.is_empty() %}
+    <p>{{ loc.f("Aucun membre pour le moment.", "No members yet.") }}</p>
+{% else %}
+<table class="leaderboard">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>{{ loc.f("Parieur", "Player") }}</th>
+            <th>Points</th>
+            <th>{{ loc.f("Série", "Streak") }}</th>
+            <th>{{ loc.f("Scores exacts", "Exact scores") }}</th>
+            <th>{{ loc.f("Paris résolus", "Settled bets") }}</th>
+            {% if is_owner %}<th></th>{% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in rows %}
+        <tr {% if r.is_me %}class="me"{% endif %}>
+            <td data-label="#">{{ r.rank }}</td>
+            <td class="player-cell" data-label="{{ loc.f("Parieur", "Player") }}">
+                <img class="player-avatar" src="{{ r.avatar }}" alt="" aria-hidden="true">
+                <span class="player-name">{{ r.display_name }}{% if r.is_me %} ({{ loc.f("toi", "you") }}){% endif %}</span>
+            </td>
+            <td data-label="Points"><strong>{{ r.points }}</strong></td>
+            <td data-label="{{ loc.f("Série", "Streak") }}">
+                {% if r.current_streak > 0 %}<span class="streak-cell" title="{{ loc.f("record", "best") }} {{ r.best_streak }}">🔥 {{ r.current_streak }}</span>{% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td data-label="{{ loc.f("Scores exacts", "Exact scores") }}">{{ r.exact }}</td>
+            <td data-label="{{ loc.f("Paris résolus", "Settled bets") }}">{{ r.bets }}</td>
+            {% if is_owner %}
+            <td class="row-actions">
+                {% if !r.is_me %}
+                <form method="post" action="/leagues/{{ league_id }}/remove" class="inline">
+                    <input type="hidden" name="user_id" value="{{ r.user_id }}">
+                    <button class="link danger" type="submit">{{ loc.f("Retirer", "Remove") }}</button>
+                </form>
+                {% endif %}
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<section class="card league-admin">
+    {% if is_owner %}
+    <form method="post" action="/leagues/{{ league_id }}/rename" class="league-form inline-rename">
+        <input type="text" name="name" maxlength="60" required value="{{ league_name }}">
+        <button class="btn" type="submit">{{ loc.f("Renommer", "Rename") }}</button>
+    </form>
+    <form method="post" action="/leagues/{{ league_id }}/delete" class="inline"
+          onsubmit="return confirm('{{ loc.f("Supprimer cette ligue ?", "Delete this league?") }}');">
+        <button class="link danger" type="submit">{{ loc.f("Supprimer la ligue", "Delete league") }}</button>
+    </form>
+    {% else %}
+    <form method="post" action="/leagues/{{ league_id }}/leave" class="inline"
+          onsubmit="return confirm('{{ loc.f("Quitter cette ligue ?", "Leave this league?") }}');">
+        <button class="link danger" type="submit">{{ loc.f("Quitter la ligue", "Leave league") }}</button>
+    </form>
+    {% endif %}
+</section>
+
+<style>
+    .back-link { margin: 0 0 0.4rem; }
+    .join-share { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+    .join-share .league-code {
+        font-family: "Bebas Neue", sans-serif; letter-spacing: 0.14em; font-size: 1.6rem;
+        color: var(--red); margin-left: 0.5rem;
+    }
+    .league-admin { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
+    .inline-rename { display: flex; gap: 0.5rem; flex: 1; }
+    .inline-rename input {
+        font: inherit; padding: 0.45rem; border: 2px solid var(--ink);
+        border-radius: 4px; background: var(--paper); flex: 1;
+    }
+    .row-actions { text-align: right; }
+    .link.danger { color: var(--red); }
+    @media (max-width: 640px) {
+        .league-admin, .inline-rename { flex-direction: column; align-items: stretch; }
+    }
+</style>
+<script>
+    document.querySelectorAll('.copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var code = btn.getAttribute('data-code');
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(code).then(function () {
+                    var prev = btn.textContent;
+                    btn.textContent = '{{ loc.f("Copié !", "Copied!") }}';
+                    setTimeout(function () { btn.textContent = prev; }, 1500);
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

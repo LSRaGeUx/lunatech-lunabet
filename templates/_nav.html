@@ -7,6 +7,7 @@
 <a href="/matches"{% if nav_active == "matches" %} class="active"{% endif %}>{{ loc.f("Mes pronos", "Predictions") }}</a>
 <a href="/results"{% if nav_active == "results" %} class="active"{% endif %}>{{ loc.f("Résultats", "Results") }}</a>
 <a href="/leaderboard"{% if nav_active == "leaderboard" %} class="active"{% endif %}>{{ loc.f("Classement", "Leaderboard") }}</a>
+<a href="/leagues"{% if nav_active == "leagues" %} class="active"{% endif %}>{{ loc.f("Ligues", "Leagues") }}</a>
 <a href="/members"{% if nav_active == "members" %} class="active"{% endif %}>{{ loc.f("Membres", "Members") }}</a>
 <a href="/stake"{% if nav_active == "stake" %} class="active"{% endif %}>{{ loc.f("Ma mise", "My stake") }}</a>
 {% if is_admin %}<a href="/admin/stakes"{% if nav_active == "admin_stakes" %} class="active"{% endif %}>Admin</a>{% endif %}
