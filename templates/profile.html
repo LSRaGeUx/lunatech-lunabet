@@ -50,6 +50,43 @@
 </section>
 {% endif %}
 
+{% if is_me %}
+<section class="card notif-card" id="push-card"
+         data-push-available="{% if push_available %}1{% else %}0{% endif %}">
+    <h2>{{ loc.f("Notifications", "Notifications") }}</h2>
+    {% if push_available %}
+    <p class="notif-lead">{{ loc.f(
+        "Reçois un rappel avant le coup d'envoi des matchs sur lesquels tu n'as pas encore parié, directement sur ton téléphone.",
+        "Get a reminder before kick-off for matches you haven't bet on yet, straight to your phone."
+    ) }}</p>
+    <p class="push-status" id="push-status" hidden></p>
+    <button type="button" class="btn" id="push-enable" hidden>
+        {{ loc.f("Activer les notifications", "Enable notifications") }}
+    </button>
+    <button type="button" class="btn btn-ghost" id="push-disable" hidden>
+        {{ loc.f("Désactiver sur cet appareil", "Disable on this device") }}
+    </button>
+    <form id="push-prefs" method="post" action="/push/preferences"
+          hx-post="/push/preferences" hx-swap="none" hidden>
+        <label class="push-toggle">
+            <input type="checkbox" name="notify_push" {% if notify_push %}checked{% endif %}>
+            {{ loc.f("Recevoir les notifications push", "Receive push notifications") }}
+        </label>
+    </form>
+    <noscript><p class="push-status">{{ loc.f(
+        "Active le JavaScript pour gérer les notifications.",
+        "Enable JavaScript to manage notifications."
+    ) }}</p></noscript>
+    {% else %}
+    <p class="notif-lead">{{ loc.f(
+        "Les notifications push ne sont pas configurées sur cet espace.",
+        "Push notifications are not configured on this space."
+    ) }}</p>
+    {% endif %}
+</section>
+<script defer src="/static/push.js"></script>
+{% endif %}
+
 <section class="card">
     <h2>{{ loc.f("Badges", "Badges") }}</h2>
     <ul class="badge-grid">
@@ -115,5 +152,16 @@
         color: var(--red);
     }
     .badge-check { color: var(--navy); font-weight: 800; font-size: 1.2rem; }
+    .notif-card .notif-lead { margin-top: 0; opacity: 0.85; }
+    .push-status {
+        font-weight: 700; color: var(--navy); margin: 0.4rem 0;
+    }
+    .push-status.is-error { color: var(--red); }
+    .btn-ghost { background: transparent; }
+    .push-toggle {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        margin-top: 0.6rem; font-weight: 600;
+    }
+    .push-toggle input { width: 1.1rem; height: 1.1rem; }
 </style>
 {% endblock %}

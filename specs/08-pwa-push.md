@@ -1,6 +1,10 @@
 # 08. PWA et notifications push
 
-Statut: a faire. Priorite: moyenne. Effort: L.
+Statut: fait. Priorite: moyenne. Effort: L.
+
+Implemente: PWA (PR #31) + Web Push pur-Rust (`src/webpush.rs`, VAPID ES256 +
+chiffrement RFC 8291/8188). Genere les cles avec `cargo run -- gen-vapid`. Seul
+le push de rappel de match est cable; l'alerte de rang reste a faire.
 
 ## Objectif
 
@@ -22,7 +26,9 @@ Rendre l'app installable sur l'ecran d'accueil et envoyer des notifications push
 - Le manifest peut etre servi dynamiquement par tenant pour reprendre les couleurs et le logo (route legere ou template).
 
 ### Push web (VAPID)
-Crate Rust: `web-push`.
+Implemente en pur-Rust (pas la crate `web-push`, qui tire BoringSSL/libcurl et
+casse la stack rustls): `p256` + `aes-gcm` dans `src/webpush.rs`, sur le client
+`reqwest` (rustls) existant.
 
 ```sql
 -- migrations/2026xxxx_push_subscriptions.sql

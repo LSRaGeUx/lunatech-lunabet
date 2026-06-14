@@ -29,6 +29,7 @@ mod state;
 mod storage;
 mod streaks;
 mod tenant;
+mod webpush;
 
 use state::AppState;
 
@@ -42,6 +43,16 @@ async fn main() -> anyhow::Result<()> {
                 .unwrap_or_else(|_| "lunatech_betting=info,tower_http=info".into()),
         )
         .init();
+
+    // `gen-vapid`: print a fresh VAPID keypair and exit, so operators can fill
+    // VAPID_PRIVATE_KEY / VAPID_PUBLIC_KEY without a separate tool. Handled
+    // before config loads so it works on a bare checkout.
+    if std::env::args().nth(1).as_deref() == Some("gen-vapid") {
+        let (private_b64, public_b64) = webpush::generate_keys();
+        println!("VAPID_PRIVATE_KEY={private_b64}");
+        println!("VAPID_PUBLIC_KEY={public_b64}");
+        return Ok(());
+    }
 
     let cfg = config::Config::from_env().context("loading configuration from env")?;
 

@@ -38,3 +38,10 @@ base64 = "0.22"
 sha2 = "0.11"
 time = "0.3"
 regex = "1"
+
+# Web Push (pure Rust, no native deps so it stays on the rustls TLS stack).
+# VAPID JWT signing + ECDH key agreement (P-256) and the aes128gcm content
+# encryption (RFC 8291 / RFC 8188). HKDF/HMAC are implemented in-house in
+# `webpush.rs` against `sha2` to avoid pulling a second `sha2` major.
+p256 = { version = "0.13", features = ["ecdsa", "ecdh"] }
+aes-gcm = "0.10"
