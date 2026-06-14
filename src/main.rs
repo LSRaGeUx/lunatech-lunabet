@@ -26,6 +26,7 @@ mod routes;
 mod scoring;
 mod stakes;
 mod state;
+mod storage;
 mod streaks;
 mod tenant;
 
@@ -88,6 +89,7 @@ async fn main() -> anyhow::Result<()> {
             tenants: tenants.clone(),
             signup_limiter: signup_limiter.clone(),
             endpoint_limiter: endpoint_limiter.clone(),
+            storage: storage::LogoStore::from_config(&cfg)?,
         };
         notifications::send_match_reminders(&state)
             .await
@@ -108,6 +110,7 @@ async fn main() -> anyhow::Result<()> {
             tenants: tenants.clone(),
             signup_limiter: signup_limiter.clone(),
             endpoint_limiter: endpoint_limiter.clone(),
+            storage: storage::LogoStore::from_config(&cfg)?,
         };
         let date = std::env::args()
             .nth(2)
@@ -132,6 +135,7 @@ async fn main() -> anyhow::Result<()> {
             tenants: tenants.clone(),
             signup_limiter: signup_limiter.clone(),
             endpoint_limiter: endpoint_limiter.clone(),
+            storage: storage::LogoStore::from_config(&cfg)?,
         };
         let date = std::env::args()
             .nth(2)
@@ -167,6 +171,7 @@ async fn main() -> anyhow::Result<()> {
         tenants,
         signup_limiter,
         endpoint_limiter,
+        storage: storage::LogoStore::from_config(&cfg)?,
     };
 
     // Mark every badge already earned (or retroactively grantable) as announced
