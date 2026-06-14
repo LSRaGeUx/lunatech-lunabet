@@ -173,6 +173,98 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
     Ok(())
 }
 
+/// Email every player the badges they just unlocked. Picks up `achievements`
+/// rows not yet emailed (`notified_at IS NULL`), sends one message per player
+/// listing all their fresh badges, then stamps the rows it announced. Idempotent
+/// via `notified_at`, so it's safe to call on every scoring tick: badges already
+/// emailed are skipped, and a send failure leaves the row unstamped to retry.
+pub async fn send_badge_unlocks(state: &AppState) -> anyhow::Result<()> {
+    for t in tenant::load_all(&state.pool).await? {
+        if let Err(e) = badge_unlocks_for_tenant(state, &t).await {
+            tracing::warn!(tenant = %t.slug, "badge unlock emails failed: {e:#}");
+        }
+    }
+    Ok(())
+}
+
+async fn badge_unlocks_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()> {
+    // Unannounced badges with their owner's contact details, in earned order so
+    // a player's email lists the badges in the sequence they unlocked them.
+    let rows: Vec<(Uuid, String, String, String)> = sqlx::query_as(
+        r#"
+        SELECT a.user_id, u.email, u.lang, a.code
+        FROM achievements a
+        JOIN users u ON u.id = a.user_id AND u.tenant_id = a.tenant_id
+        WHERE a.tenant_id = $1 AND a.notified_at IS NULL
+        ORDER BY a.user_id, a.earned_at
+        "#,
+    )
+    .bind(tenant.id)
+    .fetch_all(&state.pool)
+    .await?;
+
+    if rows.is_empty() {
+        return Ok(());
+    }
+
+    // Group the fresh badges per player, preserving order.
+    let mut per_user: Vec<(Uuid, String, String, Vec<String>)> = Vec::new();
+    for (uid, email, lang, code) in rows {
+        match per_user.last_mut() {
+            Some((last_uid, _, _, codes)) if *last_uid == uid => codes.push(code),
+            _ => per_user.push((uid, email, lang, vec![code])),
+        }
+    }
+
+    let tenant_url = tenant.public_url(&state.cfg);
+    let mut sent = 0usize;
+    let mut failed = 0usize;
+    for (uid, email, lang, codes) in &per_user {
+        let loc = crate::i18n::Locale::from_code(lang).unwrap_or_default();
+        // Skip unknown codes (e.g. a badge retired from the catalogue) but keep
+        // them out of the email; they're still stamped below so they don't pile
+        // up forever.
+        let badges: Vec<mail::BadgeUnlock> = codes
+            .iter()
+            .filter_map(|c| crate::achievements::def(c))
+            .map(|d| mail::BadgeUnlock {
+                name: d.name(loc).to_string(),
+                desc: d.desc(loc).to_string(),
+                icon_url: format!("{}{}", tenant_url.trim_end_matches('/'), d.icon_path()),
+            })
+            .collect();
+
+        if !badges.is_empty() {
+            match mail::send_badge_unlock_email(&state.cfg, tenant, loc, email, &badges, &tenant_url)
+                .await
+            {
+                Ok(_) => sent += 1,
+                Err(e) => {
+                    failed += 1;
+                    tracing::warn!("badge unlock email to {email} failed: {e:#}");
+                    // Leave notified_at NULL so the next tick retries this user.
+                    continue;
+                }
+            }
+        }
+
+        sqlx::query(
+            "UPDATE achievements SET notified_at = NOW() \
+             WHERE tenant_id = $1 AND user_id = $2 AND code = ANY($3) AND notified_at IS NULL",
+        )
+        .bind(tenant.id)
+        .bind(uid)
+        .bind(codes)
+        .execute(&state.pool)
+        .await?;
+    }
+
+    if sent > 0 || failed > 0 {
+        tracing::info!(tenant = %tenant.slug, "badge unlocks: {sent} emails sent, {failed} failed");
+    }
+    Ok(())
+}
+
 /// Daily recap: for the given UTC calendar `date`, email every user of every
 /// tenant the day's results, the points they earned that day, and the current
 /// leaderboard. Idempotent per (tenant, date) via the `daily_digests` table, so

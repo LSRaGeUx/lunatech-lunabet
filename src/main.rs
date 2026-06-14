@@ -197,6 +197,9 @@ async fn main() -> anyhow::Result<()> {
                 if let Err(e) = achievements::evaluate_all(&s.pool).await {
                     tracing::warn!("achievement evaluation failed: {e:#}");
                 }
+                if let Err(e) = notifications::send_badge_unlocks(&s).await {
+                    tracing::warn!("badge unlock emails failed: {e:#}");
+                }
                 if let Err(e) = notifications::send_match_reminders(&s).await {
                     tracing::warn!("match reminders failed: {e:#}");
                 }

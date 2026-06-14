@@ -509,6 +509,88 @@ pub async fn send_daily_digest_email(
     send_html_email(cfg, &cfg.mail_from, to, &subject, plain, html).await
 }
 
+/// One freshly-unlocked badge to announce in the email, already localised.
+pub struct BadgeUnlock {
+    pub name: String,
+    pub desc: String,
+    /// Absolute URL to the badge icon (SVG under static/badges/).
+    pub icon_url: String,
+}
+
+#[derive(Template)]
+#[template(path = "emails/badge_unlock.html")]
+struct BadgeUnlockHtml<'a> {
+    loc: Locale,
+    tenant: &'a Tenant,
+    logo_url: &'a str,
+    badges: &'a [BadgeUnlock],
+    profile_url: &'a str,
+}
+
+/// Badge-unlock email: announces one or more achievements the player just
+/// earned, with a link back to their badge collection. Localised per recipient.
+pub async fn send_badge_unlock_email(
+    cfg: &Config,
+    tenant: &Tenant,
+    loc: Locale,
+    to: &str,
+    badges: &[BadgeUnlock],
+    base_url: &str,
+) -> anyhow::Result<()> {
+    let profile_url = format!("{}/me", base_url.trim_end_matches('/'));
+    let logo_url = match tenant.logo_url.as_deref() {
+        Some(u) if u.starts_with("http") => u.to_string(),
+        Some(rel) => format!("{}{}", base_url.trim_end_matches('/'), rel),
+        None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
+    };
+    let html = BadgeUnlockHtml {
+        loc,
+        tenant,
+        logo_url: &logo_url,
+        badges,
+        profile_url: &profile_url,
+    }
+    .render()?;
+
+    let mut list_txt = String::new();
+    for b in badges {
+        list_txt.push_str(&format!("  ★ {} - {}\n", b.name, b.desc));
+    }
+    let intro = if badges.len() > 1 {
+        loc.f(
+            "Bravo ! Tu viens de débloquer plusieurs hauts faits :",
+            "Nice! You just unlocked several achievements:",
+        )
+    } else {
+        loc.f(
+            "Bravo ! Tu viens de débloquer un haut fait :",
+            "Nice! You just unlocked an achievement:",
+        )
+    };
+    let plain = format!(
+        "{hi}\n\n\
+         {intro}\n{list_txt}\n\
+         {see} {profile_url}\n\n\
+         - {brand} · LunaBet\n",
+        hi = loc.f("Salut !", "Hi!"),
+        see = loc.f("Voir ta collection :", "See your collection:"),
+        brand = tenant.name,
+    );
+
+    let subject = if badges.len() > 1 {
+        match loc {
+            Locale::Fr => format!("🏅 Nouveaux badges débloqués - {}", tenant.name),
+            Locale::En => format!("🏅 New badges unlocked - {}", tenant.name),
+        }
+    } else {
+        match loc {
+            Locale::Fr => format!("🏅 {} - {}", badges[0].name, tenant.name),
+            Locale::En => format!("🏅 {} - {}", badges[0].name, tenant.name),
+        }
+    };
+    send_html_email(cfg, &cfg.mail_from, to, &subject, plain, html).await
+}
+
 async fn send_html_email(
     cfg: &Config,
     mail_from: &str,
