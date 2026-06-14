@@ -16,6 +16,7 @@ mod logo;
 mod matches;
 mod platform;
 mod profile;
+mod pwa;
 mod seo;
 mod signup;
 mod stake;
@@ -30,6 +31,8 @@ pub fn router() -> Router<AppState> {
         .route("/sitemap.xml", get(seo::sitemap))
         .route("/lang/:code", get(lang::set))
         .route("/logo/:tenant_id", get(logo::serve))
+        .route("/manifest.webmanifest", get(pwa::manifest))
+        .route("/sw.js", get(pwa::service_worker))
         .route("/login", get(auth::login_page).post(auth::request_magic_link))
         .route("/login/sent", get(auth::login_sent))
         .route("/auth/callback", get(auth::callback))
