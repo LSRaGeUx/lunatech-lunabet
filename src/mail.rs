@@ -39,6 +39,60 @@ struct MatchReminderHtml<'a> {
     logo_url: &'a str,
 }
 
+#[derive(Template)]
+#[template(path = "emails/invitation.html")]
+struct InvitationHtml<'a> {
+    loc: Locale,
+    tenant: &'a Tenant,
+    inviter_name: &'a str,
+    link: &'a str,
+    logo_url: &'a str,
+}
+
+/// Invitation email: someone invites `to` to join `tenant`. The link both
+/// joins the space and signs the invitee in on first click.
+pub async fn send_invitation(
+    cfg: &Config,
+    tenant: &Tenant,
+    loc: Locale,
+    base_url: &str,
+    to: &str,
+    inviter_name: &str,
+    link: &str,
+) -> anyhow::Result<()> {
+    let logo_url = match tenant.logo_url.as_deref() {
+        Some(u) if u.starts_with("http") => u.to_string(),
+        Some(rel) => format!("{}{}", base_url.trim_end_matches('/'), rel),
+        None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
+    };
+    let html = InvitationHtml { loc, tenant, inviter_name, link, logo_url: &logo_url }.render()?;
+
+    let plain = format!(
+        "{salut}\n\n\
+         {intro}\n\n\
+         {join} {link}\n\n\
+         {expire}\n\n\
+         - {brand} · LunaBet\n",
+        salut = loc.f("Salut !", "Hi!"),
+        intro = match loc {
+            Locale::Fr => format!("{inviter_name} t'invite à rejoindre {} sur LunaBet.", tenant.name),
+            Locale::En => format!("{inviter_name} invited you to join {} on LunaBet.", tenant.name),
+        },
+        join = loc.f("Rejoins l'espace :", "Join the space:"),
+        expire = loc.f(
+            "Ce lien est valable 7 jours.",
+            "This link is valid for 7 days."
+        ),
+        brand = tenant.name,
+    );
+
+    let subject = match loc {
+        Locale::Fr => format!("{inviter_name} t'invite sur {}", tenant.name),
+        Locale::En => format!("{inviter_name} invited you to {}", tenant.name),
+    };
+    send_html_email(cfg, &cfg.mail_from, to, &subject, plain, html).await
+}
+
 pub async fn send_magic_link(
     cfg: &Config,
     tenant: &Tenant,

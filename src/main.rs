@@ -222,6 +222,17 @@ async fn main() -> anyhow::Result<()> {
                     Ok(_) => {}
                     Err(e) => tracing::warn!("pending_tenants cleanup failed: {e:#}"),
                 }
+                // Expire pending invitations past their deadline so the login
+                // gate and the members list stop honouring them.
+                if let Err(e) = sqlx::query(
+                    "UPDATE invitations SET status = 'expired' \
+                     WHERE status = 'pending' AND expires_at < NOW()",
+                )
+                .execute(&s.pool)
+                .await
+                {
+                    tracing::warn!("invitation expiry cleanup failed: {e:#}");
+                }
                 s.signup_limiter.purge_empty();
                 s.endpoint_limiter.purge_empty();
             }

@@ -59,6 +59,11 @@
             <input type="text" name="slack_webhook_url" value="{{ form.slack_webhook_url }}" placeholder="https://hooks.slack.com/...">
         </label>
 
+        <label class="checkbox-label">
+            <input type="checkbox" name="members_can_invite" value="on"{% if form.members_can_invite %} checked{% endif %}>
+            {{ loc.f("Autoriser les membres à inviter", "Allow members to invite") }}
+        </label>
+
         <button class="btn" type="submit">{{ loc.f("Enregistrer", "Save") }}</button>
     </form>
 </section>

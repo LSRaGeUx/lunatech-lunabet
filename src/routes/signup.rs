@@ -23,6 +23,12 @@ const SESSION_COOKIE: &str = "lb_session";
 const SIGNUP_TOKEN_TTL_MINUTES: i64 = 30;
 const SESSION_TTL_DAYS: i64 = 30;
 
+/// A regex that matches nothing, used as the `allowed_email_pattern` for
+/// invite-only spaces so the domain gate never opens. The `regex` crate has no
+/// lookaround, so `(?!)` is unavailable; `[^\s\S]` (a char that is neither
+/// whitespace nor non-whitespace) is the portable match-nothing pattern.
+const MATCH_NOTHING_PATTERN: &str = "[^\\s\\S]";
+
 #[derive(Template)]
 #[template(path = "signup.html")]
 struct SignupTpl<'a> {
@@ -38,6 +44,9 @@ struct SignupValues {
     name: String,
     owner_email: String,
     owner_name: String,
+    /// "domain" (company) or "invite" (friends); drives the form's selected
+    /// space type so it survives a validation re-render.
+    space_kind: String,
 }
 
 #[derive(Template)]
@@ -81,6 +90,9 @@ pub struct SignupForm {
     name: String,
     owner_email: String,
     owner_name: String,
+    /// "domain" (company, default) or "invite" (friends).
+    #[serde(default)]
+    space_kind: Option<String>,
     /// Honeypot. Real users can't see the field (hidden via CSS), bots
     /// happily fill every input. If non-empty we pretend the request
     /// succeeded but never store anything or send an email.
@@ -154,12 +166,14 @@ pub async fn submit(
     let name = form.name.trim().to_string();
     let owner_email = form.owner_email.trim().to_lowercase();
     let owner_name = form.owner_name.trim().to_string();
+    let invite_mode = form.space_kind.as_deref() == Some("invite");
 
     let values = SignupValues {
         slug: slug.clone(),
         name: name.clone(),
         owner_email: owner_email.clone(),
         owner_name: owner_name.clone(),
+        space_kind: if invite_mode { "invite" } else { "domain" }.to_string(),
     };
     let render_error = |msg: &str| {
         let tpl = SignupTpl {
@@ -188,9 +202,14 @@ pub async fn submit(
         return Ok((StatusCode::BAD_REQUEST, render_error("Email du référent invalide.")).into_response());
     };
 
-    // Derive the allowed email pattern from the owner's domain by default.
-    // The slug must not already exist (in tenants or pending_tenants).
-    let pattern = regex::escape(domain);
+    // Company spaces derive the allowed email pattern from the owner's domain;
+    // friends (invite) spaces store a match-nothing pattern so the only way in
+    // is an invitation. The slug must not already exist (tenants or pending).
+    let pattern = if invite_mode {
+        MATCH_NOTHING_PATTERN.to_string()
+    } else {
+        regex::escape(domain)
+    };
     // Sanity-check the regex compiles before storing.
     if Regex::new(&format!("^(?:{})$", pattern)).is_err() {
         return Ok((
@@ -241,12 +260,13 @@ pub async fn submit(
     let token_hash = hex_sha256(&token);
     let expires_at = Utc::now() + Duration::minutes(SIGNUP_TOKEN_TTL_MINUTES);
 
+    let membership_mode = if invite_mode { "invite" } else { "domain" };
     sqlx::query(
         r#"
         INSERT INTO pending_tenants
             (token_hash, slug, name, owner_email, owner_name,
-             allowed_email_pattern, expires_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+             allowed_email_pattern, expires_at, membership_mode)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         "#,
     )
     .bind(&token_hash)
@@ -256,6 +276,7 @@ pub async fn submit(
     .bind(&owner_name)
     .bind(&pattern)
     .bind(expires_at)
+    .bind(membership_mode)
     .execute(&state.pool)
     .await?;
 
@@ -314,16 +335,18 @@ pub async fn verify(
         String,
         chrono::DateTime<Utc>,
         Option<chrono::DateTime<Utc>>,
+        String,
     )> = sqlx::query_as(
         "SELECT slug, name, owner_email, owner_name, allowed_email_pattern, \
-                expires_at, consumed_at \
+                expires_at, consumed_at, membership_mode \
          FROM pending_tenants WHERE token_hash = $1",
     )
     .bind(&token_hash)
     .fetch_optional(&state.pool)
     .await?;
 
-    let Some((slug, name, owner_email, owner_name, pattern, expires_at, consumed_at)) = row
+    let Some((slug, name, owner_email, owner_name, pattern, expires_at, consumed_at, membership_mode)) =
+        row
     else {
         return Ok((StatusCode::BAD_REQUEST, loc.f("Lien invalide.", "Invalid link.")).into_response());
     };
@@ -353,8 +376,8 @@ pub async fn verify(
         r#"
         INSERT INTO tenants
             (slug, name, allowed_email_pattern, mail_from, stake_deadline,
-             admin_emails)
-        VALUES ($1, $2, $3, $4, '2026-06-27T23:59:00Z'::timestamptz, $5)
+             admin_emails, membership_mode)
+        VALUES ($1, $2, $3, $4, '2026-06-27T23:59:00Z'::timestamptz, $5, $6)
         RETURNING id
         "#,
     )
@@ -363,6 +386,7 @@ pub async fn verify(
     .bind(&pattern)
     .bind(&state.cfg.mail_from)
     .bind(vec![owner_email.clone()])
+    .bind(&membership_mode)
     .fetch_one(&mut *tx)
     .await?;
 
@@ -428,6 +452,8 @@ pub async fn verify(
             slack_webhook_url: None,
             mail_from: String::new(),
             admin_emails: Default::default(),
+            membership_mode: "domain".into(),
+            members_can_invite: false,
         };
         format!("{}/today", synthetic.public_url(&state.cfg))
     } else {
@@ -446,6 +472,7 @@ fn render_signup_error(loc: Locale, tenant: &Tenant, form: &SignupForm, msg: &st
             name: form.name.clone(),
             owner_email: form.owner_email.clone(),
             owner_name: form.owner_name.clone(),
+            space_kind: form.space_kind.clone().unwrap_or_else(|| "domain".into()),
         },
         error: Some(msg),
     };

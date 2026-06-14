@@ -28,6 +28,21 @@
                 <input type="text" name="website" tabindex="-1" autocomplete="off" value="">
             </label>
         </div>
+
+        <fieldset class="space-kind">
+            <legend>{{ loc.f("Type d'espace", "Space type") }}</legend>
+            <label class="radio">
+                <input type="radio" name="space_kind" value="domain"
+                       {% if form.space_kind != "invite" %}checked{% endif %}>
+                <span>{{ loc.f("Entreprise : accès par domaine email", "Company: join by email domain") }}</span>
+            </label>
+            <label class="radio">
+                <input type="radio" name="space_kind" value="invite"
+                       {% if form.space_kind == "invite" %}checked{% endif %}>
+                <span>{{ loc.f("Amis : accès sur invitation", "Friends: join by invitation") }}</span>
+            </label>
+        </fieldset>
+
         <label>
             {{ loc.f("Slug (sous-domaine)", "Slug (subdomain)") }}
             <input type="text" name="slug" value="{{ form.slug }}" required
@@ -54,8 +69,8 @@
             <input type="email" name="owner_email" value="{{ form.owner_email }}" required
                    maxlength="120" placeholder="alice@acme.com">
             <small>{{ loc.f(
-                "Tes collègues devront avoir un email du même domaine pour rejoindre.",
-                "Your colleagues will need an email on the same domain to join."
+                "En mode entreprise, tes membres devront avoir un email du même domaine. En mode amis, tu invites qui tu veux par email.",
+                "In company mode, members need an email on the same domain. In friends mode, you invite anyone by email."
             ) }}</small>
         </label>
 
@@ -74,5 +89,9 @@
     .signup-form small { font-weight: 400; color: var(--ink-soft); }
     .signup-form code { background: var(--paper-dark); padding: 0 0.3rem; border-radius: 3px; }
     .honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .space-kind { border: 2px solid var(--ink); border-radius: 4px; padding: 0.7rem 0.9rem; display: grid; gap: 0.5rem; }
+    .space-kind legend { font-weight: 700; color: var(--navy); padding: 0 0.4rem; }
+    .space-kind .radio { display: flex; flex-direction: row; align-items: center; gap: 0.5rem; font-weight: 400; color: var(--ink); }
+    .space-kind .radio input { width: auto; }
 </style>
 {% endblock %}

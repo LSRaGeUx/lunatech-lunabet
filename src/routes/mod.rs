@@ -9,6 +9,7 @@ pub mod auth;
 mod bets;
 mod dev;
 mod home;
+mod invitations;
 mod lang;
 mod leaderboard;
 mod matches;
@@ -53,6 +54,10 @@ pub fn router() -> Router<AppState> {
         .route("/results", get(matches::results))
         .route("/matches/:id/bet", post(bets::place_or_update))
         .route("/leaderboard", get(leaderboard::index))
+        .route("/members", get(invitations::members_page))
+        .route("/invitations", post(invitations::create))
+        .route("/invitations/:id/revoke", post(invitations::revoke))
+        .route("/invite/accept", get(invitations::accept))
         .route("/stake", get(stake::page).post(stake::submit))
         .route("/admin/stakes", get(admin::stakes_page))
         .route("/admin/stakes/:user_id/paid", post(admin::mark_paid))
