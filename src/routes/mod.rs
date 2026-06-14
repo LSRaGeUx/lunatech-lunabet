@@ -24,6 +24,7 @@ mod stake;
 mod super_admin;
 mod tenant_settings;
 mod today;
+mod well_known;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -34,6 +35,14 @@ pub fn router() -> Router<AppState> {
         .route("/logo/:tenant_id", get(logo::serve))
         .route("/manifest.webmanifest", get(pwa::manifest))
         .route("/sw.js", get(pwa::service_worker))
+        .route(
+            "/.well-known/apple-app-site-association",
+            get(well_known::apple_app_site_association),
+        )
+        .route(
+            "/.well-known/assetlinks.json",
+            get(well_known::android_asset_links),
+        )
         .route("/push/public-key", get(push::public_key))
         .route("/push/subscribe", post(push::subscribe))
         .route("/push/unsubscribe", post(push::unsubscribe))

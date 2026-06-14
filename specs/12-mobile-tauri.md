@@ -1,6 +1,17 @@
 # 12. Client mobile iOS et Android (Tauri)
 
-Statut: a faire. Priorite: moyenne. Effort: L.
+Statut: en cours. Priorite: moyenne. Effort: L.
+
+Fait: fondations backend multi-canal (migration `platform` + `device_token` sur
+`push_subscriptions`, dispatch `src/push_channel.rs` appele par
+`notifications.rs`, `POST /push/subscribe` accepte les tokens natifs), fichiers
+d'association de domaine (`src/routes/well_known.rs`, vars `APPLE_APP_ID` /
+`ANDROID_PACKAGE` / `ANDROID_CERT_FINGERPRINT`), et scaffold du projet Tauri 2
+coque distante dans `mobile/` (voir `mobile/README.md`).
+
+Reste (hors sandbox, machine + comptes requis): senders APNs / FCM reels,
+plugin push cote Tauri, generation des projets iOS/Android (`cargo tauri
+ios/android init`), icones, signature et soumission aux stores.
 
 ## Objectif
 

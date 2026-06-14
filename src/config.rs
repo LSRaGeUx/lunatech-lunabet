@@ -63,6 +63,15 @@ pub struct Config {
     /// `VAPID_PUBLIC_KEY` / `VAPID_SUBJECT`. `None` (push disabled) when the
     /// keys are unset or invalid — the rest of the app works unchanged.
     pub vapid: Option<crate::webpush::Vapid>,
+    /// iOS universal-links app identifier, `<TeamID>.<BundleID>` (spec 12). When
+    /// set, `/.well-known/apple-app-site-association` is served so the Tauri app
+    /// claims the auth / invite links. `None` means no file is served.
+    pub apple_app_id: Option<String>,
+    /// Android app-links package name (e.g. `com.lunatech.lunabet`).
+    pub android_package: Option<String>,
+    /// Android signing-certificate SHA-256 fingerprint (colon-separated hex).
+    /// Both this and `android_package` must be set for `/.well-known/assetlinks.json`.
+    pub android_cert_fingerprint: Option<String>,
 }
 
 impl Config {
@@ -241,6 +250,14 @@ impl Config {
             }
         };
 
+        // Mobile deep-link association (spec 12). All optional; the well-known
+        // routes 404 until the relevant values are provided.
+        let apple_app_id = env::var("APPLE_APP_ID").ok().filter(|s| !s.is_empty());
+        let android_package = env::var("ANDROID_PACKAGE").ok().filter(|s| !s.is_empty());
+        let android_cert_fingerprint = env::var("ANDROID_CERT_FINGERPRINT")
+            .ok()
+            .filter(|s| !s.is_empty());
+
         let super_admin_emails: HashSet<String> = env::var("SUPER_ADMIN_EMAILS")
             .unwrap_or_default()
             .split(',')
@@ -283,6 +300,9 @@ impl Config {
             daily_digest_hour,
             today_matches_hour,
             vapid,
+            apple_app_id,
+            android_package,
+            android_cert_fingerprint,
         })
     }
 }

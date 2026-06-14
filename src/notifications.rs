@@ -6,19 +6,27 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::mail;
+use crate::push_channel::{self, StoredSubscription};
 use crate::state::AppState;
 use crate::stakes;
 use crate::tenant::{self, Tenant};
-use crate::webpush::{self, SendOutcome, Subscription};
+use crate::webpush::SendOutcome;
 
-/// Default Web Push TTL: 24 h. The push service holds the message this long if
-/// the device is offline, then drops it — a stale "kick-off in 1h" reminder is
-/// worthless anyway.
-const PUSH_TTL_SECONDS: u32 = 24 * 60 * 60;
+/// One push subscription row, any platform, for delivery.
+#[derive(sqlx::FromRow)]
+struct SubRow {
+    id: Uuid,
+    platform: String,
+    endpoint: Option<String>,
+    p256dh: Option<String>,
+    auth: Option<String>,
+    device_token: Option<String>,
+}
 
-/// Deliver one localized push to every subscription of `user_id`, pruning any
-/// the push service reports as gone (404/410). No-op when push is disabled
-/// (no VAPID keys) or the user has no subscriptions, so callers can fire it
+/// Deliver one localized push to every subscription of `user_id`, across all
+/// platforms ([crate::push_channel] dispatches web/iOS/Android), pruning any the
+/// service reports as gone (404/410). No-op when the user has no subscriptions
+/// or the relevant channel isn't configured, so callers can fire it
 /// unconditionally next to the email path.
 async fn push_to_user(
     state: &AppState,
@@ -28,12 +36,9 @@ async fn push_to_user(
     body: &str,
     url: &str,
 ) {
-    let Some(vapid) = state.cfg.vapid.as_ref() else {
-        return;
-    };
-    let subs: Vec<(Uuid, String, String, String)> = match sqlx::query_as(
-        "SELECT id, endpoint, p256dh, auth FROM push_subscriptions \
-         WHERE tenant_id = $1 AND user_id = $2",
+    let subs: Vec<SubRow> = match sqlx::query_as(
+        "SELECT id, platform, endpoint, p256dh, auth, device_token \
+         FROM push_subscriptions WHERE tenant_id = $1 AND user_id = $2",
     )
     .bind(tenant_id)
     .bind(user_id)
@@ -51,10 +56,18 @@ async fn push_to_user(
     }
 
     let payload = json!({ "title": title, "body": body, "url": url }).to_string();
-    for (sub_id, endpoint, p256dh, auth) in subs {
-        let sub = Subscription { endpoint, p256dh, auth };
-        match webpush::send(&state.http, vapid, &sub, payload.as_bytes(), PUSH_TTL_SECONDS).await {
-            Ok(SendOutcome::Delivered) => {}
+    let vapid = state.cfg.vapid.as_ref();
+    for row in subs {
+        let sub_id = row.id;
+        let sub = StoredSubscription {
+            platform: row.platform,
+            endpoint: row.endpoint,
+            p256dh: row.p256dh,
+            auth: row.auth,
+            device_token: row.device_token,
+        };
+        match push_channel::deliver(&state.http, vapid, &sub, payload.as_bytes()).await {
+            Ok(SendOutcome::Delivered) | Ok(SendOutcome::Skipped) => {}
             Ok(SendOutcome::Gone) => {
                 // The endpoint is dead; drop it so we stop trying (spec 08: purge
                 // on the first gone response).
