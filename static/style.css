@@ -1,4 +1,4 @@
-/* --- LunaBet — album Panini 2026 --------------------------- */
+/* --- LunaBet - Panini 2026 album --------------------------- */
 
 :root {
     --paper: #f3e6c4;
@@ -57,7 +57,7 @@ code {
     font-size: 0.9em;
 }
 
-/* --- top bar (couverture d'album) --- */
+/* --- top bar (album cover) --- */
 
 .topbar {
     display: flex;
@@ -97,7 +97,7 @@ canvas.ball3d.ball-mini {
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
 }
 
-/* bande de pelouse sous la topbar (rayures vertical foot) */
+/* turf strip under the top bar (vertical football stripes) */
 .pitch-stripe {
     height: 14px;
     background:
@@ -187,7 +187,7 @@ canvas.ball3d.ball-mini {
 
 main { max-width: 1000px; margin: 2rem auto; padding: 0 1.5rem; }
 
-/* footer-pelouse avec rond de coup d'envoi */
+/* turf footer with kickoff circle */
 .pitch-footer {
     margin-top: 3rem;
     padding: 2.5rem 1rem 1.5rem;
@@ -306,7 +306,7 @@ h2::before {
     100% { transform: translateX(120vw) rotate(720deg); }
 }
 
-/* --- hero (page d'accueil) --- */
+/* --- hero (home page) --- */
 
 .hero {
     background: var(--paper-light);
@@ -360,7 +360,7 @@ h2::before {
 .ball-wrap canvas.ball-hero { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .hero:hover .ball-wrap canvas.ball-hero { transform: scale(1.05) rotate(-4deg); }
 
-/* mini brand ball — wobble on hover (Newteam kickoff) */
+/* mini brand ball - wobble on hover (Newteam kickoff) */
 .brand:hover .ball-mini { animation: brand-wobble 0.6s ease-in-out; }
 @keyframes brand-wobble {
     0%, 100% { transform: rotate(0deg)   translateY(0); }
@@ -386,7 +386,7 @@ canvas.ball3d.ball-hero {
     filter: drop-shadow(0 8px 12px rgba(26, 20, 17, 0.25));
 }
 .hero::after {
-    /* terrain stylisé en bas du hero */
+    /* stylised pitch at the bottom of the hero */
     content: "";
     position: absolute;
     left: 0;
@@ -404,7 +404,7 @@ canvas.ball3d.ball-hero {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
-/* mini-ballon emoji qui traverse le hero */
+/* mini ball emoji crossing the hero */
 .rolling-ball {
     position: absolute;
     bottom: 18px;
@@ -423,7 +423,7 @@ canvas.ball3d.ball-hero {
     line-height: 1;
 }
 
-/* --- cartes génériques --- */
+/* --- generic cards --- */
 
 .card {
     background: var(--paper-light);
@@ -447,7 +447,7 @@ canvas.ball3d.ball-hero {
 }
 .card input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
 
-/* --- boutons (tampon encreur) --- */
+/* --- buttons (ink stamp) --- */
 
 .btn {
     display: inline-block;
@@ -494,7 +494,7 @@ canvas.ball3d.ball-hero {
     color: var(--red-dark);
 }
 
-/* --- matches : grille de vignettes --- */
+/* --- matches: grid of stickers --- */
 
 .matches {
     display: grid;
@@ -511,7 +511,7 @@ canvas.ball3d.ball-hero {
     position: relative;
     overflow: hidden;
     /* Leave room above when the browser scrolls to #match-{id} after a
-       bet redirect — sticky stage TOC sits at the top of the viewport. */
+       bet redirect - sticky stage TOC sits at the top of the viewport. */
     scroll-margin-top: 90px;
 }
 .match::before {
@@ -524,7 +524,7 @@ canvas.ball3d.ball-hero {
     pointer-events: none;
 }
 .match::after {
-    /* watermark ballon dans le coin */
+    /* ball watermark in the corner */
     content: "⚽";
     position: absolute;
     right: 12px;
@@ -559,7 +559,7 @@ canvas.ball3d.ball-hero {
 }
 .match .group { background: var(--gold); color: var(--ink); }
 
-/* formulaire de pari : équipe (code drapeau) | input | "vs" | input | équipe */
+/* bet form: team (flag code) | input | "vs" | input | team */
 
 .bet-form {
     display: grid;
@@ -632,7 +632,7 @@ canvas.ball3d.ball-hero {
     letter-spacing: 0.06em;
 }
 
-/* matches terminés */
+/* finished matches */
 
 .match.finished { background: var(--paper); }
 .match.finished .final-score {
@@ -668,7 +668,7 @@ canvas.ball3d.ball-hero {
 }
 .bet-row strong, .bet-row .my-bet { color: var(--navy); font-style: normal; font-weight: 700; }
 
-/* tampon « vignette » sur les paris résolus */
+/* "sticker" stamp on resolved bets */
 .pts {
     display: inline-block;
     font-family: "Bebas Neue", sans-serif;
@@ -685,9 +685,9 @@ canvas.ball3d.ball-hero {
 .pts-1 { color: var(--gold); }
 .pts-0 { color: var(--red); opacity: 0.8; }
 
-/* --- Vignettes de résultat colorées selon les points gagnés --- */
+/* --- Result stickers coloured by the points earned --- */
 
-/* Score exact = jackpot : vert pétillant, liseré vert, ombre verte */
+/* Exact score = jackpot: sparkling green, green border, green shadow */
 .match.finished.result-3 {
     background:
         radial-gradient(circle at 85% 12%, rgba(46, 125, 74, 0.18), transparent 45%),
@@ -697,7 +697,7 @@ canvas.ball3d.ball-hero {
 }
 .match.finished.result-3::after { content: "🎯"; opacity: 0.18; }
 
-/* Bon vainqueur = doré chaleureux */
+/* Right winner = warm gold */
 .match.finished.result-1 {
     background: linear-gradient(165deg, #fdf3d6 0%, var(--paper-light) 65%);
     border-color: var(--gold);
@@ -705,14 +705,14 @@ canvas.ball3d.ball-hero {
 }
 .match.finished.result-1::after { content: "👍"; opacity: 0.16; }
 
-/* Raté = rouge atténué, ambiance "presque" */
+/* Missed = muted red, "almost" vibe */
 .match.finished.result-0 {
     background: linear-gradient(165deg, #fbe7e6 0%, var(--paper-light) 70%);
     border-color: var(--red);
 }
 .match.finished.result-0::after { content: "😬"; opacity: 0.16; }
 
-/* Pas de pari = terne, vignette grisée */
+/* No bet = dull, greyed-out sticker */
 .match.finished.result-none {
     background: repeating-linear-gradient(
         45deg, var(--paper) 0 10px, var(--paper-dark) 10px 20px);
@@ -720,15 +720,15 @@ canvas.ball3d.ball-hero {
 }
 .match.finished.result-none::after { content: "🙈"; opacity: 0.18; }
 
-/* En attente du résultat officiel */
+/* Awaiting the official result */
 .match.finished.result-pending { background: var(--paper); }
 
-/* Le score final reprend la couleur du résultat */
+/* The final score takes on the result colour */
 .match.finished.result-3 .final-score { color: var(--green); }
 .match.finished.result-1 .final-score { color: #9a7b16; }
 .match.finished.result-0 .final-score { color: var(--red); }
 
-/* Badge de points plus gros et plus claquant sur les vignettes terminées */
+/* Bigger, punchier points badge on finished stickers */
 .match.finished .bet-row .pts {
     font-size: 1.15rem;
     padding: 0.3rem 0.85rem;
@@ -736,9 +736,9 @@ canvas.ball3d.ball-hero {
     box-shadow: 2px 2px 0 rgba(26, 20, 17, 0.25);
 }
 
-/* --- Animations Captain Tsubasa sur /matches --- */
+/* --- Captain Tsubasa animations on /matches --- */
 
-/* 1. Stagger d'arrivée — les vignettes se collent dans l'ordre */
+/* 1. Entry stagger: stickers stick down in order */
 .matches .match {
     animation: card-stick-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
@@ -756,7 +756,7 @@ canvas.ball3d.ball-hero {
     100% { transform: translateY(0)    rotate(0)    scale(1);     opacity: 1; }
 }
 
-/* 2. Hover d'une vignette à parier : burst manga slide-in + lift, ballon watermark spinne */
+/* 2. Hover on a bettable sticker: manga burst slide-in + lift, watermark ball spins */
 .matches .match:not(.finished) {
     background-image: url("/static/manga-burst.svg");
     background-repeat: no-repeat;
@@ -781,7 +781,7 @@ canvas.ball3d.ball-hero {
     to   { transform: rotate(348deg); }
 }
 
-/* 3. Score exact (3 pts) = BUT ! : glow vert pulsé + sparkle qui tournoie */
+/* 3. Exact score (3 pts) = GOAL!: pulsing green glow + twirling sparkle */
 .match.finished .pts-3 {
     position: relative;
     animation: pts-3-glow 2s ease-in-out infinite;
@@ -816,7 +816,7 @@ canvas.ball3d.ball-hero {
     }
 }
 
-/* --- classement --- */
+/* --- leaderboard --- */
 
 table.leaderboard {
     width: 100%;
@@ -859,7 +859,7 @@ table.leaderboard td:nth-child(3) strong {
 .note { color: var(--ink-soft); font-style: italic; margin-top: 1rem; }
 .muted { color: var(--ink-soft); font-style: italic; }
 
-/* --- banner du but 3D au-dessus du classement --- */
+/* --- 3D goal banner above the leaderboard --- */
 .goal-banner {
     margin: 0.8rem 0 1.2rem;
     border: 2px solid var(--ink);
@@ -959,7 +959,7 @@ canvas.goal3d {
     table.leaderboard td.player-cell::before { content: none; }
 }
 
-/* --- widget Pot (cagnotte) --- */
+/* --- Pot widget (kitty) --- */
 .pot-widget {
     background: linear-gradient(135deg, #1d3557 0%, #122339 100%);
     color: var(--paper-light);
@@ -1022,7 +1022,7 @@ canvas.goal3d {
 
 .deadline-passed { color: #ff9a9a; font-weight: 700; }
 
-/* --- badges palier --- */
+/* --- tier badges --- */
 .tier-badge {
     display: inline-block;
     padding: 0.2rem 0.6rem;
@@ -1053,7 +1053,7 @@ canvas.goal3d {
 
 .payout { color: var(--green); font-family: "Bebas Neue", sans-serif; font-size: 1.1rem; }
 
-/* --- formulaire de palier --- */
+/* --- tier form --- */
 .tier-form {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -1111,13 +1111,13 @@ canvas.goal3d {
     transform: scale(1.12);
 }
 
-/* Tracé animé : chaque technique se dessine quand on coche le palier.
-   Les paths SVG ont stroke-dasharray ≈ longueur de tracé, on anime dashoffset. */
+/* Animated stroke: each technique draws itself when the tier is checked.
+   The SVG paths have stroke-dasharray near the path length, we animate dashoffset. */
 .tier-icon path,
 .tier-icon line,
 .tier-icon circle { transition: stroke-dashoffset 0.55s ease-out, opacity 0.3s ease-out; }
 
-/* Tier 2 — Petite passe : arc puis ball puis flèche */
+/* Tier 2 - Short pass: arc then ball then arrow */
 .tier-option.tier-2 .tier-icon path { stroke-dasharray: 70; stroke-dashoffset: 70; }
 .tier-option.tier-2 .tier-icon circle { opacity: 0.4; }
 .tier-option.tier-2:hover .tier-icon path,
@@ -1127,7 +1127,7 @@ canvas.goal3d {
 .tier-option.tier-2:hover .tier-icon circle,
 .tier-option.tier-2 input:checked + .tier-card .tier-icon circle { opacity: 1; }
 
-/* Tier 5 — Tir du tigre : 3 griffes en cascade */
+/* Tier 5 - Tiger shot: 3 claws in cascade */
 .tier-option.tier-5 .tier-icon path { stroke-dasharray: 85; stroke-dashoffset: 85; }
 .tier-option.tier-5 .tier-icon circle { opacity: 0.4; }
 .tier-option.tier-5:hover .tier-icon path:nth-of-type(1),
@@ -1147,7 +1147,7 @@ canvas.goal3d {
     opacity: 1; transition-delay: 0.36s;
 }
 
-/* Tier 10 — Catapulte infernale : arcs convergent + ball pulse + impact lines */
+/* Tier 10 - Infernal catapult: arcs converge + ball pulse + impact lines */
 .tier-option.tier-10 .tier-icon path { stroke-dasharray: 70; stroke-dashoffset: 70; }
 .tier-option.tier-10 .tier-icon line { opacity: 0; }
 .tier-option.tier-10 .tier-icon circle { transform-origin: 30px 32px; transform: scale(0.4); transform-box: fill-box; opacity: 0.5; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s; }
@@ -1192,7 +1192,7 @@ canvas.goal3d {
     .topbar { padding: 0.8rem 1rem; flex-wrap: wrap; gap: 0.6rem; }
 }
 
-/* --- Easter eggs Captain Tsubasa --- */
+/* --- Captain Tsubasa Easter eggs --- */
 
 .ee-olivier-active {
     position: absolute;
@@ -1329,7 +1329,7 @@ canvas.goal3d {
     .ee-catapulte { animation: none !important; }
 }
 
-/* --- Avatars Captain Tsubasa par joueur (leaderboard) --- */
+/* --- Captain Tsubasa avatars per player (leaderboard) --- */
 .player-cell {
     display: flex;
     align-items: center;
@@ -1357,7 +1357,7 @@ tr.me .player-avatar {
 }
 .player-name { line-height: 1.25; }
 
-/* --- Animation "Enregistré" sur la card après save htmx --- */
+/* --- "Saved" animation on the card after htmx save --- */
 
 .match.just-saved {
     animation: bet-saved 1.8s ease-out;
