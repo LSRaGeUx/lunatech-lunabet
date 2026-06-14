@@ -12,6 +12,7 @@ mod home;
 mod invitations;
 mod lang;
 mod leaderboard;
+mod logo;
 mod matches;
 mod platform;
 mod profile;
@@ -28,6 +29,7 @@ pub fn router() -> Router<AppState> {
         .route("/robots.txt", get(seo::robots))
         .route("/sitemap.xml", get(seo::sitemap))
         .route("/lang/:code", get(lang::set))
+        .route("/logo/:tenant_id", get(logo::serve))
         .route("/login", get(auth::login_page).post(auth::request_magic_link))
         .route("/login/sent", get(auth::login_sent))
         .route("/auth/callback", get(auth::callback))

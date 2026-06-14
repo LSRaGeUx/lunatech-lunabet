@@ -4,6 +4,7 @@ use sqlx::PgPool;
 
 use crate::config::Config;
 use crate::rate_limit::{EndpointRateLimiter, SignupRateLimiter};
+use crate::storage::LogoStore;
 use crate::tenant::TenantRegistry;
 
 #[derive(Clone)]
@@ -21,6 +22,8 @@ pub struct AppState {
     pub signup_limiter: SignupRateLimiter,
     /// Rate limiter for other endpoints (e.g., /login).
     pub endpoint_limiter: EndpointRateLimiter,
+    /// Where tenant logos are persisted (db / disk / s3), chosen at boot.
+    pub storage: LogoStore,
 }
 
 impl FromRef<AppState> for Key {

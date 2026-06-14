@@ -43,9 +43,14 @@ pub struct Config {
     /// in pre-DNS / single-tenant deployments to keep `/signup` reachable
     /// from any host.
     pub platform_url: Option<String>,
-    /// Filesystem directory for user-uploaded assets (tenant logos). Served
-    /// at `/uploads`. Kept outside `static/` so redeploys never clobber it.
+    /// Filesystem directory for user-uploaded assets when `storage_backend` is
+    /// `disk`. Served at `/uploads`. NOTE: a local directory does not survive a
+    /// redeploy on most platforms — prefer the default `db` backend.
     pub uploads_dir: String,
+    /// Where tenant logos are stored: `db` (default, bytes live in Postgres and
+    /// survive redeploys), `disk` (legacy local files under `uploads_dir`), or
+    /// `s3` (object storage — wired as an extension point, not yet implemented).
+    pub storage_backend: String,
     /// Amsterdam local hour (0-23) at which the daily recap email goes out. Each
     /// morning from this hour, the digest for the previous calendar day is sent
     /// once.
@@ -172,6 +177,12 @@ impl Config {
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| "uploads".into());
 
+        let storage_backend = env::var("STORAGE_BACKEND")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "db".into())
+            .to_ascii_lowercase();
+
         let daily_digest_hour = env::var("DAILY_DIGEST_HOUR")
             .ok()
             .and_then(|s| s.trim().parse::<u32>().ok())
@@ -235,6 +246,7 @@ impl Config {
             apex_hosts,
             platform_url,
             uploads_dir,
+            storage_backend,
             daily_digest_hour,
             today_matches_hour,
         })
