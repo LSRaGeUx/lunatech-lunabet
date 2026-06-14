@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Résultats", "Results") }} - LunaBet{% endblock %}
+{% block nav %}
+    <span class="user">{{ user_name }} - {{ total_points }} pts</span>
+    <a href="/today">{{ loc.f("Aujourd'hui", "Today") }}</a>
+    <a href="/matches">{{ loc.f("Mes pronos", "Predictions") }}</a>
+    <a href="/results" class="active">{{ loc.f("Résultats", "Results") }}</a>
+    <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
+    <a href="/stake">{{ loc.f("Ma mise", "My stake") }}</a>
+    {% if is_admin %}<a href="/admin/stakes">Admin</a>{% endif %}
+    {% if is_admin %}<a href="/admin/settings">{{ loc.f("Réglages", "Settings") }}</a>{% endif %}
+    <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
+{% endblock %}
+{% block content %}
+<h1>{{ loc.f("Résultats", "Results") }}</h1>
+
+{% if !has_results %}
+    <p>{{ loc.f(
+        "Aucun résultat pour le moment. Reviens après les premiers coups de sifflet.",
+        "No result yet. Come back after the first final whistles."
+    ) }}</p>
+    <p style="font-style: italic; opacity: 0.7;">{{ loc.f(
+        "« Le match ne fait que commencer ! »",
+        "« The match has only just begun! »"
+    ) }}</p>
+    {% if has_upcoming %}
+    <p><a href="/matches">{{ loc.f("Place tes pronostics", "Place your predictions") }} &rarr;</a></p>
+    {% endif %}
+{% else %}
+
+<nav class="stage-toc" aria-label="{{ loc.f("Aller à la phase", "Jump to stage") }}">
+    {% for s in sections %}
+        {% if !s.finished.is_empty() %}
+            <a href="#{{ s.anchor }}">{{ s.label }}</a>
+        {% endif %}
+    {% endfor %}
+</nav>
+
+{% for s in sections %}
+{% if !s.finished.is_empty() %}
+<section id="{{ s.anchor }}" class="stage-section">
+    <h2>{{ s.label }}</h2>
+    <div class="matches">
+        {% for v in s.finished %}
+        <article class="match finished{% match v.points %}{% when Some with (p) %} result-{{ p }}{% when None %}{% match v.bet_home %}{% when Some with (_) %} result-pending{% when None %} result-none{% endmatch %}{% endmatch %}" id="match-{{ v.m.id }}">
+            <header>
+                <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}" data-date-only>{{ v.m.kickoff_at.format("%a %d/%m") }} UTC</span>
+                {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
+            </header>
+            <div class="teams-row">
+                <span>{{ v.m.home_team }}</span>
+                <span>{{ v.m.away_team }}</span>
+            </div>
+            <div class="final-score">
+                <span>{% match v.m.home_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
+                <span class="sep">-</span>
+                <span>{% match v.m.away_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
+            </div>
+            <div class="bet-row">
+                {% match v.bet_home %}
+                    {% when Some with (bh) %}
+                        <span>{{ loc.f("Ton pari", "Your bet") }} : <strong>{{ bh }} - {% match v.bet_away %}{% when Some with (ba) %}{{ ba }}{% when None %}?{% endmatch %}</strong></span>
+                        {% match v.points %}
+                            {% when Some with (p) %}<span class="pts pts-{{ p }}">+{{ p }} pts</span>
+                            {% when None %}<em>{{ loc.f("en attente", "pending") }}</em>
+                        {% endmatch %}
+                    {% when None %}<span>{{ loc.f("Pas de pari", "No bet") }}</span><span class="pts pts-0">{{ loc.f("manqué", "missed") }}</span>
+                {% endmatch %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endfor %}
+
+{% endif %}
+
+<style>
+    .stage-toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 0.8rem;
+        margin: 0 0 1.5rem;
+        padding: 0.7rem 1rem;
+        background: var(--paper-light);
+        border: 2px solid var(--ink);
+        border-radius: 6px;
+        box-shadow: var(--shadow);
+        position: sticky;
+        top: 0;
+        z-index: 5;
+    }
+    .stage-toc a {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.06em;
+        color: var(--navy);
+        border: none;
+        padding: 0.2rem 0.6rem;
+        border-radius: 3px;
+        background: var(--paper);
+    }
+    .stage-toc a:hover { background: var(--gold-light); color: var(--ink); }
+    .stage-section { margin: 2rem 0; scroll-margin-top: 80px; }
+    .stage-section > h2 {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.06em;
+        color: var(--red);
+    }
+</style>
+{% endblock %}

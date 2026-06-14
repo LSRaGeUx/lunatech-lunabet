@@ -47,6 +47,7 @@ pub fn router() -> Router<AppState> {
         .route("/logout", post(auth::logout))
         .route("/today", get(today::page))
         .route("/matches", get(matches::list))
+        .route("/results", get(matches::results))
         .route("/matches/:id/bet", post(bets::place_or_update))
         .route("/leaderboard", get(leaderboard::index))
         .route("/stake", get(stake::page).post(stake::submit))

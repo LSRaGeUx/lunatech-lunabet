@@ -3,6 +3,8 @@
 {% block nav %}
     <span class="user">{{ user_name }} - {{ total_points }} pts</span>
     <a href="/today">{{ loc.f("Aujourd'hui", "Today") }}</a>
+    <a href="/matches" class="active">{{ loc.f("Mes pronos", "Predictions") }}</a>
+    <a href="/results">{{ loc.f("Résultats", "Results") }}</a>
     <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
     <a href="/stake">{{ loc.f("Ma mise", "My stake") }}</a>
     {% if is_admin %}<a href="/admin/stakes">Admin</a>{% endif %}
@@ -15,7 +17,7 @@
 {% block content %}
 <h1>{{ loc.f("Mes pronos", "My predictions") }}</h1>
 
-{% if sections.is_empty() %}
+{% if !has_upcoming %}
     <p>{{ loc.f(
         "Aucune vignette à coller pour le moment. Les matches arrivent via football-data.org.",
         "No prediction to place yet. Matches will arrive via football-data.org."
@@ -24,6 +26,9 @@
         "« Le terrain est immense ! » Patience, le coup d'envoi approche.",
         "« The pitch is huge! » Hang tight, kick-off is coming."
     ) }}</p>
+    {% if has_results %}
+    <p><a href="/results">{{ loc.f("Voir les résultats", "See the results") }} &rarr;</a></p>
+    {% endif %}
 {% else %}
 
 <div class="lucky-bar">
@@ -41,54 +46,12 @@
 </div>
 
 <nav class="stage-toc" aria-label="{{ loc.f("Aller à la phase", "Jump to stage") }}">
-    {% if has_results %}<a href="#results-top">{{ loc.f("Résultats", "Results") }}</a>{% endif %}
     {% for s in sections %}
         {% if !s.upcoming.is_empty() || !s.groups.is_empty() %}
             <a href="#{{ s.anchor }}">{{ s.label }}</a>
         {% endif %}
     {% endfor %}
 </nav>
-
-{% if has_results %}
-<section id="results-top" class="stage-section results-top">
-    <h2>{{ loc.f("Résultats", "Results") }}</h2>
-    {% for s in sections %}
-        {% if !s.finished.is_empty() %}
-        <h3 class="stage-subhead">{{ s.label }}</h3>
-        <div class="matches">
-            {% for v in s.finished %}
-            <article class="match finished{% match v.points %}{% when Some with (p) %} result-{{ p }}{% when None %}{% match v.bet_home %}{% when Some with (_) %} result-pending{% when None %} result-none{% endmatch %}{% endmatch %}" id="match-{{ v.m.id }}">
-                <header>
-                    <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}" data-date-only>{{ v.m.kickoff_at.format("%a %d/%m") }} UTC</span>
-                    {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
-                </header>
-                <div class="teams-row">
-                    <span>{{ v.m.home_team }}</span>
-                    <span>{{ v.m.away_team }}</span>
-                </div>
-                <div class="final-score">
-                    <span>{% match v.m.home_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
-                    <span class="sep">-</span>
-                    <span>{% match v.m.away_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
-                </div>
-                <div class="bet-row">
-                    {% match v.bet_home %}
-                        {% when Some with (bh) %}
-                            <span>{{ loc.f("Ton pari", "Your bet") }} : <strong>{{ bh }} - {% match v.bet_away %}{% when Some with (ba) %}{{ ba }}{% when None %}?{% endmatch %}</strong></span>
-                            {% match v.points %}
-                                {% when Some with (p) %}<span class="pts pts-{{ p }}">+{{ p }} pts</span>
-                                {% when None %}<em>{{ loc.f("en attente", "pending") }}</em>
-                            {% endmatch %}
-                        {% when None %}<span>{{ loc.f("Pas de pari", "No bet") }}</span><span class="pts pts-0">{{ loc.f("manqué", "missed") }}</span>
-                    {% endmatch %}
-                </div>
-            </article>
-            {% endfor %}
-        </div>
-        {% endif %}
-    {% endfor %}
-</section>
-{% endif %}
 
 {% for s in sections %}
 {% if !s.upcoming.is_empty() || !s.groups.is_empty() %}
@@ -131,11 +94,11 @@
                     <span class="code">{% match v.m.home_team_code %}{% when Some with (c) %}{{ c }}{% when None %}---{% endmatch %}</span>
                     <span class="name">{{ v.m.home_team }}</span>
                 </div>
-                <input type="number" name="home_score" min="0" max="30"
+                <input type="number" inputmode="numeric" name="home_score" min="0" max="30"
                        value="{% match v.bet_home %}{% when Some with (n) %}{{ n }}{% when None %}{% endmatch %}"
                        required {% if !v.open %}disabled{% endif %}>
                 <span class="sep">vs</span>
-                <input type="number" name="away_score" min="0" max="30"
+                <input type="number" inputmode="numeric" name="away_score" min="0" max="30"
                        value="{% match v.bet_away %}{% when Some with (n) %}{{ n }}{% when None %}{% endmatch %}"
                        required {% if !v.open %}disabled{% endif %}>
                 <div class="team away">

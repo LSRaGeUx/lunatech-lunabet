@@ -60,17 +60,93 @@ struct MatchesTpl<'a> {
     sections: Vec<StageSection>,
     total_points: i32,
     is_admin: bool,
-    /// True when at least one finished match exists, so the template renders
-    /// the Results block at the top of the page.
+    /// True when at least one finished match exists (links to /results).
     has_results: bool,
+    /// True when at least one match is still to predict.
+    has_upcoming: bool,
 }
 
+#[derive(Template)]
+#[template(path = "results.html")]
+struct ResultsTpl<'a> {
+    loc: Locale,
+    tenant: &'a Tenant,
+    user_name: &'a str,
+    sections: Vec<StageSection>,
+    total_points: i32,
+    is_admin: bool,
+    /// True when at least one finished match exists.
+    has_results: bool,
+    /// True when at least one match is still to predict (links to /matches).
+    has_upcoming: bool,
+}
+
+/// Predictions screen: matches still open for betting, grouped by stage.
 pub async fn list(
     State(state): State<AppState>,
     TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AuthUser(user): AuthUser,
 ) -> AppResult<Response> {
+    let (sections, total_points) = load_sections(&state, &tenant, &user, loc).await?;
+    let (has_results, has_upcoming) = section_flags(&sections);
+
+    let tpl = MatchesTpl {
+        loc,
+        tenant: &tenant,
+        user_name: &user.display_name,
+        sections,
+        total_points,
+        is_admin: user.is_admin,
+        has_results,
+        has_upcoming,
+    };
+    Ok(Html(tpl.render()?).into_response())
+}
+
+/// Results screen: finished matches with their outcomes and earned points.
+pub async fn results(
+    State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
+    loc: Locale,
+    AuthUser(user): AuthUser,
+) -> AppResult<Response> {
+    let (sections, total_points) = load_sections(&state, &tenant, &user, loc).await?;
+    let (has_results, has_upcoming) = section_flags(&sections);
+
+    let tpl = ResultsTpl {
+        loc,
+        tenant: &tenant,
+        user_name: &user.display_name,
+        sections,
+        total_points,
+        is_admin: user.is_admin,
+        has_results,
+        has_upcoming,
+    };
+    Ok(Html(tpl.render()?).into_response())
+}
+
+/// `(has_results, has_upcoming)` for the section list, used to drive empty
+/// states and cross-links between the two screens.
+fn section_flags(sections: &[StageSection]) -> (bool, bool) {
+    let has_results = sections.iter().any(|s| !s.finished.is_empty());
+    let has_upcoming = sections
+        .iter()
+        .any(|s| !s.upcoming.is_empty() || !s.groups.is_empty());
+    (has_results, has_upcoming)
+}
+
+/// Load every match for the tenant's user, bucket it into stage sections
+/// (each carrying both its upcoming and finished matches), and return the
+/// sections in canonical World Cup order together with the user's running
+/// points total.
+async fn load_sections(
+    state: &AppState,
+    tenant: &Tenant,
+    user: &crate::models::User,
+    loc: Locale,
+) -> AppResult<(Vec<StageSection>, i32)> {
     // Matches stay global in Phase 1 (one competition synced from
     // football-data). A future migration will associate matches with
     // tenants when we onboard a second competition.
@@ -143,18 +219,7 @@ pub async fn list(
         sections.push(build_section(&k, views, loc));
     }
 
-    let has_results = sections.iter().any(|s| !s.finished.is_empty());
-
-    let tpl = MatchesTpl {
-        loc,
-        tenant: &tenant,
-        user_name: &user.display_name,
-        sections,
-        total_points,
-        is_admin: user.is_admin,
-        has_results,
-    };
-    Ok(Html(tpl.render()?).into_response())
+    Ok((sections, total_points))
 }
 
 fn build_section(stage_key: &str, mut views: Vec<MatchView>, loc: Locale) -> StageSection {

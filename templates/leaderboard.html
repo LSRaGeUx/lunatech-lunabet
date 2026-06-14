@@ -3,7 +3,8 @@
 {% block nav %}
     <span class="user">{{ user_name }}</span>
     <a href="/today">{{ loc.f("Aujourd'hui", "Today") }}</a>
-    <a href="/matches">{{ loc.f("Matches", "Matches") }}</a>
+    <a href="/matches">{{ loc.f("Mes pronos", "Predictions") }}</a>
+    <a href="/results">{{ loc.f("Résultats", "Results") }}</a>
     <a href="/stake">{{ loc.f("Ma mise", "My stake") }}</a>
     {% if is_admin %}<a href="/admin/stakes">Admin</a>{% endif %}
     <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
@@ -52,24 +53,24 @@
     <tbody>
         {% for r in rows %}
         <tr {% if r.is_me %}class="me"{% endif %}>
-            <td>{{ r.rank }}</td>
-            <td class="player-cell">
+            <td data-label="#">{{ r.rank }}</td>
+            <td class="player-cell" data-label="{{ loc.f("Parieur", "Player") }}">
                 <img class="player-avatar" src="{{ r.avatar }}" alt="" aria-hidden="true">
                 <span class="player-name">
                     {{ r.display_name }}{% if r.is_me %} ({{ loc.f("toi", "you") }}){% endif %}
                     {% if !r.eligible %}<span class="non-eligible-badge">{{ loc.f("non éligible", "not eligible") }}</span>{% endif %}
                 </span>
             </td>
-            <td>
+            <td data-label="{{ loc.f("Mise", "Stake") }}">
                 {% match r.stake_eur %}
                     {% when Some with (s) %}<span class="tier-badge tier-{{ s }}">{{ s }} €</span>{% if !r.paid %} <em class="muted">{{ loc.f("non payé", "unpaid") }}</em>{% endif %}
                     {% when None %}<span class="muted">—</span>
                 {% endmatch %}
             </td>
-            <td><strong>{{ r.points }}</strong></td>
-            <td>{{ r.exact }}</td>
-            <td>{{ r.bets }}</td>
-            <td>
+            <td data-label="Points"><strong>{{ r.points }}</strong></td>
+            <td data-label="{{ loc.f("Scores exacts", "Exact scores") }}">{{ r.exact }}</td>
+            <td data-label="{{ loc.f("Paris résolus", "Settled bets") }}">{{ r.bets }}</td>
+            <td data-label="{{ loc.f("Gain estimé", "Estimated payout") }}">
                 {% match r.payout_eur %}
                     {% when Some with (p) %}<strong class="payout">{{ p|fmt("{:.2}") }} €</strong>
                     {% when None %}<span class="muted">—</span>
