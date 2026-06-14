@@ -1668,3 +1668,19 @@ tr.me .player-avatar {
 @media (prefers-reduced-motion: reduce) {
     .countdown-urgent { animation: none; }
 }
+
+/* Jokers (confidence multipliers) */
+.joker-flag {
+    background: var(--gold-light); color: var(--ink); font-weight: 800;
+    border: 1.5px solid var(--ink); border-radius: 4px; padding: 0 0.35rem;
+    font-size: 0.78rem; letter-spacing: 0.03em;
+}
+.joker-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.joker-btn {
+    cursor: pointer; font-weight: 700; border: 2px solid var(--ink); border-radius: 4px;
+    background: var(--paper-light); color: var(--navy); padding: 0.35rem 0.7rem;
+    font-size: 0.85rem; box-shadow: 2px 2px 0 var(--ink);
+}
+.joker-btn:hover { background: var(--gold-light); }
+.joker-btn.active { background: var(--gold-light); color: var(--ink); }
+.joker-help { font-size: 0.78rem; color: var(--ink-soft); }

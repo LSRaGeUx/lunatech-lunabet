@@ -113,8 +113,8 @@ pub async fn page(
     .await?;
 
     let ids: Vec<i64> = matches.iter().map(|m| m.id).collect();
-    let bets: Vec<(i64, i32, i32, Option<i32>)> = sqlx::query_as(
-        "SELECT match_id, home_score, away_score, points FROM bets \
+    let bets: Vec<(i64, i32, i32, Option<i32>, i32)> = sqlx::query_as(
+        "SELECT match_id, home_score, away_score, points, multiplier FROM bets \
          WHERE user_id = $1 AND tenant_id = $2 AND match_id = ANY($3)",
     )
     .bind(user.id)
@@ -122,8 +122,10 @@ pub async fn page(
     .bind(&ids)
     .fetch_all(&state.pool)
     .await?;
-    let bet_map: HashMap<i64, (i32, i32, Option<i32>)> =
-        bets.into_iter().map(|(m, h, a, p)| (m, (h, a, p))).collect();
+    let bet_map: HashMap<i64, (i32, i32, Option<i32>, i32)> = bets
+        .into_iter()
+        .map(|(m, h, a, p, mult)| (m, (h, a, p, mult)))
+        .collect();
 
     let mut today = Vec::new();
     let mut results = Vec::new();
@@ -132,9 +134,11 @@ pub async fn page(
         let view = MatchView {
             open: m.is_open_for_bets(),
             finished: m.has_final_result(),
-            bet_home: bet.map(|(h, _, _)| h),
-            bet_away: bet.map(|(_, a, _)| a),
-            points: bet.and_then(|(_, _, p)| p),
+            bet_home: bet.map(|(h, _, _, _)| h),
+            bet_away: bet.map(|(_, a, _, _)| a),
+            points: bet.and_then(|(_, _, p, _)| p),
+            is_joker: bet.map(|(_, _, _, mult)| mult == 2).unwrap_or(false),
+            jokers_enabled: tenant.jokers_enabled,
             m,
         };
         let ko = view.m.kickoff_at;

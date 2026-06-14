@@ -33,6 +33,8 @@ pub struct Tenant {
     pub membership_mode: String,
     /// Whether non-admin members may send invitations.
     pub members_can_invite: bool,
+    /// Whether players may flag one match per phase as a points-doubling joker.
+    pub jokers_enabled: bool,
 }
 
 #[derive(sqlx::FromRow)]
@@ -52,6 +54,7 @@ struct TenantRow {
     admin_emails: Vec<String>,
     membership_mode: String,
     members_can_invite: bool,
+    jokers_enabled: bool,
 }
 
 impl TryFrom<TenantRow> for Tenant {
@@ -80,6 +83,7 @@ impl TryFrom<TenantRow> for Tenant {
             admin_emails: r.admin_emails.into_iter().collect(),
             membership_mode: r.membership_mode,
             members_can_invite: r.members_can_invite,
+            jokers_enabled: r.jokers_enabled,
         })
     }
 }
@@ -112,7 +116,9 @@ pub async fn ensure_default(pool: &PgPool, cfg: &Config) -> anyhow::Result<Tenan
         RETURNING id, slug, name, allowed_email_pattern, logo_url,
                   primary_color, accent_color, football_competition,
                   stake_deadline, reminder_lead_minutes, slack_webhook_url,
-                  mail_from, admin_emails, membership_mode, members_can_invite
+                  mail_from, admin_emails, membership_mode, members_can_invite,
+               jokers_enabled,
+                  jokers_enabled
         "#,
     )
     .bind(&cfg.default_tenant_slug)
@@ -200,7 +206,8 @@ pub async fn load_all(pool: &PgPool) -> anyhow::Result<Vec<Tenant>> {
         SELECT id, slug, name, allowed_email_pattern, logo_url,
                primary_color, accent_color, football_competition,
                stake_deadline, reminder_lead_minutes, slack_webhook_url,
-               mail_from, admin_emails, membership_mode, members_can_invite
+               mail_from, admin_emails, membership_mode, members_can_invite,
+               jokers_enabled
         FROM tenants
         ORDER BY created_at ASC
         "#,
@@ -219,7 +226,8 @@ pub async fn resolve_by_slug(pool: &PgPool, slug: &str) -> anyhow::Result<Option
         SELECT id, slug, name, allowed_email_pattern, logo_url,
                primary_color, accent_color, football_competition,
                stake_deadline, reminder_lead_minutes, slack_webhook_url,
-               mail_from, admin_emails, membership_mode, members_can_invite
+               mail_from, admin_emails, membership_mode, members_can_invite,
+               jokers_enabled
         FROM tenants
         WHERE slug = $1
         "#,
@@ -410,6 +418,7 @@ impl Tenant {
             admin_emails: HashSet::new(),
             membership_mode: "domain".into(),
             members_can_invite: false,
+            jokers_enabled: false,
         }
     }
 }

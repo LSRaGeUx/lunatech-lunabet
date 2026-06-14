@@ -2,6 +2,7 @@
     <header>
         <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}">{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }} UTC</span>
         {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
+        {% if v.is_joker %}<span class="joker-flag" title="{{ loc.f("Joker : points doublés", "Joker: points doubled") }}">★ x2</span>{% endif %}
         <span class="saved-flag" aria-live="polite">✓ {{ loc.f("Enregistré", "Saved") }}</span>
     </header>
     <form method="post" action="/matches/{{ v.m.id }}/bet"
@@ -32,4 +33,16 @@
             {% endif %}
         </div>
     </form>
+    {% if v.jokers_enabled && v.open && v.bet_home.is_some() %}
+    <div class="joker-row">
+        <button type="button"
+                class="joker-btn{% if v.is_joker %} active{% endif %}"
+                hx-post="/matches/{{ v.m.id }}/joker"
+                hx-target="closest article"
+                hx-swap="outerHTML">
+            {% if v.is_joker %}★ {{ loc.f("Joker posé (retirer)", "Joker set (remove)") }}{% else %}{{ loc.f("Poser mon joker x2", "Set my joker x2") }}{% endif %}
+        </button>
+        <span class="joker-help">{{ loc.f("Un joker par phase : double tes points.", "One joker per phase: double your points.") }}</span>
+    </div>
+    {% endif %}
 </article>

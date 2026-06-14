@@ -55,6 +55,7 @@ pub fn router() -> Router<AppState> {
         .route("/matches", get(matches::list))
         .route("/results", get(matches::results))
         .route("/matches/:id/bet", post(bets::place_or_update))
+        .route("/matches/:id/joker", post(bets::toggle_joker))
         .route("/leaderboard", get(leaderboard::index))
         .route("/me", get(profile::me))
         .route("/profile", get(profile::me))

@@ -92,7 +92,7 @@ async fn load_profile_stats(
         r#"
         SELECT
             COUNT(*) FILTER (WHERE b.points IS NOT NULL)::BIGINT,
-            COUNT(*) FILTER (WHERE b.points = 3)::BIGINT,
+            COUNT(*) FILTER (WHERE b.points >= 3)::BIGINT,
             COUNT(*) FILTER (WHERE b.points >= 1)::BIGINT
         FROM bets b
         JOIN matches m ON m.id = b.match_id
@@ -111,7 +111,7 @@ async fn load_profile_stats(
         SELECT m.home_team, m.away_team, m.home_score, m.away_score
         FROM bets b
         JOIN matches m ON m.id = b.match_id
-        WHERE b.tenant_id = $1 AND b.user_id = $2 AND b.points = 3
+        WHERE b.tenant_id = $1 AND b.user_id = $2 AND b.points >= 3
           AND m.status = 'FINISHED'
           AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL
         ORDER BY (m.home_score + m.away_score) DESC, m.kickoff_at DESC

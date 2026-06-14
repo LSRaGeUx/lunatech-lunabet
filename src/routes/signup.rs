@@ -454,6 +454,7 @@ pub async fn verify(
             admin_emails: Default::default(),
             membership_mode: "domain".into(),
             members_can_invite: false,
+            jokers_enabled: false,
         };
         format!("{}/today", synthetic.public_url(&state.cfg))
     } else {

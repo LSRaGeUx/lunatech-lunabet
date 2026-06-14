@@ -123,7 +123,7 @@ pub async fn evaluate_all(pool: &PgPool) -> anyhow::Result<()> {
         INSERT INTO achievements (tenant_id, user_id, code)
         SELECT u.tenant_id, u.id, 'first_exact'
         FROM users u
-        WHERE EXISTS (SELECT 1 FROM bets b WHERE b.user_id = u.id AND b.points = 3)
+        WHERE EXISTS (SELECT 1 FROM bets b WHERE b.user_id = u.id AND b.points >= 3)
         ON CONFLICT DO NOTHING
         "#,
     )
@@ -141,7 +141,7 @@ pub async fn evaluate_all(pool: &PgPool) -> anyhow::Result<()> {
         JOIN matches m ON m.id = b.match_id
         WHERE m.status = 'FINISHED' AND b.points IS NOT NULL
         GROUP BY u.tenant_id, b.user_id, (m.kickoff_at AT TIME ZONE 'UTC')::date
-        HAVING COUNT(*) >= 2 AND MIN(b.points) = 3
+        HAVING COUNT(*) >= 2 AND MIN(b.points) >= 3
         ON CONFLICT DO NOTHING
         "#,
     )
