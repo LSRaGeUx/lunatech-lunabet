@@ -13,17 +13,24 @@ use axum::extract::State;
 use axum::response::{Html, IntoResponse, Response};
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 
+use serde_json::json;
+
 use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::models::Match;
 use crate::routes::auth::AuthUser;
 use crate::routes::matches::MatchView;
+use crate::scoring;
 use crate::stakes;
 use crate::state::AppState;
 use crate::tenant::{Tenant, TenantCtx};
 
 /// CEST is UTC+2 (summer time, in effect for the whole tournament).
 const CEST_OFFSET_HOURS: i64 = 2;
+
+/// At most this many wins are celebrated one by one; beyond it we show a single
+/// aggregate ("5 winning picks, +11 pts") instead of a flurry of animations.
+const CELEBRATE_CAP: usize = 3;
 
 pub struct Standing {
     pub rank: usize,
@@ -46,6 +53,9 @@ struct TodayTpl<'a> {
     today: Vec<MatchView>,
     results: Vec<MatchView>,
     standings: Vec<Standing>,
+    /// JSON payload (or `None`) consumed by `celebrate.js` to fire a one-shot
+    /// animation for the user's freshly-won, not-yet-seen predictions.
+    celebrate_json: Option<String>,
 }
 
 fn utc_at(d: NaiveDate, hour: u32, min: u32) -> DateTime<Utc> {
@@ -140,6 +150,8 @@ pub async fn page(
         .map(|r| r.points as i32)
         .unwrap_or(0);
 
+    let celebrate_json = build_celebration(&state, &tenant, &user, loc).await?;
+
     let fmt = |d: NaiveDate| d.format("%d/%m").to_string();
     let tpl = TodayTpl {
         loc,
@@ -153,6 +165,81 @@ pub async fn page(
         today,
         results,
         standings,
+        celebrate_json,
     };
     Ok(Html(tpl.render()?).into_response())
+}
+
+/// Build the celebration payload for `user`: their winning bets that have been
+/// settled but not yet shown. Reads the unseen wins first, then marks every
+/// settled-and-unseen bet (wins and losses) as seen so each result is
+/// celebrated at most once. Returns `None` when there is nothing to celebrate.
+async fn build_celebration(
+    state: &AppState,
+    tenant: &Tenant,
+    user: &crate::models::User,
+    loc: Locale,
+) -> AppResult<Option<String>> {
+    let unseen_wins: Vec<(String, String, i32)> = sqlx::query_as(
+        r#"
+        SELECT m.home_team, m.away_team, b.points
+        FROM bets b
+        JOIN matches m ON m.id = b.match_id
+        WHERE b.user_id = $1 AND b.tenant_id = $2
+          AND b.points IS NOT NULL AND b.points > 0
+          AND b.result_seen_at IS NULL
+        ORDER BY m.kickoff_at ASC
+        "#,
+    )
+    .bind(user.id)
+    .bind(tenant.id)
+    .fetch_all(&state.pool)
+    .await?;
+
+    // Mark every settled-and-unseen bet as seen, wins and losses alike, so we
+    // never replay them. Idempotent: a second load updates nothing.
+    sqlx::query(
+        "UPDATE bets SET result_seen_at = NOW() \
+         WHERE user_id = $1 AND tenant_id = $2 \
+           AND points IS NOT NULL AND result_seen_at IS NULL",
+    )
+    .bind(user.id)
+    .bind(tenant.id)
+    .execute(&state.pool)
+    .await?;
+
+    if unseen_wins.is_empty() {
+        return Ok(None);
+    }
+
+    let payload = if unseen_wins.len() <= CELEBRATE_CAP {
+        let wins: Vec<_> = unseen_wins
+            .iter()
+            .map(|(home, away, points)| {
+                let exact = *points >= scoring::POINTS_EXACT;
+                json!({
+                    "label": format!("{home} - {away}"),
+                    "points": points,
+                    "level": if exact { "exact" } else { "outcome" },
+                    "message": if exact {
+                        loc.f("Score exact ! +3", "Exact score! +3")
+                    } else {
+                        loc.f("Bien vu ! +1", "Nice! +1")
+                    },
+                })
+            })
+            .collect();
+        json!({ "mode": "individual", "wins": wins })
+    } else {
+        let total: i32 = unseen_wins.iter().map(|(_, _, p)| p).sum();
+        let count = unseen_wins.len();
+        let message = match loc {
+            Locale::Fr => format!("{count} pronos gagnés, +{total} pts"),
+            Locale::En => format!("{count} winning picks, +{total} pts"),
+        };
+        json!({ "mode": "aggregate", "count": count, "points": total, "message": message })
+    };
+
+    // Escape `<` so the JSON can sit safely inside a <script> tag.
+    Ok(Some(payload.to_string().replace('<', "\\u003c")))
 }

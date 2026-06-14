@@ -130,6 +130,13 @@
     <p style="margin-top:0.6rem;"><a href="/leaderboard">{{ loc.f("Classement complet", "Full leaderboard") }} &rarr;</a></p>
 </section>
 
+{% match celebrate_json %}
+{% when Some with (j) %}
+<script id="celebrate-data" type="application/json">{{ j|safe }}</script>
+<script defer src="/static/celebrate.js"></script>
+{% when None %}
+{% endmatch %}
+
 <style>
     .stage-section { margin: 1.5rem 0; }
     .stage-section > h2 {
