@@ -8,6 +8,24 @@ use crate::config::Config;
 use crate::i18n::Locale;
 use crate::tenant::Tenant;
 
+/// Build an absolute URL from an instance `base_url` and an app-relative path
+/// like `/static/badges/x.svg`. Used for every asset referenced from an email,
+/// where relative URLs don't resolve in a mail client.
+pub fn absolute_url(base_url: &str, rel: &str) -> String {
+    format!("{}{}", base_url.trim_end_matches('/'), rel)
+}
+
+/// Absolute URL to the tenant's logo for use in an email: the tenant's own logo
+/// when set (an already-absolute `http(s)` URL is used as-is, a relative path is
+/// resolved against `base_url`), otherwise the LunaBet default asset.
+fn tenant_logo_url(tenant: &Tenant, base_url: &str) -> String {
+    match tenant.logo_url.as_deref() {
+        Some(u) if u.starts_with("http") => u.to_string(),
+        Some(rel) => absolute_url(base_url, rel),
+        None => absolute_url(base_url, "/static/lunatech-logo.svg"),
+    }
+}
+
 #[derive(Template)]
 #[template(path = "emails/magic_link.html")]
 struct MagicLinkHtml<'a> {
@@ -60,11 +78,7 @@ pub async fn send_invitation(
     inviter_name: &str,
     link: &str,
 ) -> anyhow::Result<()> {
-    let logo_url = match tenant.logo_url.as_deref() {
-        Some(u) if u.starts_with("http") => u.to_string(),
-        Some(rel) => format!("{}{}", base_url.trim_end_matches('/'), rel),
-        None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
-    };
+    let logo_url = tenant_logo_url(tenant, base_url);
     let html = InvitationHtml { loc, tenant, inviter_name, link, logo_url: &logo_url }.render()?;
 
     let plain = format!(
@@ -101,11 +115,7 @@ pub async fn send_magic_link(
     to: &str,
     link: &str,
 ) -> anyhow::Result<()> {
-    let logo_url = match tenant.logo_url.as_deref() {
-        Some(u) if u.starts_with("http") => u.to_string(),
-        Some(rel) => format!("{}{}", base_url.trim_end_matches('/'), rel),
-        None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
-    };
+    let logo_url = tenant_logo_url(tenant, base_url);
     let html = MagicLinkHtml { loc, tenant, link, logo_url: &logo_url }.render()?;
 
     let plain = format!(
@@ -151,11 +161,7 @@ pub async fn send_bet_reminder(
     base_url: &str,
 ) -> anyhow::Result<()> {
     let matches_url = format!("{}/matches", base_url.trim_end_matches('/'));
-    let logo_url = match tenant.logo_url.as_deref() {
-        Some(u) if u.starts_with("http") => u.to_string(),
-        Some(rel) => format!("{}{}", base_url.trim_end_matches('/'), rel),
-        None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
-    };
+    let logo_url = tenant_logo_url(tenant, base_url);
     let html = MatchReminderHtml {
         loc,
         tenant,
@@ -250,7 +256,7 @@ pub async fn send_signup_verification(
     // can't use its mail_from. Always send from the platform's MAIL_FROM,
     // which the relay knows about.
     let from = &cfg.mail_from;
-    let logo_url = format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/'));
+    let logo_url = absolute_url(base_url, "/static/lunatech-logo.svg");
     let html = SignupVerificationHtml {
         loc,
         new_tenant_name,
@@ -324,11 +330,7 @@ pub async fn send_today_matches_email(
     base_url: &str,
 ) -> anyhow::Result<()> {
     let matches_url = format!("{}/matches", base_url.trim_end_matches('/'));
-    let logo_url = match tenant.logo_url.as_deref() {
-        Some(u) if u.starts_with("http") => u.to_string(),
-        Some(rel) => format!("{}{}", base_url.trim_end_matches('/'), rel),
-        None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
-    };
+    let logo_url = tenant_logo_url(tenant, base_url);
     let html = TodayMatchesHtml {
         loc,
         tenant,
@@ -438,11 +440,7 @@ pub async fn send_daily_digest_email(
     base_url: &str,
 ) -> anyhow::Result<()> {
     let leaderboard_url = format!("{}/leaderboard", base_url.trim_end_matches('/'));
-    let logo_url = match tenant.logo_url.as_deref() {
-        Some(u) if u.starts_with("http") => u.to_string(),
-        Some(rel) => format!("{}{}", base_url.trim_end_matches('/'), rel),
-        None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
-    };
+    let logo_url = tenant_logo_url(tenant, base_url);
     let html = DailyDigestHtml {
         loc,
         tenant,
@@ -538,11 +536,7 @@ pub async fn send_badge_unlock_email(
     base_url: &str,
 ) -> anyhow::Result<()> {
     let profile_url = format!("{}/me", base_url.trim_end_matches('/'));
-    let logo_url = match tenant.logo_url.as_deref() {
-        Some(u) if u.starts_with("http") => u.to_string(),
-        Some(rel) => format!("{}{}", base_url.trim_end_matches('/'), rel),
-        None => format!("{}/static/lunatech-logo.svg", base_url.trim_end_matches('/')),
-    };
+    let logo_url = tenant_logo_url(tenant, base_url);
     let html = BadgeUnlockHtml {
         loc,
         tenant,
@@ -578,15 +572,11 @@ pub async fn send_badge_unlock_email(
     );
 
     let subject = if badges.len() > 1 {
-        match loc {
-            Locale::Fr => format!("🏅 Nouveaux badges débloqués - {}", tenant.name),
-            Locale::En => format!("🏅 New badges unlocked - {}", tenant.name),
-        }
+        let label = loc.f("Nouveaux badges débloqués", "New badges unlocked");
+        format!("🏅 {label} - {}", tenant.name)
     } else {
-        match loc {
-            Locale::Fr => format!("🏅 {} - {}", badges[0].name, tenant.name),
-            Locale::En => format!("🏅 {} - {}", badges[0].name, tenant.name),
-        }
+        // Single badge: lead with its (already localised) name.
+        format!("🏅 {} - {}", badges[0].name, tenant.name)
     };
     send_html_email(cfg, &cfg.mail_from, to, &subject, plain, html).await
 }
