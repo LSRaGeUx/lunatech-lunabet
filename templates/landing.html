@@ -3,28 +3,28 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LunaBet — {{ loc.f("Pronos foot d'entreprise", "Office football predictions") }}</title>
+    <title>LunaBet : {{ loc.f("pronos foot entre collègues ou amis", "football predictions with colleagues or friends") }}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <meta name="robots" content="index, follow">
     <meta name="description" content="{{ loc.f(
-        "LunaBet : crée ton espace de pronostics foot entre collègues pour la Coupe du Monde 2026. Pronostique chaque match, marque des points et grimpe au classement. Gratuit.",
-        "LunaBet: create your office football prediction pool for the 2026 FIFA World Cup. Predict every match, score points and climb the leaderboard. Free."
+        "LunaBet : crée ton espace de pronostics foot entre collègues ou entre amis pour la Coupe du Monde 2026. Pronostique chaque match, marque des points et grimpe au classement. Gratuit.",
+        "LunaBet: create your football prediction pool with colleagues or friends for the 2026 FIFA World Cup. Predict every match, score points and climb the leaderboard. Free."
     ) }}">
     <link rel="canonical" href="{{ canonical }}">
     <meta name="theme-color" content="#1d3557">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="LunaBet">
-    <meta property="og:title" content="LunaBet — {{ loc.f("Pronos foot d'entreprise", "Office football predictions") }}">
+    <meta property="og:title" content="LunaBet : {{ loc.f("pronos foot entre collègues ou amis", "football predictions with colleagues or friends") }}">
     <meta property="og:description" content="{{ loc.f(
-        "Crée ton espace de pronostics entre collègues pour la Coupe du Monde 2026.",
-        "Create your office prediction pool for the 2026 FIFA World Cup."
+        "Crée ton espace de pronostics entre collègues ou entre amis pour la Coupe du Monde 2026.",
+        "Create your prediction pool with colleagues or friends for the 2026 FIFA World Cup."
     ) }}">
     <meta property="og:url" content="{{ canonical }}">
     <meta property="og:image" content="{{ og_image }}">
     <meta property="og:locale" content="{% if loc.code() == "fr" %}fr_FR{% else %}en_US{% endif %}">
     <meta name="twitter:card" content="summary">
     <script type="application/ld+json">
-    {"@context":"https://schema.org","@type":"WebSite","name":"LunaBet","url":"{{ canonical }}","description":"{{ loc.f("Pronostics foot d'entreprise pour la Coupe du Monde 2026.", "Office football predictions for the 2026 FIFA World Cup.") }}"}
+    {"@context":"https://schema.org","@type":"WebSite","name":"LunaBet","url":"{{ canonical }}","description":"{{ loc.f("Pronostics foot entre collègues ou amis pour la Coupe du Monde 2026.", "Football predictions with colleagues or friends for the 2026 FIFA World Cup.") }}"}
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -67,14 +67,14 @@
             <h1>LunaBet</h1>
             <p style="font-size: 1.25rem;">
                 {{ loc.f(
-                    "Les pronos foot d'entreprise — sans la galère.",
-                    "Office football predictions — without the hassle."
+                    "Les pronos foot entre collègues ou entre amis, sans la galère.",
+                    "Football predictions with colleagues or friends, without the hassle."
                 ) }}
             </p>
             <p style="font-style: italic; opacity: 0.75; margin-top: 0.3rem;">
                 {{ loc.f(
-                    "« Le ballon est ton ami. » — Olivier Atton",
-                    "« The ball is your friend. » — Tsubasa Ozora"
+                    "« Le ballon est ton ami. » Olivier Atton",
+                    "« The ball is your friend. » Tsubasa Ozora"
                 ) }}
             </p>
             <p style="margin-top: 1.5rem;">
@@ -91,8 +91,8 @@
                     <span class="how-num">1</span>
                     <h3>{{ loc.f("Crée ton espace", "Claim your space") }}</h3>
                     <p>{{ loc.f(
-                        "Choisis un slug, confirme par email. Ton équipe te rejoint via le domaine de votre boîte mail.",
-                        "Pick a slug, confirm by email. Your team joins through your work email domain."
+                        "Choisis un slug, confirme par email. En entreprise, ton équipe rejoint via le domaine de votre boîte mail ; entre amis, tu invites qui tu veux par email.",
+                        "Pick a slug, confirm by email. For a company, your team joins through your work email domain; with friends, you invite whoever you want by email."
                     ) }}</p>
                 </article>
                 <article class="how-step">
@@ -120,10 +120,25 @@
                 <li>⚽ {{ loc.f("Sync automatique des matches via football-data.org", "Automatic match sync via football-data.org") }}</li>
                 <li>📧 {{ loc.f("Connexion par magic link, pas de mot de passe", "Magic-link sign-in, no passwords") }}</li>
                 <li>🐯 {{ loc.f("Rappels par email avant chaque coup d'envoi", "Email reminders before kick-off") }}</li>
+                <li>✉️ {{ loc.f("Invite tes amis par email, ou ouvre l'accès à tout un domaine", "Invite friends by email, or open access to a whole domain") }}</li>
                 <li>💬 {{ loc.f("Notifications Slack optionnelles", "Optional Slack notifications") }}</li>
                 <li>🎨 {{ loc.f("Brandé à tes couleurs et ton logo", "Themed to your colours and your logo") }}</li>
                 <li>🇫🇷 {{ loc.f("Bilingue FR / EN", "Bilingual FR / EN") }}</li>
             </ul>
+        </section>
+
+        <section class="friends-callout">
+            <span class="friends-emoji" aria-hidden="true">🤝</span>
+            <div>
+                <h2>{{ loc.f("Entre amis aussi", "With friends too") }}</h2>
+                <p>{{ loc.f(
+                    "Pas besoin d'email pro. Crée un espace privé et invite tes potes par email : chaque invité peut à son tour inviter les siens.",
+                    "No work email needed. Create a private space and invite your friends by email: each guest can invite their own friends in turn."
+                ) }}</p>
+                <p style="margin-bottom: 0;">
+                    <a class="btn" href="/signup">{{ loc.f("Créer un espace entre amis", "Create a space with friends") }} →</a>
+                </p>
+            </div>
         </section>
 
         <section style="margin-top: 3rem; text-align: center;">
@@ -142,7 +157,7 @@
     <footer class="pitch-footer">
         <div class="pitch-circle" aria-hidden="true"></div>
         <div class="pitch-line" aria-hidden="true"></div>
-        <small>LunaBet · {{ loc.f("Pronos foot d'entreprise", "Office football predictions") }}</small>
+        <small>LunaBet · {{ loc.f("Pronos foot entre collègues ou amis", "Football predictions with colleagues or friends") }}</small>
     </footer>
 
     <style>
@@ -197,6 +212,23 @@
         .how-features li {
             padding: 0.4rem 0;
             font-size: 1rem;
+        }
+        .friends-callout {
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            margin: 2.5rem 0;
+            padding: 1.5rem 1.8rem;
+            background: var(--gold-light);
+            border: 2px solid var(--ink);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        .friends-callout .friends-emoji { font-size: 3rem; line-height: 1; }
+        .friends-callout h2 { margin: 0 0 0.4rem; }
+        .friends-callout p { margin: 0 0 0.8rem; }
+        @media (max-width: 560px) {
+            .friends-callout { flex-direction: column; text-align: center; }
         }
     </style>
 </body>
