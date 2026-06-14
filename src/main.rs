@@ -169,6 +169,14 @@ async fn main() -> anyhow::Result<()> {
         endpoint_limiter,
     };
 
+    // Mark every badge already earned (or retroactively grantable) as announced
+    // before the scoring loop can email anything, so turning the feature on — or
+    // adding a new badge later — never blasts players their whole history. Runs
+    // synchronously here so it completes before the first scoring tick fires.
+    if let Err(e) = notifications::init_badge_notifications(&state).await {
+        tracing::warn!("badge notification init failed: {e:#}");
+    }
+
     if cfg.football_data_api_key.is_some() {
         let s = state.clone();
         tokio::spawn(async move {
@@ -196,6 +204,9 @@ async fn main() -> anyhow::Result<()> {
                 }
                 if let Err(e) = achievements::evaluate_all(&s.pool).await {
                     tracing::warn!("achievement evaluation failed: {e:#}");
+                }
+                if let Err(e) = notifications::send_badge_unlocks(&s).await {
+                    tracing::warn!("badge unlock emails failed: {e:#}");
                 }
                 if let Err(e) = notifications::send_match_reminders(&s).await {
                     tracing::warn!("match reminders failed: {e:#}");

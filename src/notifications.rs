@@ -173,6 +173,152 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
     Ok(())
 }
 
+/// One-time-per-code backfill guard for badge-unlock emails. The first time a
+/// catalogue code is seen, every grant of it that already exists is stamped as
+/// already-announced (without emailing) and the code is recorded in
+/// `badge_notify_codes`. This is what actually prevents an email blast when the
+/// feature ships (the whole catalogue is "new" against an empty table) and when
+/// a new badge is added later (`evaluate_all` back-grants it to all qualifying
+/// users). Grants of an already-recorded code are left untouched so genuine
+/// unlocks still get emailed. Idempotent and cheap once every code is recorded,
+/// so it's safe to run on every startup.
+pub async fn init_badge_notifications(state: &AppState) -> anyhow::Result<()> {
+    // Populate the table first so "grants that already exist" reflects current
+    // standings, not whatever happened to be there before this process started.
+    crate::achievements::evaluate_all(&state.pool).await?;
+
+    let recorded: Vec<(String,)> = sqlx::query_as("SELECT code FROM badge_notify_codes")
+        .fetch_all(&state.pool)
+        .await?;
+    let recorded: std::collections::HashSet<String> = recorded.into_iter().map(|(c,)| c).collect();
+
+    for def in crate::achievements::CATALOG {
+        if recorded.contains(def.code) {
+            continue;
+        }
+        // Brand-new code: treat every pre-existing grant as already announced.
+        sqlx::query("UPDATE achievements SET notified_at = NOW() WHERE code = $1 AND notified_at IS NULL")
+            .bind(def.code)
+            .execute(&state.pool)
+            .await?;
+        sqlx::query("INSERT INTO badge_notify_codes (code) VALUES ($1) ON CONFLICT DO NOTHING")
+            .bind(def.code)
+            .execute(&state.pool)
+            .await?;
+        tracing::info!(code = def.code, "badge notifications initialised (existing grants backfilled)");
+    }
+    Ok(())
+}
+
+/// Email every player the badges they just unlocked. Picks up `achievements`
+/// rows not yet emailed (`notified_at IS NULL`), sends one message per player
+/// listing all their fresh badges, then stamps the rows it announced. Idempotent
+/// via `notified_at`, so it's safe to call on every scoring tick: badges already
+/// emailed are skipped, and a send failure leaves the row unstamped to retry.
+/// Relies on [`init_badge_notifications`] having run first so retroactive grants
+/// don't trigger a blast.
+pub async fn send_badge_unlocks(state: &AppState) -> anyhow::Result<()> {
+    for t in tenant::load_all(&state.pool).await? {
+        if let Err(e) = badge_unlocks_for_tenant(state, &t).await {
+            tracing::warn!(tenant = %t.slug, "badge unlock emails failed: {e:#}");
+        }
+    }
+    Ok(())
+}
+
+async fn badge_unlocks_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()> {
+    // Unannounced badges with their owner's contact details, in earned order so
+    // a player's email lists the badges in the sequence they unlocked them.
+    let rows: Vec<(Uuid, String, String, String)> = sqlx::query_as(
+        r#"
+        SELECT a.user_id, u.email, u.lang, a.code
+        FROM achievements a
+        JOIN users u ON u.id = a.user_id AND u.tenant_id = a.tenant_id
+        WHERE a.tenant_id = $1 AND a.notified_at IS NULL
+        ORDER BY a.user_id, a.earned_at
+        "#,
+    )
+    .bind(tenant.id)
+    .fetch_all(&state.pool)
+    .await?;
+
+    if rows.is_empty() {
+        return Ok(());
+    }
+
+    // Group the fresh badges per player, preserving order.
+    let mut per_user: Vec<(Uuid, String, String, Vec<String>)> = Vec::new();
+    for (uid, email, lang, code) in rows {
+        match per_user.last_mut() {
+            Some((last_uid, _, _, codes)) if *last_uid == uid => codes.push(code),
+            _ => per_user.push((uid, email, lang, vec![code])),
+        }
+    }
+
+    let tenant_url = tenant.public_url(&state.cfg);
+    let mut sent = 0usize;
+    let mut failed = 0usize;
+    for (uid, email, lang, codes) in &per_user {
+        let loc = crate::i18n::Locale::from_code(lang).unwrap_or_default();
+        // Resolve only the codes this binary knows about. An unknown code is left
+        // unstamped (notified_at stays NULL) so it's retried: during a rolling
+        // deploy a newer node may have added a badge this node hasn't learned yet
+        // — stamping it here would silently drop that user's email forever.
+        let known: Vec<&String> = codes
+            .iter()
+            .filter(|c| crate::achievements::def(c).is_some())
+            .collect();
+        if known.is_empty() {
+            continue;
+        }
+        let badges: Vec<mail::BadgeUnlock> = known
+            .iter()
+            .filter_map(|c| crate::achievements::def(c))
+            .map(|d| mail::BadgeUnlock {
+                name: d.name(loc).to_string(),
+                desc: d.desc(loc).to_string(),
+                icon_url: mail::absolute_url(&tenant_url, &d.icon_path()),
+            })
+            .collect();
+
+        match mail::send_badge_unlock_email(&state.cfg, tenant, loc, email, &badges, &tenant_url)
+            .await
+        {
+            Ok(_) => sent += 1,
+            Err(e) => {
+                failed += 1;
+                tracing::warn!("badge unlock email to {email} failed: {e:#}");
+                // Leave notified_at NULL so the next tick retries this user.
+                continue;
+            }
+        }
+
+        // Stamp only the codes we actually announced. A failure here (after the
+        // email already went out) must not abort the whole tenant batch, so log
+        // and continue rather than `?`: at worst the row stays NULL and the next
+        // tick re-sends — at-least-once is preferred over dropping the rest of
+        // the batch.
+        let known_codes: Vec<String> = known.iter().map(|c| (*c).clone()).collect();
+        if let Err(e) = sqlx::query(
+            "UPDATE achievements SET notified_at = NOW() \
+             WHERE tenant_id = $1 AND user_id = $2 AND code = ANY($3) AND notified_at IS NULL",
+        )
+        .bind(tenant.id)
+        .bind(uid)
+        .bind(&known_codes)
+        .execute(&state.pool)
+        .await
+        {
+            tracing::warn!(user = %uid, "stamping badge notifications failed: {e:#}");
+        }
+    }
+
+    if sent > 0 || failed > 0 {
+        tracing::info!(tenant = %tenant.slug, "badge unlocks: {sent} emails sent, {failed} failed");
+    }
+    Ok(())
+}
+
 /// Daily recap: for the given UTC calendar `date`, email every user of every
 /// tenant the day's results, the points they earned that day, and the current
 /// leaderboard. Idempotent per (tenant, date) via the `daily_digests` table, so
