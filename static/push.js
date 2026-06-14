@@ -9,7 +9,6 @@
     const statusEl = document.getElementById('push-status');
     const enableBtn = document.getElementById('push-enable');
     const disableBtn = document.getElementById('push-disable');
-    const prefsForm = document.getElementById('push-prefs');
 
     // iOS only exposes Web Push to an installed PWA (16.4+); plain Safari tabs
     // report no PushManager. Bail with a clear note rather than a dead button.
@@ -21,10 +20,12 @@
     const show = (el) => el && el.removeAttribute('hidden');
     const hide = (el) => el && el.setAttribute('hidden', '');
 
-    const setStatus = (msg, isError) => {
+    // state: 'on' | 'off' | 'error'
+    const setStatus = (msg, state) => {
         if (!statusEl) return;
         statusEl.textContent = msg;
-        statusEl.classList.toggle('is-error', !!isError);
+        statusEl.classList.toggle('is-error', state === 'error');
+        statusEl.classList.toggle('is-on', state === 'on');
         show(statusEl);
     };
 
@@ -59,10 +60,10 @@
         if (Notification.permission === 'denied') {
             setStatus(
                 t(
-                    'Les notifications sont bloquées dans les réglages du navigateur.',
-                    'Notifications are blocked in your browser settings.'
+                    'Bloquées dans les réglages du navigateur.',
+                    'Blocked in your browser settings.'
                 ),
-                true
+                'error'
             );
             hide(enableBtn);
             hide(disableBtn);
@@ -71,15 +72,13 @@
         const reg = await getRegistration();
         const sub = reg ? await reg.pushManager.getSubscription() : null;
         if (sub) {
-            setStatus(t('Notifications activées sur cet appareil.', 'Notifications enabled on this device.'));
+            setStatus(t('Activées sur cet appareil', 'On for this device'), 'on');
             hide(enableBtn);
             show(disableBtn);
-            show(prefsForm);
         } else {
-            setStatus(t('Notifications désactivées sur cet appareil.', 'Notifications off on this device.'));
+            setStatus(t('Désactivées sur cet appareil', 'Off for this device'), 'off');
             show(enableBtn);
             hide(disableBtn);
-            hide(prefsForm);
         }
     };
 
@@ -88,7 +87,7 @@
         try {
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
-                setStatus(t('Permission refusée.', 'Permission denied.'), true);
+                setStatus(t('Permission refusée.', 'Permission denied.'), 'error');
                 return;
             }
             const keyResp = await fetch('/push/public-key');
@@ -107,10 +106,10 @@
                 body: JSON.stringify(sub),
             });
             if (!resp.ok) throw new Error('subscribe failed');
-            setStatus(t('Notifications activées 🎉', 'Notifications enabled 🎉'));
+            setStatus(t('Activées 🎉', 'Enabled 🎉'), 'on');
         } catch (err) {
             console.warn('LunaBet push subscribe failed', err);
-            setStatus(t("Impossible d'activer les notifications.", 'Could not enable notifications.'), true);
+            setStatus(t("Impossible d'activer.", 'Could not enable.'), 'error');
         } finally {
             enableBtn.disabled = false;
             await refresh();

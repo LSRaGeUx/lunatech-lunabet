@@ -11,7 +11,7 @@ Chaque spec est autonome: objectif, modele de donnees, backend, UI, i18n, cas li
 
 Deja en place et reutilisable comme socle:
 
-- Pronostic de score exact, scoring auto 3 / 1 / 0 toutes les 5 min ([src/scoring.rs](../src/scoring.rs)).
+- Pronostic de score exact, scoring auto 3 / 1 / 0 dans la boucle de sync, polling adaptatif (1 min en match, 10 min sinon, spec 13) ([src/scoring.rs](../src/scoring.rs)).
 - Classement avec cagnotte reelle et estimation de gains ([src/stakes.rs](../src/stakes.rs)).
 - Avatars deterministes Captain Tsubasa ([src/characters.rs](../src/characters.rs)).
 - Easter eggs ([static/easter-eggs.js](../static/easter-eggs.js)) et bouton "I feel lucky" ([static/lucky.js](../static/lucky.js)).
@@ -37,6 +37,7 @@ Deja en place et reutilisable comme socle:
 | 10 | [Defis hebdomadaires](10-weekly-challenges.md) | Objectifs courts | Basse | M |
 | 11 | [Espaces sur invitation (mode amis)](11-invite-based-orgs.md) | Croissance / onboarding | Haute | M |
 | 12 | [Client mobile iOS et Android (Tauri)](12-mobile-tauri.md) | Distribution / reengagement | Moyenne | L |
+| 13 | [Push live: score et top 5](13-live-score-push.md) | Dopamine / reengagement | Moyenne | M |
 
 Effort: S = 1 a 2 jours, M = 3 a 5 jours, L = 1 a 2 semaines (estimations indicatives, un developpeur).
 

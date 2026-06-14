@@ -33,6 +33,31 @@ mod webpush;
 
 use state::AppState;
 
+/// Is a match live now, or close enough that we should be polling fast?
+///
+/// True when any match is IN_PLAY / PAUSED, or is scheduled within a window
+/// around its kickoff (from 10 min before to 3 h after) and hasn't been marked
+/// finished/cancelled. The kickoff window keeps us polling fast even if the
+/// provider's `status` field lags the real kick-off, so the live-score push
+/// (spec 13) stays prompt without polling fast around the clock. On a query
+/// error we assume active (poll fast), which is the safer side for freshness.
+async fn any_match_active(pool: &sqlx::PgPool) -> bool {
+    sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS (
+            SELECT 1 FROM matches
+            WHERE status IN ('IN_PLAY', 'PAUSED')
+               OR (status IN ('SCHEDULED', 'TIMED')
+                   AND kickoff_at <= NOW() + INTERVAL '10 minutes'
+                   AND kickoff_at >= NOW() - INTERVAL '180 minutes')
+        )
+        "#,
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap_or(true)
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let _ = dotenvy::dotenv();
@@ -106,6 +131,46 @@ async fn main() -> anyhow::Result<()> {
             .await
             .context("running match reminders")?;
         println!("Match reminder job completed.");
+        return Ok(());
+    }
+
+    if std::env::args().nth(1).as_deref() == Some("live-score") {
+        // One-off: run the live-score push job once and exit (for testing).
+        let cookie_key = Key::from(&vec![0u8; 64]);
+        let state = AppState {
+            pool: pool.clone(),
+            cookie_key,
+            cfg: cfg.clone(),
+            http: reqwest::Client::builder().user_agent("lunatech-betting/0.1").build()?,
+            tenants: tenants.clone(),
+            signup_limiter: signup_limiter.clone(),
+            endpoint_limiter: endpoint_limiter.clone(),
+            storage: storage::LogoStore::from_config(&cfg)?,
+        };
+        notifications::send_live_score_updates(&state)
+            .await
+            .context("running live score push")?;
+        println!("Live score push job completed.");
+        return Ok(());
+    }
+
+    if std::env::args().nth(1).as_deref() == Some("rank-alerts") {
+        // One-off: run the rank-change push job once and exit (for testing).
+        let cookie_key = Key::from(&vec![0u8; 64]);
+        let state = AppState {
+            pool: pool.clone(),
+            cookie_key,
+            cfg: cfg.clone(),
+            http: reqwest::Client::builder().user_agent("lunatech-betting/0.1").build()?,
+            tenants: tenants.clone(),
+            signup_limiter: signup_limiter.clone(),
+            endpoint_limiter: endpoint_limiter.clone(),
+            storage: storage::LogoStore::from_config(&cfg)?,
+        };
+        notifications::send_rank_alerts(&state)
+            .await
+            .context("running rank alerts")?;
+        println!("Rank alert job completed.");
         return Ok(());
     }
 
@@ -205,10 +270,19 @@ async fn main() -> anyhow::Result<()> {
     {
         let s = state.clone();
         tokio::spawn(async move {
-            let mut ticker = tokio::time::interval(std::time::Duration::from_secs(300));
-            ticker.tick().await;
+            // Adaptive polling (spec 13). football-data.org's ToS require scaling
+            // request frequency to match activity to avoid IP bans, so we poll
+            // every minute while a match is live (or about to be) and back off to
+            // every 10 min when nothing is happening. Every job in the loop is
+            // idempotent, so the variable cadence only changes data freshness.
+            const LIVE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
+            const IDLE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(600);
+
+            // The boot block above already ran one immediate sync; start eager so
+            // a match that is live at startup is polled quickly, then self-adjust.
+            let mut delay = LIVE_INTERVAL;
             loop {
-                ticker.tick().await;
+                tokio::time::sleep(delay).await;
                 if let Err(e) = football_data::sync_fixtures(&s).await {
                     tracing::warn!("fixtures sync failed: {e:#}");
                 }
@@ -224,9 +298,26 @@ async fn main() -> anyhow::Result<()> {
                 if let Err(e) = notifications::send_badge_unlocks(&s).await {
                     tracing::warn!("badge unlock emails failed: {e:#}");
                 }
+                // Live score + top-5 broadcast on every goal / final whistle.
+                // Runs after scoring so a final-whistle push carries fresh points.
+                if let Err(e) = notifications::send_live_score_updates(&s).await {
+                    tracing::warn!("live score push failed: {e:#}");
+                }
+                // Push players a heads-up when they climb the board.
+                if let Err(e) = notifications::send_rank_alerts(&s).await {
+                    tracing::warn!("rank alerts failed: {e:#}");
+                }
                 if let Err(e) = notifications::send_match_reminders(&s).await {
                     tracing::warn!("match reminders failed: {e:#}");
                 }
+
+                // Decide how long to wait before the next poll based on whether a
+                // match is live now (or imminent / should be live).
+                delay = if any_match_active(&s.pool).await {
+                    LIVE_INTERVAL
+                } else {
+                    IDLE_INTERVAL
+                };
             }
         });
     }
