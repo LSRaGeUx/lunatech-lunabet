@@ -124,5 +124,5 @@ pub async fn login_as(
     }
     let jar = jar.add(builder.build());
 
-    Ok((jar, Redirect::to("/matches")).into_response())
+    Ok((jar, Redirect::to("/today")).into_response())
 }

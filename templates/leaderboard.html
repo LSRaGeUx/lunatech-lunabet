@@ -2,6 +2,7 @@
 {% block title %}{{ loc.f("Classement", "Leaderboard") }} - LunaBet{% endblock %}
 {% block nav %}
     <span class="user">{{ user_name }}</span>
+    <a href="/today">{{ loc.f("Aujourd'hui", "Today") }}</a>
     <a href="/matches">{{ loc.f("Matches", "Matches") }}</a>
     <a href="/stake">{{ loc.f("Ma mise", "My stake") }}</a>
     {% if is_admin %}<a href="/admin/stakes">Admin</a>{% endif %}

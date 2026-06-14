@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Aujourd'hui", "Today") }} - LunaBet{% endblock %}
+{% block nav %}
+    <span class="user">{{ user_name }} - {{ total_points }} pts</span>
+    <a href="/matches">{{ loc.f("Mes pronos", "My predictions") }}</a>
+    <a href="/leaderboard">{{ loc.f("Classement", "Leaderboard") }}</a>
+    <a href="/stake">{{ loc.f("Ma mise", "My stake") }}</a>
+    {% if is_admin %}<a href="/admin/stakes">Admin</a>{% endif %}
+    {% if is_admin %}<a href="/admin/settings">{{ loc.f("Réglages", "Settings") }}</a>{% endif %}
+    <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
+{% endblock %}
+{% block content %}
+<h1>{{ loc.f("Aujourd'hui", "Today") }}</h1>
+
+<section class="stage-section">
+    <h2>{{ loc.f("Matchs du jour", "Today's matches") }} <span class="day-tag">{{ today_label }}</span></h2>
+    {% if today.is_empty() %}
+        <p class="empty-note">{{ loc.f("Aucun match dans la fenêtre du jour.", "No match in today's window.") }}</p>
+    {% else %}
+    <div class="matches">
+        {% for v in today %}
+        {% if v.finished %}
+        <article class="match finished{% match v.points %}{% when Some with (p) %} result-{{ p }}{% when None %}{% match v.bet_home %}{% when Some with (_) %} result-pending{% when None %} result-none{% endmatch %}{% endmatch %}" id="match-{{ v.m.id }}">
+            <header>
+                <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}">{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }} UTC</span>
+                {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
+            </header>
+            <div class="teams-row"><span>{{ v.m.home_team }}</span><span>{{ v.m.away_team }}</span></div>
+            <div class="final-score">
+                <span>{% match v.m.home_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
+                <span class="sep">-</span>
+                <span>{% match v.m.away_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
+            </div>
+            <div class="bet-row">
+                {% match v.bet_home %}
+                    {% when Some with (bh) %}
+                        <span>{{ loc.f("Ton pari", "Your bet") }} : <strong>{{ bh }} - {% match v.bet_away %}{% when Some with (ba) %}{{ ba }}{% when None %}?{% endmatch %}</strong></span>
+                        {% match v.points %}
+                            {% when Some with (p) %}<span class="pts pts-{{ p }}">+{{ p }} pts</span>
+                            {% when None %}<em>{{ loc.f("en attente", "pending") }}</em>
+                        {% endmatch %}
+                    {% when None %}<span>{{ loc.f("Pas de pari", "No bet") }}</span><span class="pts pts-0">{{ loc.f("manqué", "missed") }}</span>
+                {% endmatch %}
+            </div>
+        </article>
+        {% else %}
+        <article class="match" id="match-{{ v.m.id }}">
+            <header>
+                <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}">{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }} UTC</span>
+                {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
+            </header>
+            <form method="post" action="/matches/{{ v.m.id }}/bet"
+                  hx-post="/matches/{{ v.m.id }}/bet"
+                  hx-target="closest article"
+                  hx-swap="outerHTML"
+                  class="bet-form">
+                <div class="team home">
+                    <span class="code">{% match v.m.home_team_code %}{% when Some with (c) %}{{ c }}{% when None %}---{% endmatch %}</span>
+                    <span class="name">{{ v.m.home_team }}</span>
+                </div>
+                <input type="number" name="home_score" min="0" max="30"
+                       value="{% match v.bet_home %}{% when Some with (n) %}{{ n }}{% when None %}{% endmatch %}"
+                       required {% if !v.open %}disabled{% endif %}>
+                <span class="sep">vs</span>
+                <input type="number" name="away_score" min="0" max="30"
+                       value="{% match v.bet_away %}{% when Some with (n) %}{{ n }}{% when None %}{% endmatch %}"
+                       required {% if !v.open %}disabled{% endif %}>
+                <div class="team away">
+                    <span class="code">{% match v.m.away_team_code %}{% when Some with (c) %}{{ c }}{% when None %}---{% endmatch %}</span>
+                    <span class="name">{{ v.m.away_team }}</span>
+                </div>
+                <div class="submit-row">
+                    {% if v.open %}
+                        {% match v.bet_home %}
+                            {% when Some with (_) %}<span class="my-bet">{{ loc.f("Ton pari est noté", "Your bet is in") }}</span><button class="btn" type="submit">{{ loc.f("Modifier", "Change") }}</button>
+                            {% when None %}<span class="my-bet">{{ loc.f("Place ton pronostic", "Place your prediction") }}</span><button class="btn" type="submit">{{ loc.f("Coller la vignette", "Stick the sticker") }}</button>
+                        {% endmatch %}
+                    {% else %}
+                        <span class="closed">{{ loc.f("Paris fermés - match en cours", "Bets closed - match in progress") }}</span>
+                    {% endif %}
+                </div>
+            </form>
+        </article>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+
+<section class="stage-section">
+    <h2>{{ loc.f("Résultats de la veille", "Yesterday's results") }} <span class="day-tag">{{ yest_label }}</span></h2>
+    {% if results.is_empty() %}
+        <p class="empty-note">{{ loc.f("Aucun résultat dans la fenêtre de la veille.", "No result in yesterday's window.") }}</p>
+    {% else %}
+    <div class="matches">
+        {% for v in results %}
+        <article class="match finished{% match v.points %}{% when Some with (p) %} result-{{ p }}{% when None %}{% match v.bet_home %}{% when Some with (_) %} result-pending{% when None %} result-none{% endmatch %}{% endmatch %}" id="match-{{ v.m.id }}">
+            <header>
+                <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}" data-date-only>{{ v.m.kickoff_at.format("%a %d/%m") }} UTC</span>
+                {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
+            </header>
+            <div class="teams-row"><span>{{ v.m.home_team }}</span><span>{{ v.m.away_team }}</span></div>
+            <div class="final-score">
+                <span>{% match v.m.home_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
+                <span class="sep">-</span>
+                <span>{% match v.m.away_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
+            </div>
+            <div class="bet-row">
+                {% match v.bet_home %}
+                    {% when Some with (bh) %}
+                        <span>{{ loc.f("Ton pari", "Your bet") }} : <strong>{{ bh }} - {% match v.bet_away %}{% when Some with (ba) %}{{ ba }}{% when None %}?{% endmatch %}</strong></span>
+                        {% match v.points %}
+                            {% when Some with (p) %}<span class="pts pts-{{ p }}">+{{ p }} pts</span>
+                            {% when None %}<em>{{ loc.f("en attente", "pending") }}</em>
+                        {% endmatch %}
+                    {% when None %}<span>{{ loc.f("Pas de pari", "No bet") }}</span><span class="pts pts-0">{{ loc.f("manqué", "missed") }}</span>
+                {% endmatch %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+
+<section class="stage-section">
+    <h2>{{ loc.f("Classement", "Leaderboard") }}</h2>
+    <table class="today-board">
+        <tbody>
+        {% for s in standings %}
+        <tr{% if s.is_me %} class="me"{% endif %}>
+            <td class="rk">{{ s.rank }}</td>
+            <td class="nm">{{ s.name }}</td>
+            <td class="pt">{{ s.points }} pts</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <p style="margin-top:0.6rem;"><a href="/leaderboard">{{ loc.f("Classement complet", "Full leaderboard") }} &rarr;</a></p>
+</section>
+
+<style>
+    .stage-section { margin: 1.5rem 0; }
+    .stage-section > h2 {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.06em;
+        color: var(--red);
+    }
+    .day-tag {
+        font-family: "Bebas Neue", sans-serif;
+        background: var(--navy); color: var(--paper-light);
+        font-size: 0.8rem; padding: 0.1rem 0.5rem; border-radius: 3px;
+        vertical-align: middle; letter-spacing: 0.04em;
+    }
+    .empty-note { font-style: italic; opacity: 0.7; }
+    .today-board {
+        width: 100%; max-width: 480px; border-collapse: collapse;
+        background: var(--paper-light); border: 2px solid var(--ink);
+        border-radius: 6px; overflow: hidden; box-shadow: var(--shadow);
+    }
+    .today-board td { padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--paper-dark); }
+    .today-board tr:last-child td { border-bottom: none; }
+    .today-board .rk { font-family: "Bebas Neue", sans-serif; color: var(--navy); width: 2.5rem; }
+    .today-board .pt { text-align: right; font-weight: 700; color: var(--green); white-space: nowrap; }
+    .today-board tr.me { background: var(--gold-light); }
+    .today-board tr.me .nm { font-weight: 700; }
+</style>
+{% endblock %}

@@ -43,7 +43,7 @@ pub async fn index(
 ) -> AppResult<Response> {
     if let Some(tenant) = maybe_tenant {
         if auth::current_user(&state, &tenant, &jar).await?.is_some() {
-            return Ok(Redirect::to("/matches").into_response());
+            return Ok(Redirect::to("/today").into_response());
         }
         return Ok(Html(HomeTpl { loc, tenant: &tenant }.render()?).into_response());
     }

@@ -17,6 +17,7 @@ mod signup;
 mod stake;
 mod super_admin;
 mod tenant_settings;
+mod today;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -44,6 +45,7 @@ pub fn router() -> Router<AppState> {
             post(platform::send_today_matches),
         )
         .route("/logout", post(auth::logout))
+        .route("/today", get(today::page))
         .route("/matches", get(matches::list))
         .route("/matches/:id/bet", post(bets::place_or_update))
         .route("/leaderboard", get(leaderboard::index))

@@ -429,9 +429,9 @@ pub async fn verify(
             mail_from: String::new(),
             admin_emails: Default::default(),
         };
-        format!("{}/matches", synthetic.public_url(&state.cfg))
+        format!("{}/today", synthetic.public_url(&state.cfg))
     } else {
-        "/matches".to_string()
+        "/today".to_string()
     };
 
     Ok((jar, Redirect::to(&new_tenant_url)).into_response())
