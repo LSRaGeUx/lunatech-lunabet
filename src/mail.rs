@@ -344,6 +344,12 @@ pub struct DigestStanding {
     pub is_me: bool,
 }
 
+/// Best predictor of the recap day, highlighted at the top of the email.
+pub struct DigestPotd {
+    pub name: String,
+    pub points: i64,
+}
+
 #[derive(Template)]
 #[template(path = "emails/daily_digest.html")]
 struct DailyDigestHtml<'a> {
@@ -352,6 +358,7 @@ struct DailyDigestHtml<'a> {
     logo_url: &'a str,
     day_label: &'a str,
     results: &'a [DigestResult],
+    potd: Option<&'a DigestPotd>,
     my_points: i64,
     my_rank: usize,
     my_total: i64,
@@ -369,6 +376,7 @@ pub async fn send_daily_digest_email(
     to: &str,
     day_label: &str,
     results: &[DigestResult],
+    potd: Option<&DigestPotd>,
     my_points: i64,
     my_rank: usize,
     my_total: i64,
@@ -387,6 +395,7 @@ pub async fn send_daily_digest_email(
         logo_url: &logo_url,
         day_label,
         results,
+        potd,
         my_points,
         my_rank,
         my_total,
@@ -408,9 +417,17 @@ pub async fn send_daily_digest_email(
         let me = if s.is_me { "  <--" } else { "" };
         board_txt.push_str(&format!("  {}. {} - {} pts{}\n", s.rank, s.name, s.points, me));
     }
+    let potd_line = match potd {
+        Some(p) => match loc {
+            Locale::Fr => format!("\n🏆 Joueur du jour : {} ({} pts)\n", p.name, p.points),
+            Locale::En => format!("\n🏆 Player of the day: {} ({} pts)\n", p.name, p.points),
+        },
+        None => String::new(),
+    };
     let plain = format!(
         "{hi}\n\n\
-         {res_h}\n{results_txt}\n\
+         {res_h}\n{results_txt}\
+         {potd_line}\n\
          {pts_line}\n\n\
          {rank_line}\n\n\
          {board_h}\n{board_txt}\n\

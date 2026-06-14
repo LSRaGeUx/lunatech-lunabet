@@ -13,7 +13,9 @@ use axum::extract::State;
 use axum::response::{Html, IntoResponse, Response};
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 
+use crate::characters;
 use crate::error::AppResult;
+use crate::highlights;
 use crate::i18n::Locale;
 use crate::models::Match;
 use crate::routes::auth::AuthUser;
@@ -33,6 +35,13 @@ pub struct Standing {
     pub current_streak: i32,
 }
 
+pub struct PlayerOfDay {
+    pub name: String,
+    pub points: i64,
+    pub avatar: String,
+    pub is_me: bool,
+}
+
 #[derive(Template)]
 #[template(path = "today.html")]
 struct TodayTpl<'a> {
@@ -49,6 +58,7 @@ struct TodayTpl<'a> {
     today: Vec<MatchView>,
     results: Vec<MatchView>,
     standings: Vec<Standing>,
+    player_of_day: Option<PlayerOfDay>,
 }
 
 fn utc_at(d: NaiveDate, hour: u32, min: u32) -> DateTime<Utc> {
@@ -143,6 +153,22 @@ pub async fn page(
     let current_streak = me.map(|r| r.current_streak).unwrap_or(0);
     let best_streak = me.map(|r| r.best_streak).unwrap_or(0);
 
+    // Player of the day reflects the previous completed calendar day (UTC),
+    // matching the daily digest that records it. Read-only here: the digest job
+    // is what computes and stores it.
+    let potd_date = Utc::now().date_naive().pred_opt();
+    let player_of_day = match potd_date {
+        Some(d) => highlights::player_of_the_day(&state.pool, tenant.id, d)
+            .await?
+            .map(|p| PlayerOfDay {
+                name: p.display_name,
+                points: p.points,
+                avatar: characters::path_for(p.user_id),
+                is_me: p.user_id == user.id,
+            }),
+        None => None,
+    };
+
     let fmt = |d: NaiveDate| d.format("%d/%m").to_string();
     let tpl = TodayTpl {
         loc,
@@ -158,6 +184,7 @@ pub async fn page(
         today,
         results,
         standings,
+        player_of_day,
     };
     Ok(Html(tpl.render()?).into_response())
 }
