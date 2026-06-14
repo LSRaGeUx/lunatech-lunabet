@@ -30,6 +30,7 @@ pub struct Standing {
     pub name: String,
     pub points: i64,
     pub is_me: bool,
+    pub current_streak: i32,
 }
 
 #[derive(Template)]
@@ -39,6 +40,8 @@ struct TodayTpl<'a> {
     tenant: &'a Tenant,
     user_name: &'a str,
     total_points: i32,
+    current_streak: i32,
+    best_streak: i32,
     is_admin: bool,
     nav_active: &'static str,
     today_label: String,
@@ -132,13 +135,13 @@ pub async fn page(
             name: r.display_name.clone(),
             points: r.points,
             is_me: r.user_id == user.id,
+            current_streak: r.current_streak,
         })
         .collect();
-    let total_points = board
-        .iter()
-        .find(|r| r.user_id == user.id)
-        .map(|r| r.points as i32)
-        .unwrap_or(0);
+    let me = board.iter().find(|r| r.user_id == user.id);
+    let total_points = me.map(|r| r.points as i32).unwrap_or(0);
+    let current_streak = me.map(|r| r.current_streak).unwrap_or(0);
+    let best_streak = me.map(|r| r.best_streak).unwrap_or(0);
 
     let fmt = |d: NaiveDate| d.format("%d/%m").to_string();
     let tpl = TodayTpl {
@@ -146,6 +149,8 @@ pub async fn page(
         tenant: &tenant,
         user_name: &user.display_name,
         total_points,
+        current_streak,
+        best_streak,
         is_admin: user.is_admin,
         nav_active: "today",
         today_label: fmt(today_cest),
