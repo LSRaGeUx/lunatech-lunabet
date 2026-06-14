@@ -1393,3 +1393,39 @@ tr.me .player-avatar {
     .match.just-saved { animation: none; }
     .saved-flag { animation: none; opacity: 1; transform: none; }
 }
+
+/* --- kickoff countdown (countdown.js) --- */
+.countdown {
+    margin-left: auto;
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.04em;
+    font-size: 0.8rem;
+    color: var(--navy);
+    background: var(--paper-light);
+    border: 1px solid var(--paper-dark);
+    border-radius: 999px;
+    padding: 0.05rem 0.55rem;
+    white-space: nowrap;
+}
+.countdown-urgent {
+    color: var(--paper-light);
+    background: var(--red);
+    border-color: var(--red-dark);
+    animation: countdown-pulse 1.1s ease-in-out infinite;
+}
+@keyframes countdown-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+}
+.countdown-closed {
+    color: var(--ink-soft);
+    background: var(--paper-dark);
+    border-color: var(--ink-soft);
+    animation: none;
+}
+.match.locked { opacity: 0.7; }
+.match.locked .bet-form input { background: var(--paper-dark); }
+
+@media (prefers-reduced-motion: reduce) {
+    .countdown-urgent { animation: none; }
+}
