@@ -71,6 +71,11 @@ struct ProfileTpl<'a> {
     /// Names of badges unlocked since the last visit, for the toast. Always
     /// empty on a public profile.
     unlocked: Vec<&'static str>,
+    // Notifications card (only meaningful on the viewer's own profile).
+    /// Whether the deployment has Web Push configured (VAPID keys present).
+    push_available: bool,
+    /// The viewer's current master push toggle.
+    notify_push: bool,
 }
 
 /// Accuracy counts plus the best and worst call for one player, all derived
@@ -177,6 +182,7 @@ async fn render_profile(
     subject: &LeaderboardRow,
     board: &[LeaderboardRow],
     unlocked: Vec<&'static str>,
+    notify_push: bool,
 ) -> AppResult<Response> {
     let earned: std::collections::HashSet<String> =
         achievements::earned_codes(&state.pool, tenant.id, subject.user_id)
@@ -247,6 +253,8 @@ async fn render_profile(
         best_call: stats.best_call,
         worst_call: stats.worst_call,
         unlocked,
+        push_available: state.cfg.vapid.is_some(),
+        notify_push,
     };
     Ok(Html(tpl.render()?).into_response())
 }
@@ -271,7 +279,12 @@ pub async fn me(
         .filter_map(|code| achievements::def(code).map(|d| d.name(loc)))
         .collect();
 
-    render_profile(&state, &tenant, loc, &user, &subject, &board, unlocked).await
+    let notify_push: bool = sqlx::query_scalar("SELECT notify_push FROM users WHERE id = $1")
+        .bind(user.id)
+        .fetch_one(&state.pool)
+        .await?;
+
+    render_profile(&state, &tenant, loc, &user, &subject, &board, unlocked, notify_push).await
 }
 
 /// Read-only public profile of another member of the same tenant.
@@ -294,7 +307,9 @@ pub async fn public(
         )
             .into_response());
     };
-    render_profile(&state, &tenant, loc, &user, &subject, &board, Vec::new()).await
+    // Notifications card is only shown on the viewer's own profile, so the
+    // toggle value is irrelevant here.
+    render_profile(&state, &tenant, loc, &user, &subject, &board, Vec::new(), false).await
 }
 
 /// One row of the head-to-head match list.

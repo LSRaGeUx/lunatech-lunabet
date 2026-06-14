@@ -16,6 +16,7 @@ mod logo;
 mod matches;
 mod platform;
 mod profile;
+mod push;
 mod pwa;
 mod seo;
 mod signup;
@@ -33,6 +34,10 @@ pub fn router() -> Router<AppState> {
         .route("/logo/:tenant_id", get(logo::serve))
         .route("/manifest.webmanifest", get(pwa::manifest))
         .route("/sw.js", get(pwa::service_worker))
+        .route("/push/public-key", get(push::public_key))
+        .route("/push/subscribe", post(push::subscribe))
+        .route("/push/unsubscribe", post(push::unsubscribe))
+        .route("/push/preferences", post(push::preferences))
         .route("/login", get(auth::login_page).post(auth::request_magic_link))
         .route("/login/sent", get(auth::login_sent))
         .route("/auth/callback", get(auth::callback))

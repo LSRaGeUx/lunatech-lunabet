@@ -59,6 +59,10 @@ pub struct Config {
     /// goes out. Sent once per day per tenant, covering the matches kicking off
     /// that day.
     pub today_matches_hour: u32,
+    /// VAPID identity for Web Push, built from `VAPID_PRIVATE_KEY` /
+    /// `VAPID_PUBLIC_KEY` / `VAPID_SUBJECT`. `None` (push disabled) when the
+    /// keys are unset or invalid — the rest of the app works unchanged.
+    pub vapid: Option<crate::webpush::Vapid>,
 }
 
 impl Config {
@@ -208,6 +212,35 @@ impl Config {
             })
             .collect();
 
+        // Web Push VAPID identity. Both keys must be present to enable push;
+        // an invalid key is logged and treated as "push disabled" rather than
+        // aborting boot, so a typo never takes the whole app down.
+        let vapid_subject = env::var("VAPID_SUBJECT")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| format!("mailto:{mail_from}"));
+        let vapid = match (
+            env::var("VAPID_PRIVATE_KEY").ok().filter(|s| !s.is_empty()),
+            env::var("VAPID_PUBLIC_KEY").ok().filter(|s| !s.is_empty()),
+        ) {
+            (Some(priv_b64), Some(pub_b64)) => {
+                match crate::webpush::Vapid::from_config(&priv_b64, &pub_b64, &vapid_subject) {
+                    Ok(v) => {
+                        tracing::info!("Web Push enabled (VAPID keys loaded)");
+                        Some(v)
+                    }
+                    Err(e) => {
+                        tracing::warn!("Web Push disabled: {e:#}");
+                        None
+                    }
+                }
+            }
+            _ => {
+                tracing::info!("Web Push disabled (VAPID_PRIVATE_KEY / VAPID_PUBLIC_KEY unset)");
+                None
+            }
+        };
+
         let super_admin_emails: HashSet<String> = env::var("SUPER_ADMIN_EMAILS")
             .unwrap_or_default()
             .split(',')
@@ -249,6 +282,7 @@ impl Config {
             storage_backend,
             daily_digest_hour,
             today_matches_hour,
+            vapid,
         })
     }
 }

@@ -9,6 +9,69 @@ use crate::mail;
 use crate::state::AppState;
 use crate::stakes;
 use crate::tenant::{self, Tenant};
+use crate::webpush::{self, SendOutcome, Subscription};
+
+/// Default Web Push TTL: 24 h. The push service holds the message this long if
+/// the device is offline, then drops it — a stale "kick-off in 1h" reminder is
+/// worthless anyway.
+const PUSH_TTL_SECONDS: u32 = 24 * 60 * 60;
+
+/// Deliver one localized push to every subscription of `user_id`, pruning any
+/// the push service reports as gone (404/410). No-op when push is disabled
+/// (no VAPID keys) or the user has no subscriptions, so callers can fire it
+/// unconditionally next to the email path.
+async fn push_to_user(
+    state: &AppState,
+    tenant_id: Uuid,
+    user_id: Uuid,
+    title: &str,
+    body: &str,
+    url: &str,
+) {
+    let Some(vapid) = state.cfg.vapid.as_ref() else {
+        return;
+    };
+    let subs: Vec<(Uuid, String, String, String)> = match sqlx::query_as(
+        "SELECT id, endpoint, p256dh, auth FROM push_subscriptions \
+         WHERE tenant_id = $1 AND user_id = $2",
+    )
+    .bind(tenant_id)
+    .bind(user_id)
+    .fetch_all(&state.pool)
+    .await
+    {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(user = %user_id, "loading push subscriptions failed: {e:#}");
+            return;
+        }
+    };
+    if subs.is_empty() {
+        return;
+    }
+
+    let payload = json!({ "title": title, "body": body, "url": url }).to_string();
+    for (sub_id, endpoint, p256dh, auth) in subs {
+        let sub = Subscription { endpoint, p256dh, auth };
+        match webpush::send(&state.http, vapid, &sub, payload.as_bytes(), PUSH_TTL_SECONDS).await {
+            Ok(SendOutcome::Delivered) => {}
+            Ok(SendOutcome::Gone) => {
+                // The endpoint is dead; drop it so we stop trying (spec 08: purge
+                // on the first gone response).
+                if let Err(e) = sqlx::query("DELETE FROM push_subscriptions WHERE id = $1")
+                    .bind(sub_id)
+                    .execute(&state.pool)
+                    .await
+                {
+                    tracing::warn!(sub = %sub_id, "pruning gone push subscription failed: {e:#}");
+                } else {
+                    tracing::info!(sub = %sub_id, "pruned gone push subscription");
+                }
+            }
+            Err(e) => tracing::warn!(user = %user_id, "push send failed: {e:#}"),
+        }
+    }
+}
 
 pub async fn send_match_reminders(state: &AppState) -> anyhow::Result<()> {
     let tenants = tenant::load_all(&state.pool).await?;
@@ -69,9 +132,9 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
         );
 
         // Only users who haven't bet on this match get a kick-off reminder.
-        let unbet_users: Vec<(String, String)> = sqlx::query_as(
+        let unbet_users: Vec<(Uuid, String, String, bool)> = sqlx::query_as(
             r#"
-            SELECT u.email, u.lang
+            SELECT u.id, u.email, u.lang, u.notify_push
             FROM users u
             WHERE u.tenant_id = $1
               AND NOT EXISTS (
@@ -86,11 +149,25 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
         .await?;
 
         let kickoff_local = kickoff.with_timezone(&Amsterdam).format("%H:%M %Z").to_string();
+        let matches_url = format!("{tenant_url}/matches");
         let mut emails_sent = 0usize;
         let mut emails_failed = 0usize;
-        for (email, lang) in &unbet_users {
+        for (user_id, email, lang, notify_push) in &unbet_users {
             // French only if the user explicitly chose it, English otherwise.
             let loc = crate::i18n::Locale::from_code(lang).unwrap_or_default();
+
+            // Push runs alongside the email (it's more immediate); gated on the
+            // user's master toggle. push_to_user no-ops when push is disabled
+            // or the user has no subscriptions.
+            if *notify_push {
+                let title = format!("{home} - {away}");
+                let body = loc.f(
+                    "Coup d'envoi bientôt et tu n'as pas encore parié !",
+                    "Kick-off soon and you haven't bet yet!",
+                );
+                push_to_user(state, tenant.id, *user_id, &title, body, &matches_url).await;
+            }
+
             match mail::send_bet_reminder(
                 &state.cfg,
                 tenant,
