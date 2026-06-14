@@ -12,7 +12,6 @@ mod home;
 mod invitations;
 mod lang;
 mod leaderboard;
-mod leagues;
 mod logo;
 mod matches;
 mod platform;
@@ -63,13 +62,6 @@ pub fn router() -> Router<AppState> {
         .route("/profile", get(profile::me))
         .route("/profile/:user_id", get(profile::public))
         .route("/h2h/:user_id", get(profile::h2h))
-        .route("/leagues", get(leagues::index).post(leagues::create))
-        .route("/leagues/join", post(leagues::join))
-        .route("/leagues/:id", get(leagues::show))
-        .route("/leagues/:id/leave", post(leagues::leave))
-        .route("/leagues/:id/remove", post(leagues::remove_member))
-        .route("/leagues/:id/rename", post(leagues::rename))
-        .route("/leagues/:id/delete", post(leagues::delete))
         .route("/members", get(invitations::members_page))
         .route("/invitations", post(invitations::create))
         .route("/invitations/:id/revoke", post(invitations::revoke))
