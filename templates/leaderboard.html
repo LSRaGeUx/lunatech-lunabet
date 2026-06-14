@@ -50,7 +50,7 @@
             <td class="player-cell" data-label="{{ loc.f("Parieur", "Player") }}">
                 <img class="player-avatar" src="{{ r.avatar }}" alt="" aria-hidden="true">
                 <span class="player-name">
-                    {{ r.display_name }}{% if r.is_me %} ({{ loc.f("toi", "you") }}){% endif %}
+                    <a class="player-link" href="/profile/{{ r.user_id }}">{{ r.display_name }}</a>{% if r.is_me %} ({{ loc.f("toi", "you") }}){% else %} <a class="h2h-link" href="/h2h/{{ r.user_id }}" title="{{ loc.f("Défier", "Challenge") }}" aria-label="{{ loc.f("Défier", "Challenge") }} {{ r.display_name }}">⚔️</a>{% endif %}
                     {% if !r.eligible %}<span class="non-eligible-badge">{{ loc.f("non éligible", "not eligible") }}</span>{% endif %}
                     {% if !r.badges.is_empty() %}
                     <span class="player-badges">
@@ -91,5 +91,9 @@
     .player-badges { display: inline-flex; align-items: center; gap: 2px; vertical-align: middle; margin-left: 0.3rem; }
     .player-badge { width: 20px; height: 20px; }
     .player-badge-more { font-size: 0.75rem; font-weight: 700; color: var(--navy); opacity: 0.8; }
+    .player-link { color: inherit; text-decoration: none; font-weight: 700; }
+    .player-link:hover { text-decoration: underline; }
+    .h2h-link { text-decoration: none; font-size: 0.9rem; opacity: 0.6; }
+    .h2h-link:hover { opacity: 1; }
 </style>
 {% endblock %}
