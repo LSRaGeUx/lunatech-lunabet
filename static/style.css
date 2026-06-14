@@ -1394,7 +1394,7 @@ tr.me .player-avatar {
     .saved-flag { animation: none; opacity: 1; transform: none; }
 }
 
-/* --- celebration de score (celebrate.js) --- */
+/* --- score celebration (celebrate.js) --- */
 .celebrate-overlay {
     position: fixed;
     inset: 0;
