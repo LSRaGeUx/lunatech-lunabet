@@ -11,10 +11,15 @@
 {% endif %}
 
 <div class="profile-title">
-    <img class="profile-avatar" src="{{ subject_avatar }}" alt="" aria-hidden="true">
-    <h1>{% if is_me %}{{ loc.f("Mon profil", "My profile") }}{% else %}{{ subject_name }}{% endif %}</h1>
+    <img class="profile-avatar"
+         src="{{ subject_avatar }}"
+         alt="{{ subject_name }}"
+         width="64" height="64">
+    <div class="profile-title-text">
+        <h1>{% if is_me %}{{ loc.f("Mon profil", "My profile") }}{% else %}{{ subject_name }}{% endif %}</h1>
+    </div>
     {% if !is_me %}
-    <a class="btn h2h-btn" href="/h2h/{{ subject_id }}">⚔️ {{ loc.f("Défier", "Challenge") }}</a>
+    <a class="btn h2h-btn" href="/h2h/{{ subject_id }}" aria-label="{{ loc.f("Défier", "Challenge") }} {{ subject_name }}">⚔️ {{ loc.f("Défier", "Challenge") }}</a>
     {% endif %}
 </div>
 
@@ -53,27 +58,22 @@
 {% if is_me %}
 <section class="card notif-card" id="push-card"
          data-push-available="{% if push_available %}1{% else %}0{% endif %}">
-    <h2>{{ loc.f("Notifications", "Notifications") }}</h2>
+    <h2>🔔 {{ loc.f("Notifications", "Notifications") }}</h2>
     {% if push_available %}
     <p class="notif-lead">{{ loc.f(
-        "Reçois un rappel avant le coup d'envoi des matchs sur lesquels tu n'as pas encore parié, directement sur ton téléphone.",
-        "Get a reminder before kick-off for matches you haven't bet on yet, straight to your phone."
+        "Reçois un rappel avant le coup d'envoi des matchs sur lesquels tu n'as pas encore parié, et une alerte quand tu grimpes au classement.",
+        "Get a reminder before kick-off for matches you haven't bet on yet, and an alert when you climb the leaderboard."
     ) }}</p>
-    <p class="push-status" id="push-status" hidden></p>
-    <button type="button" class="btn" id="push-enable" hidden>
-        {{ loc.f("Activer les notifications", "Enable notifications") }}
-    </button>
-    <button type="button" class="btn btn-ghost" id="push-disable" hidden>
-        {{ loc.f("Désactiver sur cet appareil", "Disable on this device") }}
-    </button>
-    <form id="push-prefs" method="post" action="/push/preferences"
-          hx-post="/push/preferences" hx-swap="none" hidden>
-        <label class="push-toggle">
-            <input type="checkbox" name="notify_push" {% if notify_push %}checked{% endif %}>
-            {{ loc.f("Recevoir les notifications push", "Receive push notifications") }}
-        </label>
-    </form>
-    <noscript><p class="push-status">{{ loc.f(
+    <div class="push-control">
+        <span class="push-status" id="push-status" hidden></span>
+        <button type="button" class="btn" id="push-enable" hidden>
+            {{ loc.f("Activer les notifications", "Enable notifications") }}
+        </button>
+        <button type="button" class="btn btn-danger" id="push-disable" hidden>
+            {{ loc.f("Désactiver", "Turn off") }}
+        </button>
+    </div>
+    <noscript><p class="push-status push-status--static">{{ loc.f(
         "Active le JavaScript pour gérer les notifications.",
         "Enable JavaScript to manage notifications."
     ) }}</p></noscript>
@@ -87,7 +87,7 @@
 <script defer src="/static/push.js"></script>
 {% endif %}
 
-<section class="card">
+<section class="card badge-card">
     <h2>{{ loc.f("Badges", "Badges") }}</h2>
     <ul class="badge-grid">
         {% for b in badges %}
@@ -107,61 +107,269 @@
 </section>
 
 <style>
+    /* --- badge toast --- */
     .badge-toast {
-        background: var(--gold-light); border: 2px solid var(--ink);
-        border-radius: 4px; padding: 0.6rem 0.9rem; margin-bottom: 1rem; font-weight: 700;
+        background: var(--gold-light);
+        border: 2px solid var(--ink);
+        border-radius: 4px;
+        padding: 0.65rem 1rem;
+        margin-bottom: 1.2rem;
+        font-weight: 700;
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.04em;
+        font-size: 1.05rem;
     }
-    .profile-title { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; flex-wrap: wrap; }
-    .profile-title h1 { margin: 0; }
+
+    /* --- profile title row: avatar + name + optional challenge button --- */
+    .profile-title {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        margin-bottom: 1.4rem;
+        flex-wrap: wrap;
+    }
+    /* Override the global h1 decorative style inside the title row */
+    .profile-title h1 {
+        margin: 0;
+        padding: 0;
+        background: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        display: block;
+        font-size: 2rem;
+        line-height: 1.1;
+    }
+    .profile-title h1::after { display: none; }
     .profile-avatar {
-        width: 56px; height: 56px; border: 2px solid var(--ink); border-radius: 50%;
+        width: 64px;
+        height: 64px;
+        flex-shrink: 0;
+        border: 3px solid var(--ink);
+        border-radius: 50%;
         background: var(--paper-light);
+        box-shadow: 3px 3px 0 var(--ink);
+        object-fit: cover;
     }
-    .h2h-btn { margin-left: auto; }
-    .profile-head { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.2rem; }
+    .profile-title-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        flex: 1;
+        min-width: 0;
+    }
+    .profile-title-text h1 {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .h2h-btn { flex-shrink: 0; }
+
+    /* --- stat tiles grid --- */
+    .profile-head {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1.4rem;
+    }
     .profile-stat {
-        display: flex; flex-direction: column; align-items: center; min-width: 90px;
-        background: var(--paper-light); border: 2px solid var(--ink); border-radius: 6px;
-        padding: 0.6rem 1rem;
-    }
-    .stat-value { font-family: "Bebas Neue", sans-serif; font-size: 1.8rem; color: var(--navy); line-height: 1; }
-    .stat-label { font-size: 0.8rem; opacity: 0.7; }
-    .calls { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.2rem; }
-    .call {
-        display: flex; flex-direction: column; gap: 0.2rem; flex: 1; min-width: 220px;
-        border: 2px solid var(--ink); border-radius: 6px; padding: 0.7rem 0.9rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
         background: var(--paper-light);
+        border: 2px solid var(--ink);
+        border-radius: 6px;
+        padding: 0.75rem 0.5rem;
+        box-shadow: 2px 2px 0 var(--ink);
+        gap: 0.15rem;
     }
-    .call-best { border-left: 6px solid var(--green, #2e7d4a); }
+    .stat-value {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 1.9rem;
+        color: var(--navy);
+        line-height: 1;
+    }
+    .stat-label {
+        font-size: 0.75rem;
+        line-height: 1.2;
+        opacity: 0.7;
+        text-align: center;
+    }
+
+    /* --- calls (best / worst) --- */
+    .calls {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.4rem;
+    }
+    .call {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        border: 2px solid var(--ink);
+        border-radius: 6px;
+        padding: 0.85rem 1rem;
+        background: var(--paper-light);
+        box-shadow: 2px 2px 0 var(--ink);
+    }
+    .call-best { border-left: 6px solid var(--green); }
     .call-worst { border-left: 6px solid var(--red); }
-    .call-label { font-weight: 700; color: var(--navy); }
-    .call-match { font-family: "Bebas Neue", sans-serif; font-size: 1.3rem; letter-spacing: 0.03em; }
-    .call-note { font-size: 0.82rem; opacity: 0.75; }
-    .badge-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.8rem; }
-    .badge {
-        display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem;
-        border: 2px solid var(--ink); border-radius: 6px; background: var(--paper-light);
+    .call-label {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.04em;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--navy);
     }
-    .badge.locked { opacity: 0.55; filter: grayscale(0.8); }
-    .badge-icon { width: 48px; height: 48px; flex: none; }
-    .badge-body { display: flex; flex-direction: column; flex: 1; }
-    .badge-name { font-weight: 700; color: var(--navy); }
-    .badge-desc { font-size: 0.82rem; opacity: 0.8; }
+    .call-match {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 1.35rem;
+        letter-spacing: 0.03em;
+        color: var(--ink);
+    }
+    .call-note { font-size: 0.82rem; opacity: 0.75; }
+
+    /* --- badge grid --- */
+    .badge-grid {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 0.85rem;
+    }
+    .badge {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        padding: 0.75rem 0.85rem;
+        border: 2px solid var(--ink);
+        border-radius: 6px;
+        background: var(--paper-light);
+        box-shadow: 2px 2px 0 var(--ink);
+        transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+    }
+    .badge.earned:hover {
+        transform: translate(-1px, -1px);
+        box-shadow: 3px 3px 0 var(--ink);
+    }
+    .badge.locked { opacity: 0.5; filter: grayscale(0.85); box-shadow: none; }
+    .badge-icon { width: 48px; height: 48px; flex-shrink: 0; }
+    .badge-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+    .badge-name {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.03em;
+        font-size: 1rem;
+        color: var(--navy);
+        line-height: 1.15;
+    }
+    .badge-desc { font-size: 0.8rem; opacity: 0.8; line-height: 1.35; }
     .badge-progress {
-        margin-top: 0.2rem; font-family: "Bebas Neue", sans-serif; letter-spacing: 0.05em;
+        margin-top: 0.25rem;
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.05em;
+        font-size: 0.85rem;
         color: var(--red);
     }
-    .badge-check { color: var(--navy); font-weight: 800; font-size: 1.2rem; }
-    .notif-card .notif-lead { margin-top: 0; opacity: 0.85; }
+    .badge-check {
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--navy);
+        color: var(--paper-light);
+        border-radius: 50%;
+        font-size: 0.85rem;
+        font-weight: 800;
+        border: 2px solid var(--ink);
+    }
+
+    /* Override the global .card max-width so the badge grid and notification
+       card span the full content column rather than being capped at 520px */
+    .notif-card,
+    .badge-card {
+        max-width: none;
+    }
+
+    /* --- notifications card --- */
+    .notif-card h2 { margin-top: 0; }
+    .notif-card .notif-lead {
+        margin: 0 0 1rem;
+        opacity: 0.85;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+    .push-control {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+    }
     .push-status {
-        font-weight: 700; color: var(--navy); margin: 0.4rem 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.04em;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--navy);
+        background: var(--paper-light);
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        padding: 0.35rem 1rem;
+        line-height: 1.2;
     }
-    .push-status.is-error { color: var(--red); }
-    .btn-ghost { background: transparent; }
-    .push-toggle {
-        display: inline-flex; align-items: center; gap: 0.5rem;
-        margin-top: 0.6rem; font-weight: 600;
+    .push-status.is-on  { color: var(--green); border-color: var(--green); background: rgba(46, 125, 74, 0.08); }
+    .push-status.is-error { color: var(--red); border-color: var(--red); }
+    .push-status--static { display: block; border-radius: 4px; }
+
+    /* --- btn-danger lives here because it is only used on this page --- */
+    .btn-danger {
+        background: var(--red);
+        color: var(--paper-light);
+        border-color: var(--ink);
     }
-    .push-toggle input { width: 1.1rem; height: 1.1rem; }
+    .btn-danger:hover { background: var(--red-dark); }
+
+    /* --- mobile overrides (profile page) --- */
+    @media (max-width: 640px) {
+        .profile-title { gap: 0.75rem; margin-bottom: 1.1rem; }
+        .profile-title h1 { font-size: 1.6rem; }
+        .profile-avatar { width: 52px; height: 52px; }
+
+        /* 3-column grid holds on any phone; values + labels stay legible */
+        .profile-head { grid-template-columns: repeat(3, 1fr); gap: 0.55rem; }
+        .stat-value { font-size: 1.5rem; }
+        .stat-label { font-size: 0.7rem; }
+        .profile-stat { padding: 0.6rem 0.35rem; }
+
+        /* calls stack to one column on narrow phones */
+        .calls { grid-template-columns: 1fr; gap: 0.75rem; }
+
+        /* badge grid: two items per row on phones wide enough, one on very narrow */
+        .badge-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.7rem; }
+
+        /* push control stacks vertically for clear tap targets */
+        .push-control { flex-direction: column; align-items: flex-start; }
+        .push-control .btn,
+        .push-control .push-status { width: 100%; justify-content: center; }
+    }
+
+    @media (max-width: 380px) {
+        /* On very small phones (320-380px) one badge per row is cleaner */
+        .badge-grid { grid-template-columns: 1fr; }
+        /* Title row: if challenge button is present, push it below the name */
+        .profile-title { flex-wrap: wrap; }
+        .h2h-btn { width: 100%; text-align: center; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .badge.earned:hover { transform: none; box-shadow: 2px 2px 0 var(--ink); }
+    }
 </style>
 {% endblock %}

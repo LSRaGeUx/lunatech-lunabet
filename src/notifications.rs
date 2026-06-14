@@ -250,6 +250,260 @@ async fn send_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()
     Ok(())
 }
 
+/// Push a notification to players whose leaderboard rank improved since the
+/// last tick. Runs after scoring so a settled match that bumps someone up the
+/// board reaches them right away ("you climbed to #4").
+///
+/// Idempotency: `users.last_notified_rank` stores the rank we last reacted to.
+/// We push only when the new rank is strictly better than the stored one, then
+/// rebase every user's stored rank to the current standings (so a later drop
+/// just updates the baseline silently). A NULL stored rank — every user on the
+/// first run — baselines without pushing, so turning the feature on never
+/// blasts the whole board.
+pub async fn send_rank_alerts(state: &AppState) -> anyhow::Result<()> {
+    // Nothing to send if push isn't configured at all.
+    if state.cfg.vapid.is_none() {
+        return Ok(());
+    }
+    for t in tenant::load_all(&state.pool).await? {
+        if let Err(e) = rank_alerts_for_tenant(state, &t).await {
+            tracing::warn!(tenant = %t.slug, "rank alerts failed: {e:#}");
+        }
+    }
+    Ok(())
+}
+
+async fn rank_alerts_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::Result<()> {
+    let board = stakes::load_leaderboard(&state.pool, tenant.id).await?;
+    if board.is_empty() {
+        return Ok(());
+    }
+
+    // Per-user push toggle, language and the rank we last notified.
+    let prefs: Vec<(Uuid, bool, String, Option<i32>)> = sqlx::query_as(
+        "SELECT id, notify_push, lang, last_notified_rank FROM users WHERE tenant_id = $1",
+    )
+    .bind(tenant.id)
+    .fetch_all(&state.pool)
+    .await?;
+    let prefs: HashMap<Uuid, (bool, String, Option<i32>)> = prefs
+        .into_iter()
+        .map(|(id, notify, lang, rank)| (id, (notify, lang, rank)))
+        .collect();
+
+    let leaderboard_url = format!("{}/leaderboard", tenant.public_url(&state.cfg));
+
+    // Arrays for the single batched rank rebase at the end.
+    let mut ids = Vec::with_capacity(board.len());
+    let mut ranks = Vec::with_capacity(board.len());
+
+    for (idx, row) in board.iter().enumerate() {
+        let rank = (idx + 1) as i32;
+        ids.push(row.user_id);
+        ranks.push(rank);
+
+        let Some((notify_push, lang, last_rank)) = prefs.get(&row.user_id) else {
+            continue;
+        };
+        // Only react to genuine climbs by players who actually have points, so
+        // join-order reshuffles among 0-point users never notify.
+        let climbed = matches!(last_rank, Some(prev) if rank < *prev);
+        if !*notify_push || row.points <= 0 || !climbed {
+            continue;
+        }
+
+        let loc = crate::i18n::Locale::from_code(lang).unwrap_or_default();
+        // `loc.f` only takes &'static str, so format the localized body by hand.
+        // Rank 1 gets its own line (and dodges the wrong "1e" ordinal).
+        let body = match (loc, rank) {
+            (_, 1) => loc
+                .f(
+                    "Tu prends la tête du classement ! 👑",
+                    "You're now top of the leaderboard! 👑",
+                )
+                .to_string(),
+            (crate::i18n::Locale::Fr, n) => {
+                format!("Tu grimpes à la {n}e place du classement ! 🎉")
+            }
+            (crate::i18n::Locale::En, n) => format!("You climbed to #{n} on the leaderboard! 🎉"),
+        };
+        push_to_user(state, tenant.id, row.user_id, &tenant.name, &body, &leaderboard_url).await;
+    }
+
+    // Rebase every changed user's stored rank in one statement.
+    sqlx::query(
+        r#"
+        UPDATE users AS u SET last_notified_rank = v.rank
+        FROM (SELECT unnest($1::uuid[]) AS id, unnest($2::int[]) AS rank) v
+        WHERE u.id = v.id AND u.last_notified_rank IS DISTINCT FROM v.rank
+        "#,
+    )
+    .bind(&ids)
+    .bind(&ranks)
+    .execute(&state.pool)
+    .await?;
+
+    Ok(())
+}
+
+/// A match whose score (or final whistle) changed and is worth a live push.
+struct ScoreEvent {
+    home_team: String,
+    away_team: String,
+    home: i32,
+    away: i32,
+    is_final: bool,
+}
+
+/// A match row with both its current and last-pushed score/status, for live
+/// score delta detection.
+#[derive(sqlx::FromRow)]
+struct ScoreCandidate {
+    id: i64,
+    home_team: String,
+    away_team: String,
+    home_score: Option<i32>,
+    away_score: Option<i32>,
+    status: String,
+    last_pushed_home: Option<i32>,
+    last_pushed_away: Option<i32>,
+    last_pushed_status: Option<String>,
+}
+
+/// Broadcast a push to every opted-in player whenever a match's score changes
+/// or it ends (spec 13). The push carries the new scoreline and the tenant's
+/// current top-5 standings, turning each goal into a shared moment.
+///
+/// Change detection compares each match's `(home_score, away_score, status)`
+/// against the `last_pushed_*` columns. A match never observed before
+/// (`last_pushed_status IS NULL`) is baselined silently, so enabling this — or a
+/// first sync that backfills already-played matches — never blasts the backlog.
+/// Only real goals and the final whistle push; mere status flips (kick-off,
+/// half-time) and the opening `NULL -> 0-0` do not.
+pub async fn send_live_score_updates(state: &AppState) -> anyhow::Result<()> {
+    if state.cfg.vapid.is_none() {
+        return Ok(());
+    }
+
+    let candidates: Vec<ScoreCandidate> = sqlx::query_as(
+        r#"
+        SELECT id, home_team, away_team, home_score, away_score, status,
+               last_pushed_home, last_pushed_away, last_pushed_status
+        FROM matches
+        WHERE (home_score, away_score, status)
+              IS DISTINCT FROM (last_pushed_home, last_pushed_away, last_pushed_status)
+        "#,
+    )
+    .fetch_all(&state.pool)
+    .await?;
+
+    if candidates.is_empty() {
+        return Ok(());
+    }
+
+    let mut to_push: Vec<ScoreEvent> = Vec::new();
+    let mut ids: Vec<i64> = Vec::with_capacity(candidates.len());
+    for c in &candidates {
+        ids.push(c.id);
+
+        // Only react to matches we've seen before; the first observation just
+        // baselines below.
+        let had_prior = c.last_pushed_status.is_some();
+        let is_final =
+            c.status == "FINISHED" && c.last_pushed_status.as_deref() != Some("FINISHED");
+        let scores_changed =
+            (c.home_score, c.away_score) != (c.last_pushed_home, c.last_pushed_away);
+        // A real goal: both scores present and changed, excluding the opening
+        // NULL -> 0-0 that just means the match kicked off.
+        let opening_nil = c.last_pushed_home.is_none()
+            && c.last_pushed_away.is_none()
+            && c.home_score == Some(0)
+            && c.away_score == Some(0);
+        let is_goal =
+            scores_changed && c.home_score.is_some() && c.away_score.is_some() && !opening_nil;
+
+        if had_prior && (is_goal || is_final) {
+            to_push.push(ScoreEvent {
+                home_team: c.home_team.clone(),
+                away_team: c.away_team.clone(),
+                home: c.home_score.unwrap_or(0),
+                away: c.away_score.unwrap_or(0),
+                is_final,
+            });
+        }
+    }
+
+    // Baseline every candidate (pushed or not) so we never re-push the same
+    // scoreline, even across a restart.
+    sqlx::query(
+        r#"
+        UPDATE matches AS m SET
+            last_pushed_home   = m.home_score,
+            last_pushed_away   = m.away_score,
+            last_pushed_status = m.status
+        WHERE m.id = ANY($1)
+        "#,
+    )
+    .bind(&ids)
+    .execute(&state.pool)
+    .await?;
+
+    if to_push.is_empty() {
+        return Ok(());
+    }
+
+    for tenant in tenant::load_all(&state.pool).await? {
+        if let Err(e) = live_score_for_tenant(state, &tenant, &to_push).await {
+            tracing::warn!(tenant = %tenant.slug, "live score push failed: {e:#}");
+        }
+    }
+    Ok(())
+}
+
+async fn live_score_for_tenant(
+    state: &AppState,
+    tenant: &Tenant,
+    events: &[ScoreEvent],
+) -> anyhow::Result<()> {
+    let recipients: Vec<(Uuid, String)> =
+        sqlx::query_as("SELECT id, lang FROM users WHERE tenant_id = $1 AND notify_push = TRUE")
+            .bind(tenant.id)
+            .fetch_all(&state.pool)
+            .await?;
+    if recipients.is_empty() {
+        return Ok(());
+    }
+
+    // Top-5 standings, shared across recipients and matches in this tick.
+    let board = stakes::load_leaderboard(&state.pool, tenant.id).await?;
+    let standings = board
+        .iter()
+        .take(5)
+        .enumerate()
+        .map(|(i, r)| format!("{}. {} {}", i + 1, r.display_name, r.points))
+        .collect::<Vec<_>>()
+        .join(" · ");
+
+    let leaderboard_url = format!("{}/leaderboard", tenant.public_url(&state.cfg));
+
+    for ev in events {
+        for (uid, lang) in &recipients {
+            let loc = crate::i18n::Locale::from_code(lang).unwrap_or_default();
+            let score = format!("{} {}-{} {}", ev.home_team, ev.home, ev.away, ev.away_team);
+            let title = match (loc, ev.is_final) {
+                (crate::i18n::Locale::Fr, true) => format!("🏁 Score final : {score}"),
+                (crate::i18n::Locale::En, true) => format!("🏁 Final score: {score}"),
+                (crate::i18n::Locale::Fr, false) => format!("⚽ But ! {score}"),
+                (crate::i18n::Locale::En, false) => format!("⚽ Goal! {score}"),
+            };
+            let label = loc.f("Classement", "Standings");
+            let body = format!("{label}: {standings}");
+            push_to_user(state, tenant.id, *uid, &title, &body, &leaderboard_url).await;
+        }
+    }
+    Ok(())
+}
+
 /// One-time-per-code backfill guard for badge-unlock emails. The first time a
 /// catalogue code is seen, every grant of it that already exists is stamped as
 /// already-announced (without emailing) and the code is recorded in
