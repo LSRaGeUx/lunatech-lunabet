@@ -1403,6 +1403,72 @@ tr.me .player-avatar {
     .saved-flag { animation: none; opacity: 1; transform: none; }
 }
 
+/* --- score celebration (celebrate.js) --- */
+.celebrate-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    background: rgba(26, 20, 17, 0.45);
+    cursor: pointer;
+    animation: celebrate-in 0.3s ease both;
+}
+.celebrate-overlay.celebrate-out { animation: celebrate-fade 0.5s ease both; }
+@keyframes celebrate-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes celebrate-fade { to { opacity: 0; } }
+
+.celebrate-burst {
+    width: 280px;
+    max-width: 70vw;
+    height: auto;
+    filter: drop-shadow(4px 4px 0 rgba(0, 0, 0, 0.4));
+    animation: celebrate-pop 0.7s cubic-bezier(0.18, 1.4, 0.4, 1) both,
+               celebrate-spin 18s linear 0.7s infinite;
+}
+.celebrate-overlay.celebrate-exact .celebrate-burst { width: 360px; }
+@keyframes celebrate-pop {
+    0% { transform: scale(0) rotate(-25deg); }
+    100% { transform: scale(1) rotate(0); }
+}
+@keyframes celebrate-spin { to { transform: rotate(360deg); } }
+
+.celebrate-messages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+.celebrate-line {
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.04em;
+    font-size: 2rem;
+    color: var(--paper-light);
+    background: var(--red);
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    padding: 0.2rem 1rem;
+    box-shadow: 4px 4px 0 var(--ink);
+    transform: rotate(-3deg);
+    animation: celebrate-line-in 0.5s cubic-bezier(0.18, 1.4, 0.4, 1) both;
+}
+.celebrate-line.celebrate-exact {
+    background: var(--gold);
+    color: var(--ink);
+    font-size: 2.4rem;
+}
+@keyframes celebrate-line-in {
+    0% { opacity: 0; transform: scale(0.4) rotate(-3deg); }
+    100% { opacity: 1; transform: scale(1) rotate(-3deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .celebrate-overlay,
+    .celebrate-burst,
+    .celebrate-line { animation: none; }
 /* --- kickoff countdown (countdown.js) --- */
 .countdown {
     margin-left: auto;
