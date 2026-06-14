@@ -13,7 +13,6 @@ use axum::extract::{Multipart, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
 use chrono::{DateTime, Utc};
-use sha2::{Digest, Sha256};
 
 use crate::error::AppResult;
 use crate::i18n::Locale;
@@ -272,15 +271,17 @@ pub async fn update(
                 values,
             );
         }
-        // Content-hash the bytes so the filename changes whenever the image
-        // does — that doubles as cache-busting for the <img src>.
-        let digest = Sha256::digest(&bytes);
-        let short = hex8(&digest);
-        let file_name = format!("logo-{}-{}.{}", tenant.slug, short, ext);
-        let path = std::path::Path::new(&state.cfg.uploads_dir).join(&file_name);
-        tokio::fs::write(&path, &bytes).await?;
-        new_logo_url = Some(format!("/uploads/{file_name}"));
+        // Hand the bytes to the configured backend (db by default, so the logo
+        // survives redeploys); it returns the URL to persist on the tenant.
+        let content_type = content_type.unwrap_or_else(|| mime_for_ext(ext).to_string());
+        new_logo_url = Some(
+            state
+                .storage
+                .store_logo(&state.pool, tenant.id, &tenant.slug, ext, &content_type, &bytes)
+                .await?,
+        );
     } else if remove_logo {
+        state.storage.delete_logo(&state.pool, tenant.id).await?;
         new_logo_url = None;
     }
 
@@ -355,8 +356,17 @@ pub async fn update(
     Ok(Html(tpl.render()?).into_response())
 }
 
-fn hex8(digest: &[u8]) -> String {
-    digest.iter().take(4).map(|b| format!("{b:02x}")).collect()
+/// Fallback MIME type from a validated file extension, used when the upload
+/// didn't carry a content-type. `ext` is always one of the values returned by
+/// `logo_extension`.
+fn mime_for_ext(ext: &str) -> &'static str {
+    match ext {
+        "svg" => "image/svg+xml",
+        "png" => "image/png",
+        "jpg" => "image/jpeg",
+        "webp" => "image/webp",
+        _ => "application/octet-stream",
+    }
 }
 
 fn parse_deadline(raw: &str) -> Result<DateTime<Utc>, String> {
