@@ -828,11 +828,21 @@ table.leaderboard {
     overflow: hidden;
     box-shadow: var(--shadow);
 }
-table.leaderboard th, table.leaderboard td {
-    padding: 0.75rem 1rem;
-    text-align: left;
-    border-bottom: 1px dotted var(--paper-dark);
+
+/* Sticky header so the column labels stay visible when scrolling a long table */
+table.leaderboard thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
+
+table.leaderboard th, table.leaderboard td {
+    padding: 0.9rem 1.1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    vertical-align: middle;
+}
+
 table.leaderboard th {
     background: var(--navy);
     color: var(--paper-light);
@@ -840,16 +850,138 @@ table.leaderboard th {
     letter-spacing: 0.08em;
     font-weight: 400;
     font-size: 1rem;
+    white-space: nowrap;
 }
-table.leaderboard tbody tr:nth-child(odd) td { background: rgba(232, 214, 168, 0.35); }
-table.leaderboard tr.me td { background: rgba(199, 155, 30, 0.25); font-weight: 700; }
-table.leaderboard tr.me td:first-child::before { content: "→ "; color: var(--red); font-weight: 700; }
+
+/* A bottom border on header cells helps separate header from first data row */
+table.leaderboard thead tr {
+    border-bottom: 3px solid var(--ink);
+}
+
+/* Zebra striping: slightly stronger than before for better row separation */
+table.leaderboard tbody tr:nth-child(odd) td { background: rgba(232, 214, 168, 0.3); }
+table.leaderboard tbody tr:nth-child(even) td { background: var(--paper-light); }
+
+/* Hover state so the user can visually track a row */
+table.leaderboard tbody tr:hover td {
+    background: rgba(199, 155, 30, 0.12);
+}
+
+/* Current-user row: gold wash + red left accent bar */
+table.leaderboard tr.me td {
+    background: rgba(199, 155, 30, 0.22);
+    font-weight: 700;
+}
+table.leaderboard tr.me td:first-child {
+    position: relative;
+    padding-left: 1.4rem;
+}
+table.leaderboard tr.me td:first-child::before {
+    content: "→ ";
+    color: var(--red);
+    font-weight: 700;
+}
+table.leaderboard tr.me:hover td {
+    background: rgba(199, 155, 30, 0.32);
+}
+
+/* Col 1 - Rank: narrow, centered, large Bebas display digit */
+table.leaderboard th:first-child,
 table.leaderboard td:first-child {
     font-family: "Bebas Neue", sans-serif;
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     color: var(--red);
-    width: 60px;
+    width: 3rem;
+    min-width: 3rem;
+    text-align: center;
+    padding-left: 1rem;
+    padding-right: 0.5rem;
 }
+table.leaderboard th:first-child {
+    font-size: 1rem;
+    color: var(--gold-light);
+}
+
+/* Col 2 - Player: allow it to grow and take the most space */
+table.leaderboard th:nth-child(2),
+table.leaderboard td:nth-child(2) {
+    min-width: 180px;
+}
+
+/* Col 3 - Stake */
+table.leaderboard th:nth-child(3),
+table.leaderboard td:nth-child(3) {
+    white-space: nowrap;
+    width: 7rem;
+    min-width: 7rem;
+    text-align: center;
+}
+
+/* Col 4 - Points: primary numeric, prominent */
+table.leaderboard th:nth-child(4),
+table.leaderboard td:nth-child(4) {
+    text-align: right;
+    width: 6rem;
+    min-width: 6rem;
+    padding-right: 1.4rem;
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 1.3rem;
+    color: var(--navy);
+}
+table.leaderboard th:nth-child(4) {
+    color: var(--gold-light);
+    font-size: 1rem;
+}
+
+/* Col 5 - Streak */
+table.leaderboard th:nth-child(5),
+table.leaderboard td:nth-child(5) {
+    text-align: center;
+    width: 5rem;
+    min-width: 5rem;
+}
+
+/* Col 6 - Exact scores: secondary, muted appearance */
+table.leaderboard th:nth-child(6),
+table.leaderboard td:nth-child(6) {
+    text-align: right;
+    width: 6rem;
+    min-width: 6rem;
+    padding-right: 1.4rem;
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+}
+table.leaderboard th:nth-child(6) {
+    font-size: 0.85rem;
+    opacity: 0.85;
+}
+
+/* Col 7 - Settled bets: secondary, muted appearance */
+table.leaderboard th:nth-child(7),
+table.leaderboard td:nth-child(7) {
+    text-align: right;
+    width: 6.5rem;
+    min-width: 6.5rem;
+    padding-right: 1.4rem;
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+}
+table.leaderboard th:nth-child(7) {
+    font-size: 0.85rem;
+    opacity: 0.85;
+}
+
+/* Col 8 - Estimated payout: right-aligned, green accent via .payout */
+table.leaderboard th:nth-child(8),
+table.leaderboard td:nth-child(8) {
+    text-align: right;
+    width: 8rem;
+    min-width: 8rem;
+    padding-right: 1.1rem;
+    white-space: nowrap;
+}
+
+/* Legacy rule kept for column 3 - Stake strong text (not Points) */
 table.leaderboard td:nth-child(3) strong {
     font-family: "Bebas Neue", sans-serif;
     font-size: 1.4rem;
@@ -897,7 +1029,7 @@ canvas.goal3d {
     .topbar nav .user { padding: 0.35rem 0; }
     .lang-link { padding: 0.35rem 0.25rem; }
 
-    /* leaderboard turns into stacked sticker-cards (the 7-column table does
+    /* leaderboard turns into stacked sticker-cards (the 8-column table does
        not fit on a phone) */
     table.leaderboard {
         border: none;
@@ -905,7 +1037,11 @@ canvas.goal3d {
         background: transparent;
         overflow: visible;
     }
-    table.leaderboard thead { display: none; }
+    /* Undo sticky header - not needed in card layout */
+    table.leaderboard thead {
+        display: none;
+        position: static;
+    }
     table.leaderboard tbody,
     table.leaderboard tr,
     table.leaderboard td { display: block; width: auto; }
@@ -923,15 +1059,28 @@ canvas.goal3d {
         background: rgba(199, 155, 30, 0.25);
         border-color: var(--red);
     }
-    table.leaderboard td {
+    /* Reset all desktop column widths and alignments for card layout */
+    table.leaderboard td,
+    table.leaderboard td:nth-child(1),
+    table.leaderboard td:nth-child(2),
+    table.leaderboard td:nth-child(3),
+    table.leaderboard td:nth-child(4),
+    table.leaderboard td:nth-child(5),
+    table.leaderboard td:nth-child(6),
+    table.leaderboard td:nth-child(7),
+    table.leaderboard td:nth-child(8) {
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 1rem;
         width: auto;
+        min-width: 0;
         padding: 0.3rem 0;
         text-align: right;
         border-bottom: 1px dotted var(--paper-dark);
+        font-size: inherit;
+        color: var(--ink);
+        white-space: normal;
     }
     table.leaderboard td:last-child { border-bottom: none; }
     table.leaderboard td::before {
@@ -946,11 +1095,29 @@ canvas.goal3d {
     table.leaderboard td:first-child {
         width: auto;
         font-size: 1.5rem;
+        text-align: right;
+        color: var(--red);
+        padding-left: 0;
         border-bottom: 2px dotted var(--paper-dark);
         padding-bottom: 0.4rem;
         margin-bottom: 0.2rem;
     }
+    table.leaderboard tr.me td:first-child {
+        position: static;
+        padding-left: 0;
+    }
     table.leaderboard tr.me td:first-child::before { content: attr(data-label); }
+    /* Points column: reset desktop sizing in card layout */
+    table.leaderboard td:nth-child(4) {
+        font-family: inherit;
+        font-size: inherit;
+        color: var(--ink);
+    }
+    /* Secondary columns: restore normal ink color in card layout */
+    table.leaderboard td:nth-child(6),
+    table.leaderboard td:nth-child(7) {
+        color: var(--ink);
+    }
     /* player name on its own full-width line, no inline label */
     table.leaderboard td.player-cell {
         justify-content: flex-start;
