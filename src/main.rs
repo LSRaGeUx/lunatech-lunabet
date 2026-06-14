@@ -212,31 +212,34 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
-    // Daily recap email: from DAILY_DIGEST_HOUR (UTC) each morning, send the
-    // previous day's digest once. The check ticks every 15 min; send_daily_digest
-    // is idempotent per (tenant, day) via the daily_digests table, so repeated
-    // ticks after the hour are harmless no-ops.
+    // Scheduled digest emails. The check ticks every 15 min; both senders are
+    // idempotent per (tenant, day) via their tables, so repeated ticks after the
+    // hour are harmless no-ops.
+    // - Daily recap: from DAILY_DIGEST_HOUR (UTC) each morning, the previous
+    //   day's results digest goes out once.
+    // - Today's matches preview: from TODAY_MATCHES_HOUR (UTC), the list of the
+    //   day's upcoming matches goes out once.
     {
         let s = state.clone();
         let digest_hour = cfg.daily_digest_hour;
+        let today_matches_hour = cfg.today_matches_hour;
         tokio::spawn(async move {
             let mut ticker = tokio::time::interval(std::time::Duration::from_secs(900));
             ticker.tick().await;
             loop {
                 ticker.tick().await;
                 let now = chrono::Utc::now();
-                if now.hour() < digest_hour {
-                    continue;
+                if now.hour() >= digest_hour {
+                    if let Some(yesterday) = now.date_naive().pred_opt() {
+                        if let Err(e) = notifications::send_daily_digest(&s, yesterday).await {
+                            tracing::warn!("daily digest failed: {e:#}");
+                        }
+                    }
                 }
-                let Some(yesterday) = now.date_naive().pred_opt() else {
-                    continue;
-                };
-                if let Err(e) = notifications::send_daily_digest(&s, yesterday).await {
-                    tracing::warn!("daily digest failed: {e:#}");
-                }
-                // Same morning slot: preview of today's matches.
-                if let Err(e) = notifications::send_today_matches(&s, now.date_naive()).await {
-                    tracing::warn!("today's matches email failed: {e:#}");
+                if now.hour() >= today_matches_hour {
+                    if let Err(e) = notifications::send_today_matches(&s, now.date_naive()).await {
+                        tracing::warn!("today's matches email failed: {e:#}");
+                    }
                 }
             }
         });
