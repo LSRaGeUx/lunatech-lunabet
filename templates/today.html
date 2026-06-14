@@ -4,6 +4,20 @@
 {% block content %}
 <h1>{{ loc.f("Aujourd'hui", "Today") }}</h1>
 
+{% match player_of_day %}
+{% when Some with (p) %}
+<div class="potd-banner{% if p.is_me %} potd-me{% endif %}">
+    <span class="potd-trophy">🏆</span>
+    <img class="potd-avatar" src="{{ p.avatar }}" alt="" aria-hidden="true">
+    <div class="potd-text">
+        <span class="potd-label">{{ loc.f("Joueur du jour", "Player of the day") }}</span>
+        <span class="potd-name">{{ p.name }}{% if p.is_me %} ({{ loc.f("toi", "you") }}){% endif %}</span>
+    </div>
+    <span class="potd-points">{{ p.points }} pts</span>
+</div>
+{% when None %}
+{% endmatch %}
+
 <section class="stage-section">
     <h2>{{ loc.f("Matchs du jour", "Today's matches") }} <span class="day-tag">{{ today_label }}</span></h2>
     {% if today.is_empty() %}
@@ -155,5 +169,27 @@
     .today-board .pt { text-align: right; font-weight: 700; color: var(--green); white-space: nowrap; }
     .today-board tr.me { background: var(--gold-light); }
     .today-board tr.me .nm { font-weight: 700; }
+    .potd-banner {
+        display: flex; align-items: center; gap: 0.7rem;
+        background: var(--gold-light); border: 2px solid var(--ink);
+        border-radius: 8px; padding: 0.6rem 0.9rem; margin: 0.4rem 0 1rem;
+        box-shadow: var(--shadow);
+    }
+    .potd-banner.potd-me { background: var(--gold); }
+    .potd-trophy { font-size: 1.6rem; line-height: 1; }
+    .potd-avatar {
+        width: 44px; height: 44px; border-radius: 50%;
+        border: 2px solid var(--ink); background: var(--paper-light); object-fit: cover;
+    }
+    .potd-text { display: flex; flex-direction: column; line-height: 1.15; }
+    .potd-label {
+        font-family: "Bebas Neue", sans-serif; letter-spacing: 0.06em;
+        color: var(--red); font-size: 0.85rem;
+    }
+    .potd-name { font-weight: 700; color: var(--ink); }
+    .potd-points {
+        margin-left: auto; font-family: "Bebas Neue", sans-serif;
+        font-size: 1.4rem; color: var(--green); white-space: nowrap;
+    }
 </style>
 {% endblock %}

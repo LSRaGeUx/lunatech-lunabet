@@ -14,6 +14,7 @@ mod config;
 mod error;
 mod fixtures;
 mod football_data;
+mod highlights;
 mod i18n;
 mod mail;
 mod middleware;
