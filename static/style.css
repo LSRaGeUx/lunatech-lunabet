@@ -1054,6 +1054,15 @@ canvas.goal3d {
 .payout { color: var(--green); font-family: "Bebas Neue", sans-serif; font-size: 1.1rem; }
 
 /* --- tier form --- */
+.streak-cell {
+    color: var(--red);
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 1.05rem;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+/* --- formulaire de palier --- */
 .tier-form {
     display: grid;
     grid-template-columns: repeat(3, 1fr);

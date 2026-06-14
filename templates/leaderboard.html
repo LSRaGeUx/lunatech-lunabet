@@ -37,6 +37,7 @@
             <th>{{ loc.f("Parieur", "Player") }}</th>
             <th>{{ loc.f("Mise", "Stake") }}</th>
             <th>Points</th>
+            <th>{{ loc.f("Série", "Streak") }}</th>
             <th>{{ loc.f("Scores exacts", "Exact scores") }}</th>
             <th>{{ loc.f("Paris résolus", "Settled bets") }}</th>
             <th>{{ loc.f("Gain estimé", "Estimated payout") }}</th>
@@ -60,6 +61,9 @@
                 {% endmatch %}
             </td>
             <td data-label="Points"><strong>{{ r.points }}</strong></td>
+            <td data-label="{{ loc.f("Série", "Streak") }}">
+                {% if r.current_streak > 0 %}<span class="streak-cell" title="{{ loc.f("record", "best") }} {{ r.best_streak }}">🔥 {{ r.current_streak }}</span>{% else %}<span class="muted">—</span>{% endif %}
+            </td>
             <td data-label="{{ loc.f("Scores exacts", "Exact scores") }}">{{ r.exact }}</td>
             <td data-label="{{ loc.f("Paris résolus", "Settled bets") }}">{{ r.bets }}</td>
             <td data-label="{{ loc.f("Gain estimé", "Estimated payout") }}">

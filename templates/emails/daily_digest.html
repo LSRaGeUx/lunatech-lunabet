@@ -61,6 +61,28 @@
                     {% endif %}
 
                     <!-- day's points -->
+                    <!-- joueur du jour -->
+                    {% match potd %}
+                    {% when Some with (p) %}
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;">
+                        <tr>
+                            <td align="center" style="background:#f0c75c;border:2px solid #1a1411;border-radius:6px;padding:14px;">
+                                <div style="font-family:Arial,sans-serif;color:#5c4a12;font-size:13px;letter-spacing:1px;">
+                                    🏆 {{ loc.f("JOUEUR DU JOUR", "PLAYER OF THE DAY") }}
+                                </div>
+                                <div style="font-family:Impact,Arial,sans-serif;color:#1a1411;font-size:24px;line-height:1.2;">
+                                    {{ p.name }}
+                                </div>
+                                <div style="font-family:Arial,sans-serif;color:#5c4a12;font-size:14px;">
+                                    {{ p.points }} pts
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                    {% when None %}
+                    {% endmatch %}
+
+                    <!-- points du jour -->
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;">
                         <tr>
                             <td align="center" style="background:#2e7d4a;border:2px solid #1a1411;border-radius:6px;padding:14px;">

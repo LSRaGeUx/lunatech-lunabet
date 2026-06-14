@@ -14,6 +14,8 @@ pub struct LeaderboardRow {
     pub settled_bets: i64,
     pub stake_eur: Option<i32>,
     pub paid: bool,
+    pub current_streak: i32,
+    pub best_streak: i32,
     #[allow(dead_code)]
     pub created_at: DateTime<Utc>,
 }
@@ -79,20 +81,25 @@ pub fn compute_payouts(pot_eur: i64, top_paid: &[(Uuid, String, i32)]) -> Vec<Pa
     out
 }
 
+#[derive(sqlx::FromRow)]
+struct LeaderboardQueryRow {
+    id: Uuid,
+    display_name: String,
+    points: Option<i64>,
+    exact_count: Option<i64>,
+    settled_bets: Option<i64>,
+    stake_eur: Option<i32>,
+    paid_at: Option<DateTime<Utc>>,
+    current_streak: i32,
+    best_streak: i32,
+    created_at: DateTime<Utc>,
+}
+
 pub async fn load_leaderboard(
     pool: &PgPool,
     tenant_id: Uuid,
 ) -> anyhow::Result<Vec<LeaderboardRow>> {
-    let rows: Vec<(
-        Uuid,
-        String,
-        Option<i64>,
-        Option<i64>,
-        Option<i64>,
-        Option<i32>,
-        Option<DateTime<Utc>>,
-        DateTime<Utc>,
-    )> = sqlx::query_as(
+    let rows: Vec<LeaderboardQueryRow> = sqlx::query_as(
         r#"
         SELECT
             u.id,
@@ -102,11 +109,14 @@ pub async fn load_leaderboard(
             COALESCE(COUNT(b.id) FILTER (WHERE b.points IS NOT NULL), 0)::BIGINT AS settled_bets,
             u.stake_eur,
             u.paid_at,
+            u.current_streak,
+            u.best_streak,
             u.created_at
         FROM users u
         LEFT JOIN bets b ON b.user_id = u.id AND b.tenant_id = u.tenant_id
         WHERE u.tenant_id = $1
-        GROUP BY u.id, u.display_name, u.stake_eur, u.paid_at, u.created_at
+        GROUP BY u.id, u.display_name, u.stake_eur, u.paid_at,
+                 u.current_streak, u.best_streak, u.created_at
         ORDER BY points DESC NULLS LAST,
                  exact_count DESC NULLS LAST,
                  settled_bets DESC NULLS LAST,
@@ -119,15 +129,17 @@ pub async fn load_leaderboard(
 
     Ok(rows
         .into_iter()
-        .map(|(id, name, p, e, b, stake, paid, created)| LeaderboardRow {
-            user_id: id,
-            display_name: name,
-            points: p.unwrap_or(0),
-            exact_count: e.unwrap_or(0),
-            settled_bets: b.unwrap_or(0),
-            stake_eur: stake,
-            paid: paid.is_some(),
-            created_at: created,
+        .map(|r| LeaderboardRow {
+            user_id: r.id,
+            display_name: r.display_name,
+            points: r.points.unwrap_or(0),
+            exact_count: r.exact_count.unwrap_or(0),
+            settled_bets: r.settled_bets.unwrap_or(0),
+            stake_eur: r.stake_eur,
+            paid: r.paid_at.is_some(),
+            current_streak: r.current_streak,
+            best_streak: r.best_streak,
+            created_at: r.created_at,
         })
         .collect())
 }
