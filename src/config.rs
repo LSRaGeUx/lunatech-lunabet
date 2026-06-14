@@ -46,9 +46,14 @@ pub struct Config {
     /// Filesystem directory for user-uploaded assets (tenant logos). Served
     /// at `/uploads`. Kept outside `static/` so redeploys never clobber it.
     pub uploads_dir: String,
-    /// UTC hour (0-23) at which the daily recap email goes out. Each morning
-    /// from this hour, the digest for the previous calendar day is sent once.
+    /// Amsterdam local hour (0-23) at which the daily recap email goes out. Each
+    /// morning from this hour, the digest for the previous calendar day is sent
+    /// once.
     pub daily_digest_hour: u32,
+    /// Amsterdam local hour (0-23) from which the "today's matches" preview email
+    /// goes out. Sent once per day per tenant, covering the matches kicking off
+    /// that day.
+    pub today_matches_hour: u32,
 }
 
 impl Config {
@@ -173,6 +178,12 @@ impl Config {
             .filter(|h| *h <= 23)
             .unwrap_or(8);
 
+        let today_matches_hour = env::var("TODAY_MATCHES_HOUR")
+            .ok()
+            .and_then(|s| s.trim().parse::<u32>().ok())
+            .filter(|h| *h <= 23)
+            .unwrap_or(17);
+
         let apex_hosts: HashSet<String> = env::var("APEX_HOSTS")
             .unwrap_or_else(|_| "lunabet.eu,www.lunabet.eu".into())
             .split(',')
@@ -225,6 +236,7 @@ impl Config {
             platform_url,
             uploads_dir,
             daily_digest_hour,
+            today_matches_hour,
         })
     }
 }
