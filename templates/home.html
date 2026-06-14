@@ -1,5 +1,14 @@
 {% extends "base.html" %}
 {% block title %}LunaBet - {{ loc.f("Pronos 2026", "Predictions 2026") }}{% endblock %}
+{% block robots %}index, follow{% endblock %}
+{% block social_meta %}
+    <link rel="canonical" href="{{ canonical }}">
+    <meta property="og:url" content="{{ canonical }}">
+    <meta property="og:image" content="{{ og_image }}">
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"WebApplication","name":"{{ tenant.name }} · LunaBet","applicationCategory":"GameApplication","operatingSystem":"Web","url":"{{ canonical }}","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}
+    </script>
+{% endblock %}
 {% block nav %}
     <a href="/login">{{ loc.f("Se connecter", "Sign in") }}</a>
 {% endblock %}

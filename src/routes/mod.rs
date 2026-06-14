@@ -13,6 +13,7 @@ mod lang;
 mod leaderboard;
 mod matches;
 mod platform;
+mod seo;
 mod signup;
 mod stake;
 mod super_admin;
@@ -22,6 +23,8 @@ mod today;
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(home::index))
+        .route("/robots.txt", get(seo::robots))
+        .route("/sitemap.xml", get(seo::sitemap))
         .route("/lang/:code", get(lang::set))
         .route("/login", get(auth::login_page).post(auth::request_magic_link))
         .route("/login/sent", get(auth::login_sent))

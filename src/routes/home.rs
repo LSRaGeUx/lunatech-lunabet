@@ -15,12 +15,25 @@ use crate::tenant::{MaybeTenant, MaybeUnknownSlug, Tenant};
 struct HomeTpl<'a> {
     loc: Locale,
     tenant: &'a Tenant,
+    canonical: String,
+    og_image: String,
 }
 
 #[derive(Template)]
 #[template(path = "landing.html")]
 struct LandingTpl {
     loc: Locale,
+    canonical: String,
+    og_image: String,
+}
+
+/// Turn a possibly-relative asset path into an absolute URL under `base`.
+fn absolute(path: &str, base: &str) -> String {
+    if path.starts_with("http") {
+        path.to_string()
+    } else {
+        format!("{}{}", base.trim_end_matches('/'), path)
+    }
 }
 
 #[derive(Template)]
@@ -45,7 +58,18 @@ pub async fn index(
         if auth::current_user(&state, &tenant, &jar).await?.is_some() {
             return Ok(Redirect::to("/today").into_response());
         }
-        return Ok(Html(HomeTpl { loc, tenant: &tenant }.render()?).into_response());
+        let canonical = tenant.public_url(&state.cfg);
+        let og_image = absolute(tenant.logo_url_or_default(), &canonical);
+        return Ok(Html(
+            HomeTpl {
+                loc,
+                tenant: &tenant,
+                canonical,
+                og_image,
+            }
+            .render()?,
+        )
+        .into_response());
     }
     if let Some(unknown_slug) = maybe_unknown {
         let signup_action = state
@@ -61,5 +85,21 @@ pub async fn index(
         };
         return Ok((StatusCode::NOT_FOUND, Html(tpl.render()?)).into_response());
     }
-    Ok(Html(LandingTpl { loc }.render()?).into_response())
+    let canonical = state
+        .cfg
+        .platform_url
+        .clone()
+        .unwrap_or_else(|| state.cfg.base_url.clone())
+        .trim_end_matches('/')
+        .to_string();
+    let og_image = format!("{canonical}/static/lunatech-logo.svg");
+    Ok(Html(
+        LandingTpl {
+            loc,
+            canonical,
+            og_image,
+        }
+        .render()?,
+    )
+    .into_response())
 }

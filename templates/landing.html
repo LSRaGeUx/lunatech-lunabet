@@ -5,6 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LunaBet — {{ loc.f("Pronos foot d'entreprise", "Office football predictions") }}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <meta name="robots" content="index, follow">
+    <meta name="description" content="{{ loc.f(
+        "LunaBet : crée ton espace de pronostics foot entre collègues pour la Coupe du Monde 2026. Pronostique chaque match, marque des points et grimpe au classement. Gratuit.",
+        "LunaBet: create your office football prediction pool for the 2026 FIFA World Cup. Predict every match, score points and climb the leaderboard. Free."
+    ) }}">
+    <link rel="canonical" href="{{ canonical }}">
+    <meta name="theme-color" content="#1d3557">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="LunaBet">
+    <meta property="og:title" content="LunaBet — {{ loc.f("Pronos foot d'entreprise", "Office football predictions") }}">
+    <meta property="og:description" content="{{ loc.f(
+        "Crée ton espace de pronostics entre collègues pour la Coupe du Monde 2026.",
+        "Create your office prediction pool for the 2026 FIFA World Cup."
+    ) }}">
+    <meta property="og:url" content="{{ canonical }}">
+    <meta property="og:image" content="{{ og_image }}">
+    <meta property="og:locale" content="{% if loc.code() == "fr" %}fr_FR{% else %}en_US{% endif %}">
+    <meta name="twitter:card" content="summary">
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"WebSite","name":"LunaBet","url":"{{ canonical }}","description":"{{ loc.f("Pronostics foot d'entreprise pour la Coupe du Monde 2026.", "Office football predictions for the 2026 FIFA World Cup.") }}"}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap">

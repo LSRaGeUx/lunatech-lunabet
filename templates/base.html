@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}LunaBet{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <!-- SEO: default to noindex (the app sits behind login); public pages opt in. -->
+    <meta name="robots" content="{% block robots %}noindex, nofollow{% endblock %}">
+    <meta name="description" content="{{ loc.f(
+        "LunaBet : le jeu de pronostics entre collègues pour la Coupe du Monde 2026. Pronostique le score de chaque match, marque des points et grimpe au classement.",
+        "LunaBet: the office prediction game for the 2026 FIFA World Cup. Predict the score of every match, score points and climb the leaderboard."
+    ) }}">
+    <meta name="theme-color" content="{{ tenant.primary_color }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="LunaBet">
+    <meta property="og:title" content="{{ tenant.name }} · LunaBet">
+    <meta property="og:description" content="{{ loc.f(
+        "Pronostics entre collègues pour la Coupe du Monde 2026.",
+        "Office predictions for the 2026 FIFA World Cup."
+    ) }}">
+    <meta property="og:locale" content="{% if loc.code() == "fr" %}fr_FR{% else %}en_US{% endif %}">
+    <meta name="twitter:card" content="summary">
+    {% block social_meta %}{% endblock %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap">
