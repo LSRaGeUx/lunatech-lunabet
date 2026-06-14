@@ -85,8 +85,8 @@ All transactional emails are **multipart HTML** (with a plain-text fallback), ma
   - Per-user **email** to anyone who hasn't placed a bet on that match
   - **Slack** message to the configured channel (if `SLACK_WEBHOOK_URL` is set)
 - Each match is announced exactly once (`matches.reminded_at`)
-- **Daily recap email**: from `DAILY_DIGEST_HOUR` (UTC) each morning, every user gets a digest of the previous day's results, the points they earned that day, and the current leaderboard. Localised per user (FR/EN), sent at most once per day per tenant (`daily_digests` table), and skipped on days with no finished match.
-- **Today's matches email**: from `TODAY_MATCHES_HOUR` (UTC), every user gets the list of matches kicking off that day with their current prediction for each and a "still time to change it" nudge. Localised per user, sent at most once per day per tenant (`today_matches_emails` table), and skipped when no match is scheduled that day.
+- **Daily recap email**: from `DAILY_DIGEST_HOUR` (Amsterdam local time) each morning, every user gets a digest of the previous day's results, the points they earned that day, and the current leaderboard. Localised per user (FR/EN), sent at most once per day per tenant (`daily_digests` table), and skipped on days with no finished match.
+- **Today's matches email**: from `TODAY_MATCHES_HOUR` (Amsterdam local time), every user gets the list of matches kicking off that day with their current prediction for each and a "still time to change it" nudge. Localised per user, sent at most once per day per tenant (`today_matches_emails` table), and skipped when no match is scheduled that day.
 
 ### Internationalisation
 - Fully bilingual **FR / EN** UI
@@ -146,8 +146,8 @@ All variables are declared in `.env` (copied from `.env.example`).
 |---|---|---|
 | `SLACK_WEBHOOK_URL` | _(empty)_ | Slack Incoming Webhook URL. Empty → Slack disabled. Docs: https://api.slack.com/messaging/webhooks |
 | `REMINDER_LEAD_MINUTES` | `120` | How many minutes before kick-off the reminder is sent |
-| `DAILY_DIGEST_HOUR` | `8` | UTC hour (0-23) from which the daily recap email goes out, covering the previous day |
-| `TODAY_MATCHES_HOUR` | `17` | UTC hour (0-23) from which the today's matches preview email goes out |
+| `DAILY_DIGEST_HOUR` | `8` | Amsterdam local hour (0-23) from which the daily recap email goes out, covering the previous day |
+| `TODAY_MATCHES_HOUR` | `17` | Amsterdam local hour (0-23) from which the today's matches preview email goes out |
 
 ### Development
 | Variable | Default | Description |

@@ -46,11 +46,13 @@ pub struct Config {
     /// Filesystem directory for user-uploaded assets (tenant logos). Served
     /// at `/uploads`. Kept outside `static/` so redeploys never clobber it.
     pub uploads_dir: String,
-    /// UTC hour (0-23) at which the daily recap email goes out. Each morning
-    /// from this hour, the digest for the previous calendar day is sent once.
+    /// Amsterdam local hour (0-23) at which the daily recap email goes out. Each
+    /// morning from this hour, the digest for the previous calendar day is sent
+    /// once.
     pub daily_digest_hour: u32,
-    /// UTC hour (0-23) from which the "today's matches" preview email goes out.
-    /// Sent once per day per tenant, covering the matches kicking off that day.
+    /// Amsterdam local hour (0-23) from which the "today's matches" preview email
+    /// goes out. Sent once per day per tenant, covering the matches kicking off
+    /// that day.
     pub today_matches_hour: u32,
 }
 

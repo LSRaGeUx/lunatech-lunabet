@@ -4,6 +4,7 @@ use anyhow::Context;
 use axum::Router;
 use axum_extra::extract::cookie::Key;
 use chrono::Timelike;
+use chrono_tz::Europe::Amsterdam;
 use sqlx::postgres::PgPoolOptions;
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
@@ -214,11 +215,12 @@ async fn main() -> anyhow::Result<()> {
 
     // Scheduled digest emails. The check ticks every 15 min; both senders are
     // idempotent per (tenant, day) via their tables, so repeated ticks after the
-    // hour are harmless no-ops.
-    // - Daily recap: from DAILY_DIGEST_HOUR (UTC) each morning, the previous
-    //   day's results digest goes out once.
-    // - Today's matches preview: from TODAY_MATCHES_HOUR (UTC), the list of the
-    //   day's upcoming matches goes out once.
+    // hour are harmless no-ops. Hours are interpreted in Amsterdam local time
+    // (CET/CEST), so they hold steady across daylight-saving changes.
+    // - Daily recap: from DAILY_DIGEST_HOUR each morning, the previous day's
+    //   results digest goes out once.
+    // - Today's matches preview: from TODAY_MATCHES_HOUR, the list of the day's
+    //   upcoming matches goes out once.
     {
         let s = state.clone();
         let digest_hour = cfg.daily_digest_hour;
@@ -229,14 +231,15 @@ async fn main() -> anyhow::Result<()> {
             loop {
                 ticker.tick().await;
                 let now = chrono::Utc::now();
-                if now.hour() >= digest_hour {
+                let local_hour = now.with_timezone(&Amsterdam).hour();
+                if local_hour >= digest_hour {
                     if let Some(yesterday) = now.date_naive().pred_opt() {
                         if let Err(e) = notifications::send_daily_digest(&s, yesterday).await {
                             tracing::warn!("daily digest failed: {e:#}");
                         }
                     }
                 }
-                if now.hour() >= today_matches_hour {
+                if local_hour >= today_matches_hour {
                     if let Err(e) = notifications::send_today_matches(&s, now.date_naive()).await {
                         tracing::warn!("today's matches email failed: {e:#}");
                     }
