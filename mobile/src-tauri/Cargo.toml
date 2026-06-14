@@ -1,0 +1,23 @@
+[package]
+name = "lunabet-mobile"
+version = "0.1.0"
+edition = "2021"
+description = "LunaBet native shell (iOS / Android) wrapping the deployed web app"
+license = "MIT"
+
+# Library + binary so Tauri mobile (which builds a static/cdylib) and desktop
+# dev (which builds the binary) share one entry point in lib.rs.
+[lib]
+name = "lunabet_mobile_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+# Native push (APNs / FCM) plugin is added in spec 12 phase C, e.g.
+# tauri-plugin-push or a community plugin, once store credentials exist.

@@ -27,11 +27,19 @@ pub async fn public_key(State(state): State<AppState>) -> Response {
     }
 }
 
-/// Shape of `PushSubscription.toJSON()`.
+/// Subscribe body. Web clients send `PushSubscription.toJSON()` (endpoint +
+/// keys); native clients (spec 12) send `platform` + `device_token`.
 #[derive(Deserialize)]
 pub struct SubscribeBody {
-    endpoint: String,
-    keys: SubscribeKeys,
+    #[serde(default)]
+    endpoint: Option<String>,
+    #[serde(default)]
+    keys: Option<SubscribeKeys>,
+    /// `web` (default), `ios` or `android`.
+    #[serde(default)]
+    platform: Option<String>,
+    #[serde(default)]
+    device_token: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -40,34 +48,66 @@ pub struct SubscribeKeys {
     auth: String,
 }
 
-/// `POST /push/subscribe` — store (or refresh) the current user's subscription.
-/// Keyed on `(user_id, endpoint)` so re-subscribing the same browser updates the
-/// keys in place rather than piling up rows.
+/// `POST /push/subscribe` — store (or refresh) the current user's subscription
+/// on any platform. Keyed on `(user_id, endpoint)`; for native devices the
+/// `device_token` doubles as the endpoint so the upsert stays one-row-per-device
+/// across both worlds.
 pub async fn subscribe(
     State(state): State<AppState>,
     TenantCtx(tenant): TenantCtx,
     AuthUser(user): AuthUser,
     Json(body): Json<SubscribeBody>,
 ) -> AppResult<Response> {
-    if body.endpoint.is_empty() || body.keys.p256dh.is_empty() || body.keys.auth.is_empty() {
-        return Ok((StatusCode::BAD_REQUEST, "incomplete subscription").into_response());
-    }
+    let platform = body.platform.as_deref().unwrap_or("web");
+
+    // Resolve the per-platform fields into the columns the table expects.
+    let (endpoint, p256dh, auth, device_token) = match platform {
+        "web" => {
+            let (Some(endpoint), Some(keys)) = (body.endpoint.as_deref(), body.keys.as_ref())
+            else {
+                return Ok((StatusCode::BAD_REQUEST, "incomplete web subscription").into_response());
+            };
+            if endpoint.is_empty() || keys.p256dh.is_empty() || keys.auth.is_empty() {
+                return Ok((StatusCode::BAD_REQUEST, "incomplete web subscription").into_response());
+            }
+            (
+                endpoint.to_string(),
+                Some(keys.p256dh.clone()),
+                Some(keys.auth.clone()),
+                None,
+            )
+        }
+        "ios" | "android" => {
+            let Some(token) = body.device_token.as_deref().filter(|t| !t.is_empty()) else {
+                return Ok((StatusCode::BAD_REQUEST, "missing device token").into_response());
+            };
+            // The token is the device identity; reuse it as the endpoint so the
+            // (user_id, endpoint) upsert key works without a schema change.
+            (token.to_string(), None, None, Some(token.to_string()))
+        }
+        _ => return Ok((StatusCode::BAD_REQUEST, "unknown platform").into_response()),
+    };
 
     sqlx::query(
         r#"
-        INSERT INTO push_subscriptions (tenant_id, user_id, endpoint, p256dh, auth)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO push_subscriptions
+            (tenant_id, user_id, endpoint, p256dh, auth, platform, device_token)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (user_id, endpoint) DO UPDATE
         SET p256dh = EXCLUDED.p256dh,
             auth   = EXCLUDED.auth,
+            platform = EXCLUDED.platform,
+            device_token = EXCLUDED.device_token,
             tenant_id = EXCLUDED.tenant_id
         "#,
     )
     .bind(tenant.id)
     .bind(user.id)
-    .bind(&body.endpoint)
-    .bind(&body.keys.p256dh)
-    .bind(&body.keys.auth)
+    .bind(&endpoint)
+    .bind(&p256dh)
+    .bind(&auth)
+    .bind(platform)
+    .bind(&device_token)
     .execute(&state.pool)
     .await?;
 

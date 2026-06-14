@@ -113,6 +113,10 @@ pub enum SendOutcome {
     Delivered,
     /// The subscription is dead (404/410) and should be purged.
     Gone,
+    /// The channel for this subscription is not configured (e.g. a native
+    /// iOS/Android token while APNs/FCM aren't wired yet, or a web row while
+    /// VAPID is unset). Nothing was sent; the row is kept.
+    Skipped,
 }
 
 #[derive(Debug, thiserror::Error)]

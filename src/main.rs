@@ -21,6 +21,7 @@ mod mail;
 mod middleware;
 mod models;
 mod notifications;
+mod push_channel;
 mod rate_limit;
 mod routes;
 mod scoring;
