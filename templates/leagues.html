@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ loc.f("Ligues", "Leagues") }} - LunaBet{% endblock %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block content %}
+<h1>{{ loc.f("Ligues", "Leagues") }}</h1>
+<p class="muted">{{ loc.f(
+    "Crée une mini-ligue avec tes amis ou ton équipe : même matchs, même pronos, classement rien que pour vous.",
+    "Create a mini-league with your friends or team: same matches, same predictions, a leaderboard just for you."
+) }}</p>
+
+{% match notice %}{% when Some with (n) %}<p class="flash-notice">{{ n }}</p>{% when None %}{% endmatch %}
+{% match error %}{% when Some with (e) %}<p class="error">{{ e }}</p>{% when None %}{% endmatch %}
+
+<div class="league-forms">
+    <section class="card">
+        <h2>{{ loc.f("Créer une ligue", "Create a league") }}</h2>
+        <form method="post" action="/leagues" class="league-form">
+            <input type="text" name="name" maxlength="60" required
+                   placeholder="{{ loc.f("Nom de la ligue", "League name") }}">
+            <button class="btn" type="submit">{{ loc.f("Créer", "Create") }}</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>{{ loc.f("Rejoindre une ligue", "Join a league") }}</h2>
+        <form method="post" action="/leagues/join" class="league-form">
+            <input type="text" name="code" maxlength="12" required
+                   class="code-input" autocapitalize="characters"
+                   placeholder="{{ loc.f("Code d'invitation", "Join code") }}">
+            <button class="btn" type="submit">{{ loc.f("Rejoindre", "Join") }}</button>
+        </form>
+    </section>
+</div>
+
+<section class="card">
+    <h2>{{ loc.f("Mes ligues", "My leagues") }}</h2>
+    {% if leagues.is_empty() %}
+        <p class="muted">{{ loc.f("Tu n'es membre d'aucune ligue pour l'instant.", "You are not a member of any league yet.") }}</p>
+    {% else %}
+    <ul class="league-list">
+        {% for l in leagues %}
+        <li>
+            <a href="/leagues/{{ l.id }}" class="league-link">
+                <span class="league-name">{{ l.name }}</span>
+                <span class="league-meta">{{ l.member_count }} {{ loc.f("membre(s)", "member(s)") }}{% if l.is_owner %} · {{ loc.f("créateur", "owner") }}{% endif %}</span>
+            </a>
+            <span class="league-code" title="{{ loc.f("Code d'invitation", "Join code") }}">{{ l.join_code }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</section>
+
+<style>
+    .league-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.2rem; }
+    .league-form { display: grid; gap: 0.6rem; }
+    .league-form input {
+        font: inherit; padding: 0.55rem; border: 2px solid var(--ink);
+        border-radius: 4px; background: var(--paper);
+    }
+    .code-input { text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
+    .flash-notice {
+        background: var(--gold-light); border: 2px solid var(--ink);
+        border-radius: 4px; padding: 0.5rem 0.8rem; font-weight: 700;
+    }
+    .league-list { list-style: none; padding: 0; margin: 0; }
+    .league-list li {
+        display: flex; align-items: center; justify-content: space-between; gap: 0.8rem;
+        padding: 0.6rem 0.2rem; border-bottom: 1px solid rgba(26, 20, 17, 0.1);
+    }
+    .league-link { display: flex; flex-direction: column; text-decoration: none; flex: 1; }
+    .league-name { font-weight: 700; color: var(--navy); }
+    .league-meta { font-size: 0.85rem; color: var(--ink); opacity: 0.7; }
+    .league-code {
+        font-family: "Bebas Neue", sans-serif; letter-spacing: 0.12em; font-size: 1.2rem;
+        color: var(--red); border: 2px dashed var(--red); border-radius: 4px; padding: 0.1rem 0.5rem;
+    }
+    @media (max-width: 640px) {
+        .league-forms { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
