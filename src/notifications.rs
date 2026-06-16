@@ -678,6 +678,19 @@ pub async fn send_daily_digest(
     let end = start + Duration::days(1);
     let day_label = date.format("%d/%m/%Y").to_string();
 
+    // Make sure scoring is up to date before we read it. The 5-minute scoring
+    // tick runs independently of this job, so a match can already be marked
+    // FINISHED (and thus appear in the results below) while the matching bets
+    // still have NULL points -- which made the digest report "0 pts that day"
+    // even when the player had scored. Recomputing here closes that race;
+    // streaks follow because they derive from the freshly-set points.
+    if let Err(e) = crate::scoring::recompute_all(&state.pool).await {
+        tracing::warn!("daily digest: scoring recompute failed: {e:#}");
+    }
+    if let Err(e) = crate::streaks::recompute_all(&state.pool).await {
+        tracing::warn!("daily digest: streak recompute failed: {e:#}");
+    }
+
     // Matches aren't tenant-scoped yet (Phase 1), so the day's results are the
     // same set for everyone; fetch them once.
     let rows: Vec<(String, String, i32, i32, Option<String>)> = sqlx::query_as(
