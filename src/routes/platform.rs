@@ -79,7 +79,6 @@ pub struct PlatformAdmin {
     pub email: String,
 }
 
-#[axum::async_trait]
 impl FromRequestParts<AppState> for PlatformAdmin {
     type Rejection = Response;
 

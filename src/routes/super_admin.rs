@@ -21,7 +21,6 @@ use crate::tenant::{Tenant, TenantCtx};
 /// any specific tenant.
 pub struct SuperAdmin(pub User);
 
-#[axum::async_trait]
 impl FromRequestParts<AppState> for SuperAdmin {
     type Rejection = Response;
 
