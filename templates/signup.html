@@ -46,8 +46,9 @@
         <label>
             {{ loc.f("Slug (sous-domaine)", "Slug (subdomain)") }}
             <input type="text" name="slug" value="{{ form.slug }}" required
-                   pattern="[a-z0-9_-]+" maxlength="40" placeholder="acme"
-                   autocomplete="off">
+                   pattern="[a-zA-Z0-9_-]+" maxlength="40" placeholder="acme"
+                   autocomplete="off" autocapitalize="none" autocorrect="off"
+                   spellcheck="false" inputmode="url" class="slug-input">
             <small>{{ loc.f("Ton espace sera accessible à", "Your space will live at") }}
                 <code>&lt;slug&gt;.lunabet.eu</code></small>
         </label>
@@ -87,6 +88,9 @@
         font: inherit; padding: 0.55rem; border: 2px solid var(--ink); border-radius: 4px; background: var(--paper);
     }
     .signup-form small { font-weight: 400; color: var(--ink-soft); }
+    /* The slug is always stored lowercase server-side; show it lowercase so
+       what the user types matches what their subdomain will actually be. */
+    .signup-form .slug-input { text-transform: lowercase; }
     .signup-form code { background: var(--paper-dark); padding: 0 0.3rem; border-radius: 3px; }
     .honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
     .space-kind { border: 2px solid var(--ink); border-radius: 4px; padding: 0.7rem 0.9rem; display: grid; gap: 0.5rem; }
