@@ -392,12 +392,21 @@ struct ScoreCandidate {
 /// (`last_pushed_status IS NULL`) is baselined silently, so enabling this — or a
 /// first sync that backfills already-played matches — never blasts the backlog.
 /// Only real goals and the final whistle push; mere status flips (kick-off,
-/// half-time) and the opening `NULL -> 0-0` do not.
+/// half-time) and the opening `NULL -> 0-0` do not. Only matches that are live
+/// or kicked off within the last 6 hours are considered, so a late feed
+/// revision to an old match never resurfaces as a "live" push.
 pub async fn send_live_score_updates(state: &AppState) -> anyhow::Result<()> {
     if state.cfg.vapid.is_none() {
         return Ok(());
     }
 
+    // Only ever push for matches that are actually happening now or just ended.
+    // Without this guard, any late change the upstream feed makes to a long-
+    // finished match (a score correction, a transient status/score flip in the
+    // feed) re-satisfies the change check and fires a "live" goal or final-
+    // whistle push days after the match. The 6-hour window from kick-off
+    // comfortably covers a full match plus stoppage and the final whistle, while
+    // IN_PLAY / PAUSED keeps any unusually long match in scope.
     let candidates: Vec<ScoreCandidate> = sqlx::query_as(
         r#"
         SELECT id, home_team, away_team, home_score, away_score, status,
@@ -405,6 +414,8 @@ pub async fn send_live_score_updates(state: &AppState) -> anyhow::Result<()> {
         FROM matches
         WHERE (home_score, away_score, status)
               IS DISTINCT FROM (last_pushed_home, last_pushed_away, last_pushed_status)
+          AND (status IN ('IN_PLAY', 'PAUSED')
+               OR kickoff_at >= NOW() - INTERVAL '6 hours')
         "#,
     )
     .fetch_all(&state.pool)
