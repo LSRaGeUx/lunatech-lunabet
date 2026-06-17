@@ -18,6 +18,7 @@ mod football_data;
 mod highlights;
 mod i18n;
 mod mail;
+mod matchday;
 mod middleware;
 mod models;
 mod notifications;

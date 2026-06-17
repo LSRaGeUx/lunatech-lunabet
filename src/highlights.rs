@@ -1,9 +1,10 @@
 //! Daily highlights: the "player of the day", i.e. the best predictor over a
-//! single calendar day. Computed once a day next to the daily digest (so the
-//! email can cite it) and read by the Today screen. The (tenant_id, day) row is
-//! the source of truth and the computation is idempotent.
+//! single matchday (the [`crate::matchday`] window, not a raw calendar day).
+//! Computed once a day next to the daily digest (so the email can cite it) and
+//! read by the Today screen. The (tenant_id, day) row is the source of truth
+//! and the computation is idempotent.
 
-use chrono::{Duration, NaiveDate, TimeZone, Utc};
+use chrono::NaiveDate;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -17,7 +18,7 @@ pub struct PlayerOfTheDay {
     pub exact_count: i64,
 }
 
-/// Compute and persist the best predictor for `date` (a UTC calendar day) for
+/// Compute and persist the best predictor for the matchday keyed on `date` for
 /// one tenant, then return them. The winner is the user with the most points on
 /// that day's finished matches; ties break on exact scores, then display name.
 /// A day where nobody scored (or with no finished match) has no winner: nothing
@@ -28,8 +29,7 @@ pub async fn upsert_player_of_the_day(
     tenant_id: Uuid,
     date: NaiveDate,
 ) -> anyhow::Result<Option<PlayerOfTheDay>> {
-    let start = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap());
-    let end = start + Duration::days(1);
+    let (start, end) = crate::matchday::window(date);
 
     let row: Option<(Uuid, String, i64, i64)> = sqlx::query_as(
         r#"

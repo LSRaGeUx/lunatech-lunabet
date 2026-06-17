@@ -5,13 +5,16 @@
 //! 08:00 CEST the next morning (13:00 UTC to 06:00 UTC):
 //! - "Today's matches": today 15:00 CEST -> tomorrow 08:00 CEST.
 //! - "Yesterday's results": yesterday 15:00 CEST -> today 08:00 CEST.
+//!
+//! The window is defined once in [`crate::matchday`] so the daily emails agree
+//! with this screen on which matches belong to a given day.
 
 use std::collections::HashMap;
 
 use askama::Template;
 use axum::extract::State;
 use axum::response::{Html, IntoResponse, Response};
-use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
+use chrono::{NaiveDate, Utc};
 
 use serde_json::json;
 
@@ -19,6 +22,7 @@ use crate::characters;
 use crate::error::AppResult;
 use crate::highlights;
 use crate::i18n::Locale;
+use crate::matchday;
 use crate::models::Match;
 use crate::routes::auth::AuthUser;
 use crate::routes::matches::MatchView;
@@ -26,9 +30,6 @@ use crate::scoring;
 use crate::stakes;
 use crate::state::AppState;
 use crate::tenant::{Tenant, TenantCtx};
-
-/// CEST is UTC+2 (summer time, in effect for the whole tournament).
-const CEST_OFFSET_HOURS: i64 = 2;
 
 /// At most this many wins are celebrated one by one; beyond it we show a single
 /// aggregate ("5 winning picks, +11 pts") instead of a flurry of animations.
@@ -71,30 +72,19 @@ struct TodayTpl<'a> {
     player_of_day: Option<PlayerOfDay>,
 }
 
-fn utc_at(d: NaiveDate, hour: u32, min: u32) -> DateTime<Utc> {
-    Utc.from_utc_datetime(&d.and_hms_opt(hour, min, 0).unwrap())
-}
-
 pub async fn page(
     State(state): State<AppState>,
     TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AuthUser(user): AuthUser,
 ) -> AppResult<Response> {
-    // 15:00 CEST = 13:00 UTC, 08:00 CEST = 06:00 UTC.
-    let start_utc_hour = (15 - CEST_OFFSET_HOURS) as u32; // 13
-    let end_utc_hour = (8 - CEST_OFFSET_HOURS) as u32; // 6
-
-    let today_cest = (Utc::now() + Duration::hours(CEST_OFFSET_HOURS)).date_naive();
+    let today_cest = matchday::cest_date(Utc::now());
     let yesterday = today_cest.pred_opt().unwrap_or(today_cest);
-    let tomorrow = today_cest.succ_opt().unwrap_or(today_cest);
 
     // "Today's" matchday: today 15:00 CEST -> tomorrow 08:00 CEST.
-    let today_start = utc_at(today_cest, start_utc_hour, 0);
-    let today_end = utc_at(tomorrow, end_utc_hour, 0);
+    let (today_start, today_end) = matchday::window(today_cest);
     // "Yesterday's" matchday: yesterday 15:00 CEST -> today 08:00 CEST.
-    let yest_start = utc_at(yesterday, start_utc_hour, 0);
-    let yest_end = utc_at(today_cest, end_utc_hour, 0);
+    let (yest_start, yest_end) = matchday::window(yesterday);
 
     // One query covers both windows (yesterday's start to today's end).
     let matches: Vec<Match> = sqlx::query_as(
@@ -144,7 +134,10 @@ pub async fn page(
         let ko = view.m.kickoff_at;
         if ko >= today_start && ko < today_end {
             today.push(view);
-        } else if ko >= yest_start && ko < yest_end && view.finished {
+        } else if ko >= yest_start && ko < yest_end && !view.open {
+            // Everything in the previous matchday that has already kicked off:
+            // finished games and ones still in progress (e.g. an early-morning
+            // match that is live, or just ended, when the page is opened).
             results.push(view);
         }
     }
