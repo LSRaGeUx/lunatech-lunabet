@@ -9,6 +9,7 @@ pub mod auth;
 mod bets;
 mod dev;
 mod home;
+mod import_bets;
 mod invitations;
 mod lang;
 mod leaderboard;
@@ -73,6 +74,7 @@ pub fn router() -> Router<AppState> {
         .route("/today/match/{id}", get(today::match_fragment))
         .route("/matches", get(matches::list))
         .route("/results", get(matches::results))
+        .route("/import/{slug}", post(import_bets::import))
         .route("/matches/{id}/bet", post(bets::place_or_update))
         .route("/matches/{id}/joker", post(bets::toggle_joker))
         .route("/leaderboard", get(leaderboard::index))
