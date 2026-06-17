@@ -1,14 +1,24 @@
 use askama::Template;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::response::{Html, IntoResponse, Response};
+use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::models::{stage_label_for, Match, STAGE_ORDER};
 use crate::routes::auth::AuthUser;
+use crate::routes::import_bets::{self, ImportSource};
 use crate::state::AppState;
 use crate::tenant::{Tenant, TenantCtx};
+
+/// Query string for the predictions screen. `imported` carries the count of
+/// predictions just copied from another space (set by the import redirect) so
+/// we can confirm the result to the member.
+#[derive(Deserialize)]
+pub struct ListQuery {
+    pub imported: Option<i64>,
+}
 
 pub struct MatchView {
     pub m: Match,
@@ -78,6 +88,10 @@ struct MatchesTpl<'a> {
     has_results: bool,
     /// True when at least one match is still to predict.
     has_upcoming: bool,
+    /// Other spaces the member belongs to that hold importable predictions.
+    import_sources: Vec<ImportSource>,
+    /// Number of predictions just imported (set after an import redirect).
+    imported: Option<i64>,
 }
 
 #[derive(Template)]
@@ -102,9 +116,11 @@ pub async fn list(
     TenantCtx(tenant): TenantCtx,
     loc: Locale,
     AuthUser(user): AuthUser,
+    Query(q): Query<ListQuery>,
 ) -> AppResult<Response> {
     let (sections, total_points) = load_sections(&state, &tenant, &user, loc).await?;
     let (has_results, has_upcoming) = section_flags(&sections);
+    let import_sources = import_bets::detect_sources(&state, &tenant, &user).await?;
 
     let tpl = MatchesTpl {
         loc,
@@ -116,6 +132,8 @@ pub async fn list(
         nav_active: "matches",
         has_results,
         has_upcoming,
+        import_sources,
+        imported: q.imported,
     };
     Ok(Html(tpl.render()?).into_response())
 }
