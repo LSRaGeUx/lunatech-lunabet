@@ -15,6 +15,10 @@ use crate::i18n::Locale;
 pub const POINT_TIERS: [i64; 3] = [50, 100, 250];
 /// Streak milestones (see src/streaks.rs).
 pub const STREAK_TIERS: [i32; 2] = [5, 10];
+/// Consecutive "player of the day" wins (see src/highlights.rs). "In a row"
+/// means consecutive recorded matchdays, i.e. days that actually had a winner;
+/// days with no finished match are skipped, not counted as a break.
+pub const POTD_STREAK_TIERS: [i64; 2] = [3, 5];
 /// Smallest phase size that counts for the "marathon" badge, so betting on a
 /// single-match phase (final, third-place) doesn't trivially grant it.
 const MARATHON_MIN_MATCHES: i64 = 2;
@@ -108,6 +112,22 @@ pub const CATALOG: &[BadgeDef] = &[
         desc_fr: "Parier sur tous les matchs d'une phase complète.",
         desc_en: "Bet on every match of a full phase.",
         icon: "marathon.svg",
+    },
+    BadgeDef {
+        code: "potd_3",
+        name_fr: "Hat-trick du jour",
+        name_en: "Daily hat-trick",
+        desc_fr: "Joueur du jour 3 jours d'affilée.",
+        desc_en: "Player of the day 3 days in a row.",
+        icon: "potd_3.svg",
+    },
+    BadgeDef {
+        code: "potd_5",
+        name_fr: "Dynastie",
+        name_en: "Dynasty",
+        desc_fr: "Joueur du jour 5 jours d'affilée.",
+        desc_en: "Player of the day 5 days in a row.",
+        icon: "potd_5.svg",
     },
 ];
 
@@ -207,6 +227,40 @@ pub async fn evaluate_all(pool: &PgPool) -> anyhow::Result<()> {
     .execute(pool)
     .await?;
 
+    // potd_3 / potd_5: player of the day on N consecutive matchdays. This is a
+    // classic gaps-and-islands run: number every recorded matchday globally
+    // (`rn`) and per winner (`urn`); a maximal run of consecutive days won by
+    // the same user keeps `rn - urn` constant, so grouping on it and counting
+    // gives each run's length. Days with no winner simply aren't recorded, so a
+    // run survives a matchless day, which matches "in a row" for a betting game.
+    for tier in POTD_STREAK_TIERS {
+        let code = format!("potd_{tier}");
+        sqlx::query(
+            r#"
+            INSERT INTO achievements (tenant_id, user_id, code)
+            SELECT tenant_id, user_id, $1 FROM (
+                WITH ordered AS (
+                    SELECT tenant_id, user_id,
+                           ROW_NUMBER() OVER (PARTITION BY tenant_id ORDER BY day) AS rn,
+                           ROW_NUMBER() OVER (PARTITION BY tenant_id, user_id ORDER BY day) AS urn
+                    FROM player_of_the_day
+                ),
+                runs AS (
+                    SELECT tenant_id, user_id, COUNT(*) AS run_len
+                    FROM ordered
+                    GROUP BY tenant_id, user_id, (rn - urn)
+                )
+                SELECT DISTINCT tenant_id, user_id FROM runs WHERE run_len >= $2
+            ) q
+            ON CONFLICT DO NOTHING
+            "#,
+        )
+        .bind(&code)
+        .bind(tier)
+        .execute(pool)
+        .await?;
+    }
+
     Ok(())
 }
 
@@ -301,6 +355,9 @@ mod tests {
         }
         for t in STREAK_TIERS {
             assert!(def(&format!("streak_{t}")).is_some());
+        }
+        for t in POTD_STREAK_TIERS {
+            assert!(def(&format!("potd_{t}")).is_some());
         }
     }
 }

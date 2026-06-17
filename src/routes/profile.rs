@@ -12,8 +12,9 @@ use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
 use uuid::Uuid;
 
-use crate::achievements::{self, POINT_TIERS, STREAK_TIERS};
+use crate::achievements::{self, POINT_TIERS, POTD_STREAK_TIERS, STREAK_TIERS};
 use crate::characters;
+use crate::highlights;
 use crate::error::AppResult;
 use crate::i18n::Locale;
 use crate::routes::auth::AuthUser;
@@ -190,6 +191,8 @@ async fn render_profile(
 
     let pts = subject.points;
     let best_streak = subject.best_streak;
+    let best_potd_streak =
+        highlights::best_potd_streak(&state.pool, tenant.id, subject.user_id).await?;
     let badges: Vec<BadgeView> = achievements::CATALOG
         .iter()
         .map(|b| {
@@ -207,6 +210,12 @@ async fn render_profile(
                             .iter()
                             .find(|t| b.code == format!("streak_{t}"))
                             .map(|tier| format!("{} / {}", best_streak.min(*tier), tier))
+                    })
+                    .or_else(|| {
+                        POTD_STREAK_TIERS
+                            .iter()
+                            .find(|t| b.code == format!("potd_{t}"))
+                            .map(|tier| format!("{} / {}", best_potd_streak.min(*tier), tier))
                     })
             };
             BadgeView {
