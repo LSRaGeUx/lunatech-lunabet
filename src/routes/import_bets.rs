@@ -12,6 +12,13 @@
 //! for bets (kick-off in the future): importing a prediction is then exactly
 //! like typing it in time. We never overwrite a prediction already placed in
 //! the current space (fill-the-blanks only, via `ON CONFLICT DO NOTHING`).
+//!
+//! "Same tournament" is decided by the two tenants sharing the same
+//! `football_competition`, NOT by comparing it to `matches.competition`: the
+//! tenant value is the football-data competition *code* (e.g. `WC`) while the
+//! match column stores the *name* the API returns (e.g. `FIFA World Cup`), so
+//! the two never match in production. Matches are global anyway, so tenant
+//! equality is the right guarantee.
 
 use axum::extract::{Path, State};
 use axum::response::{IntoResponse, Redirect, Response};
@@ -48,7 +55,6 @@ pub async fn detect_sources(
         WHERE su.email = $1
           AND su.tenant_id <> $2
           AND t.football_competition = $3
-          AND m.competition = $3
           AND m.kickoff_at > NOW()
           AND m.status IN ('SCHEDULED', 'TIMED')
           AND NOT EXISTS (
@@ -97,7 +103,6 @@ pub async fn import(
           AND st.slug <> $4
           AND su.email = $5
           AND st.football_competition = $6
-          AND m.competition = $6
           AND m.kickoff_at > NOW()
           AND m.status IN ('SCHEDULED', 'TIMED')
         ON CONFLICT (user_id, match_id) DO NOTHING
