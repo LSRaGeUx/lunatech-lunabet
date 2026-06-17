@@ -680,6 +680,12 @@ async fn badge_unlocks_for_tenant(state: &AppState, tenant: &Tenant) -> anyhow::
 /// it's safe to call repeatedly. Days with no finished match are skipped.
 /// When `force` is set the per-tenant idempotency check is bypassed, so a
 /// super-admin can resend the digest on demand even after the scheduled run.
+/// How long past the matchday window's end we keep waiting for an in-play game
+/// to finish before sending the recap anyway. Covers a late-morning kickoff
+/// running into stoppage/extra time/penalties without blocking forever on a
+/// match that is never finalised (e.g. abandoned).
+const DIGEST_COMPLETION_GRACE_HOURS: i64 = 4;
+
 pub async fn send_daily_digest(
     state: &AppState,
     date: NaiveDate,
@@ -691,6 +697,37 @@ pub async fn send_daily_digest(
     // results" exactly.
     let (start, end) = crate::matchday::window(date);
     let day_label = date.format("%d/%m/%Y").to_string();
+
+    // Don't send until the matchday's games have actually finished. The recap
+    // fires from DAILY_DIGEST_HOUR (08:00 CEST), which is exactly the window's
+    // end, but a game can kick off in the early morning and still be in play at
+    // that time. Sending then omits it -- and because the digest records itself
+    // as sent (idempotent per tenant/day) it would never be re-sent. So if any
+    // match that has already kicked off is not yet final, defer to a later tick
+    // (the job re-runs every 15 min). A grace cutoff past the window end avoids
+    // getting stuck forever on an abandoned or never-finalised game.
+    if !force {
+        let now = Utc::now();
+        if now < end + Duration::hours(DIGEST_COMPLETION_GRACE_HOURS) {
+            let pending: Option<i32> = sqlx::query_scalar(
+                "SELECT 1 FROM matches \
+                 WHERE kickoff_at >= $1 AND kickoff_at < $2 AND kickoff_at <= $3 \
+                   AND NOT (status = 'FINISHED' AND home_score IS NOT NULL AND away_score IS NOT NULL) \
+                 LIMIT 1",
+            )
+            .bind(start)
+            .bind(end)
+            .bind(now)
+            .fetch_optional(&state.pool)
+            .await?;
+            if pending.is_some() {
+                tracing::info!(
+                    "daily digest {day_label}: matchday still has unfinished games, deferring"
+                );
+                return Ok(());
+            }
+        }
+    }
 
     // Make sure scoring is up to date before we read it. The 5-minute scoring
     // tick runs independently of this job, so a match can already be marked
