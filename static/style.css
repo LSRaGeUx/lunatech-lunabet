@@ -655,28 +655,39 @@ canvas.ball3d.ball-hero {
     margin-bottom: 0.3rem;
 }
 
-/* Live (in-progress) matches: same card as a finished one, but with a pulsing
-   red badge and the running score (in red) instead of a final result. */
+/* Live (in-progress) matches: a dedicated card with a pulsing red badge and a
+   centered "home  score  away" line, so it reads clearly and never collapses
+   into the finished layout. */
 .match.live { background: var(--paper); }
-.match.live .teams-row {
+.live-scoreline {
     display: flex;
-    justify-content: space-between;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 0.7rem 0;
+}
+.live-scoreline .ls-team {
+    flex: 1 1 0;
+    min-width: 0;
     font-weight: 700;
     color: var(--ink);
-    font-size: 0.95rem;
-    margin-bottom: 0.3rem;
+    font-size: 1rem;
+    line-height: 1.2;
 }
-.final-score.live-score {
-    display: flex;
-    justify-content: center;
+.live-scoreline .ls-team.home { text-align: right; }
+.live-scoreline .ls-team.away { text-align: left; }
+.live-scoreline .ls-score {
+    flex: 0 0 auto;
+    display: inline-flex;
     align-items: baseline;
-    gap: 0.8rem;
+    gap: 0.4rem;
     font-family: "Bebas Neue", sans-serif;
-    font-size: 2.2rem;
+    font-size: 2.1rem;
+    line-height: 1;
     color: var(--red);
-    margin: 0.5rem 0;
+    white-space: nowrap;
 }
-.final-score.live-score .sep { color: var(--navy); font-size: 1.8rem; }
+.live-scoreline .ls-sep { color: var(--navy); font-size: 1.6rem; }
 .live-badge {
     display: inline-flex;
     align-items: center;
