@@ -83,6 +83,7 @@ pub fn router() -> Router<AppState> {
         .route("/profile/{user_id}", get(profile::public))
         .route("/h2h/{user_id}", get(profile::h2h))
         .route("/members", get(invitations::members_page))
+        .route("/members/{user_id}/remove", post(invitations::remove_member))
         .route("/invitations", post(invitations::create))
         .route("/invitations/{id}/revoke", post(invitations::revoke))
         .route("/invite/accept", get(invitations::accept))

@@ -61,15 +61,29 @@
             <tr>
                 <th>{{ loc.f("Nom", "Name") }}</th>
                 <th>{{ loc.f("Email", "Email") }}</th>
+                {% if is_admin %}<th></th>{% endif %}
             </tr>
         </thead>
         <tbody>
         {% for m in members %}
             <tr>
                 <td data-label="{{ loc.f("Nom", "Name") }}">
-                    {{ m.name }}{% if m.is_admin %} <span class="admin-tag">admin</span>{% endif %}
+                    {{ m.name }}{% if m.is_admin %} <span class="admin-tag">admin</span>{% endif %}{% if m.is_me %} <span class="me-tag">{{ loc.f("toi", "you") }}</span>{% endif %}
                 </td>
                 <td data-label="{{ loc.f("Email", "Email") }}">{{ m.email }}</td>
+                {% if is_admin %}
+                <td class="row-actions">
+                    {% if !m.is_me %}
+                    <form method="post" action="/members/{{ m.id }}/remove" class="inline"
+                          onsubmit="return confirm('{{ loc.f(
+                              "Retirer ce membre de cet espace ? Ses pronostics et son historique seront supprimés.",
+                              "Remove this member from this space? Their predictions and history will be deleted."
+                          ) }}');">
+                        <button class="link danger" type="submit">{{ loc.f("Retirer", "Remove") }}</button>
+                    </form>
+                    {% endif %}
+                </td>
+                {% endif %}
             </tr>
         {% endfor %}
         </tbody>
@@ -98,6 +112,11 @@
     .row-actions { text-align: right; }
     .admin-tag {
         background: var(--navy); color: var(--paper-light);
+        font-size: 0.7rem; padding: 0.05rem 0.4rem; border-radius: 3px;
+        letter-spacing: 0.04em; vertical-align: middle;
+    }
+    .me-tag {
+        background: var(--gold-light); color: var(--ink);
         font-size: 0.7rem; padding: 0.05rem 0.4rem; border-radius: 3px;
         letter-spacing: 0.04em; vertical-align: middle;
     }
