@@ -7,6 +7,36 @@
 {% block content %}
 <h1>{{ loc.f("Mes pronos", "My predictions") }}</h1>
 
+{% match imported %}
+{% when Some with (n) %}
+    {% if n.clone() > 0 %}
+    <p class="import-note import-ok">✅ {{ n }} {{ loc.f("pronostic(s) importé(s) sur tes matchs à venir.", "prediction(s) imported onto your upcoming matches.") }}</p>
+    {% else %}
+    <p class="import-note">{{ loc.f("Rien à importer : tes matchs à venir sont déjà renseignés.", "Nothing to import: your upcoming matches are already filled in.") }}</p>
+    {% endif %}
+{% when None %}
+{% endmatch %}
+
+{% if !import_sources.is_empty() %}
+<div class="import-bar">
+    <p class="import-lead">{{ loc.f(
+        "Tu joues le même tournoi dans un autre espace ? Récupère tes pronos sans tout retaper :",
+        "Playing the same tournament in another space? Bring your predictions over without retyping:"
+    ) }}</p>
+    {% for s in import_sources %}
+    <form method="post" action="/import/{{ s.slug }}" class="import-form">
+        <button class="btn" type="submit">
+            ⬇ {{ loc.f("Importer", "Import") }} {{ s.count }} {{ loc.f("prono(s) depuis", "prediction(s) from") }} <strong>{{ s.name }}</strong>
+        </button>
+    </form>
+    {% endfor %}
+    <span class="import-hint">{{ loc.f(
+        "On ne touche qu'aux matchs encore ouverts et jamais à un prono déjà posé ici.",
+        "Only matches still open are filled, and a prediction already placed here is never changed."
+    ) }}</span>
+</div>
+{% endif %}
+
 {% if !has_upcoming %}
     <p>{{ loc.f(
         "Aucune vignette à coller pour le moment. Les matches arrivent via football-data.org.",
@@ -130,6 +160,39 @@
 {% endif %}
 
 <style>
+    .import-note {
+        margin: 0 0 1rem;
+        padding: 0.5rem 0.8rem;
+        border-radius: 6px;
+        background: var(--paper-light);
+        border: 2px solid var(--ink);
+        font-size: 0.95rem;
+    }
+    .import-note.import-ok {
+        background: var(--gold-light);
+    }
+    .import-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 0.9rem;
+        margin: 0 0 1.25rem;
+        padding: 0.8rem 1rem;
+        background: var(--paper-light);
+        border: 2px dashed var(--navy);
+        border-radius: 6px;
+    }
+    .import-bar .import-lead {
+        width: 100%;
+        margin: 0;
+        font-weight: 600;
+    }
+    .import-form { margin: 0; }
+    .import-hint {
+        font-style: italic;
+        opacity: 0.75;
+        font-size: 0.85rem;
+    }
     .lucky-bar {
         display: flex;
         align-items: center;
