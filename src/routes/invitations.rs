@@ -33,9 +33,12 @@ const SESSION_TTL_DAYS: i64 = 30;
 const INVITE_TTL_DAYS: i64 = 7;
 
 pub struct MemberRow {
+    pub id: Uuid,
     pub name: String,
     pub email: String,
     pub is_admin: bool,
+    /// True for the signed-in admin's own row, so we don't offer to remove self.
+    pub is_me: bool,
 }
 
 pub struct InviteRow {
@@ -72,15 +75,21 @@ async fn render_members(
     notice: Option<String>,
     error: Option<String>,
 ) -> AppResult<Response> {
-    let members: Vec<MemberRow> = sqlx::query_as::<_, (String, String, bool)>(
-        "SELECT display_name, email, is_admin FROM users WHERE tenant_id = $1 \
+    let members: Vec<MemberRow> = sqlx::query_as::<_, (Uuid, String, String, bool)>(
+        "SELECT id, display_name, email, is_admin FROM users WHERE tenant_id = $1 \
          ORDER BY is_admin DESC, display_name ASC",
     )
     .bind(tenant.id)
     .fetch_all(&state.pool)
     .await?
     .into_iter()
-    .map(|(name, email, is_admin)| MemberRow { name, email, is_admin })
+    .map(|(id, name, email, is_admin)| MemberRow {
+        id,
+        name,
+        email,
+        is_admin,
+        is_me: id == user.id,
+    })
     .collect();
 
     let invites: Vec<InviteRow> = sqlx::query_as::<_, (Uuid, String, DateTime<Utc>)>(
@@ -289,6 +298,101 @@ pub async fn revoke(
     cond.execute(&state.pool).await?;
     let _ = loc;
     Ok(Redirect::to("/members").into_response())
+}
+
+/// Remove a member from the current space (admin only). This is a hard removal:
+/// the member's account in this tenant is deleted along with their predictions
+/// and sessions (both cascade). Tables that reference `users` without a cascade
+/// are cleaned first, in one transaction. An admin cannot remove themselves, so
+/// the space always keeps at least one admin.
+///
+/// In domain (company) mode the person can sign back in and rejoin as a fresh
+/// member; removal clears their current data, it is not a permanent ban.
+pub async fn remove_member(
+    State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
+    loc: Locale,
+    AuthUser(user): AuthUser,
+    Path(target_id): Path<Uuid>,
+) -> AppResult<Response> {
+    if !user.is_admin {
+        return Ok((
+            StatusCode::FORBIDDEN,
+            loc.f("Réservé aux admins.", "Admins only."),
+        )
+            .into_response());
+    }
+    if target_id == user.id {
+        let msg = loc
+            .f(
+                "Tu ne peux pas te retirer toi-même.",
+                "You can't remove yourself.",
+            )
+            .to_string();
+        return render_members(&state, &tenant, loc, &user, None, Some(msg)).await;
+    }
+
+    // The target must be a member of THIS tenant. Fetch the name for the notice.
+    let target_name: Option<String> =
+        sqlx::query_scalar("SELECT display_name FROM users WHERE id = $1 AND tenant_id = $2")
+            .bind(target_id)
+            .bind(tenant.id)
+            .fetch_optional(&state.pool)
+            .await?;
+    let Some(target_name) = target_name else {
+        let msg = loc
+            .f("Membre introuvable.", "Member not found.")
+            .to_string();
+        return render_members(&state, &tenant, loc, &user, None, Some(msg)).await;
+    };
+
+    let mut tx = state.pool.begin().await?;
+    // Tables referencing users(id) without ON DELETE CASCADE: clear them first.
+    sqlx::query("DELETE FROM achievements WHERE tenant_id = $1 AND user_id = $2")
+        .bind(tenant.id)
+        .bind(target_id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM push_subscriptions WHERE tenant_id = $1 AND user_id = $2")
+        .bind(tenant.id)
+        .bind(target_id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM player_of_the_day WHERE tenant_id = $1 AND user_id = $2")
+        .bind(tenant.id)
+        .bind(target_id)
+        .execute(&mut *tx)
+        .await?;
+    // Nullable back-references: keep the invitation history, drop the link.
+    sqlx::query("UPDATE invitations SET inviter_user_id = NULL WHERE tenant_id = $1 AND inviter_user_id = $2")
+        .bind(tenant.id)
+        .bind(target_id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("UPDATE invitations SET accepted_user_id = NULL WHERE tenant_id = $1 AND accepted_user_id = $2")
+        .bind(tenant.id)
+        .bind(target_id)
+        .execute(&mut *tx)
+        .await?;
+    // Another member may have been marked paid-by this admin; drop that link.
+    sqlx::query("UPDATE users SET paid_by = NULL WHERE tenant_id = $1 AND paid_by = $2")
+        .bind(tenant.id)
+        .bind(target_id)
+        .execute(&mut *tx)
+        .await?;
+    // Finally the member; bets and sessions cascade.
+    sqlx::query("DELETE FROM users WHERE id = $1 AND tenant_id = $2")
+        .bind(target_id)
+        .bind(tenant.id)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+
+    let msg = match loc {
+        Locale::Fr => format!("{target_name} a été retiré(e) de l'espace."),
+        Locale::En => format!("{target_name} has been removed from the space."),
+    };
+    render_members(&state, &tenant, loc, &user, Some(msg), None).await
 }
 
 #[derive(Deserialize)]
