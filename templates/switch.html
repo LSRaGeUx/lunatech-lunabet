@@ -11,8 +11,8 @@
     <h1>{{ loc.f("Tes espaces", "Your spaces") }}</h1>
     <p>
         {{ loc.f(
-            "Bascule entre les espaces auxquels ton compte est rattaché. Tu restes connecté à chacun en parallèle.",
-            "Switch between the spaces your account belongs to. You stay signed in to each one in parallel."
+            "Bascule entre tes espaces, y compris ceux où tu es connecté avec une autre adresse. Tu restes connecté à chacun en parallèle.",
+            "Switch between your spaces, including ones you're signed into with another address. You stay signed in to each one in parallel."
         ) }}
         <br>
         <small style="color: var(--ink-soft);">{{ email }}</small>
@@ -30,6 +30,7 @@
         <a class="space-card" href="{{ org.url }}">
             <span class="space-name">{{ org.name }}</span>
             <span class="space-slug">{{ org.slug }}.lunabet.eu</span>
+            {% match org.email %}{% when Some with (e) %}<span class="space-email">{{ e }}</span>{% when None %}{% endmatch %}
             {% if org.signed_in %}
             <span class="space-state signed-in">{{ loc.f("Connecté · basculer", "Signed in · switch") }}</span>
             {% else %}
@@ -87,6 +88,7 @@
         color: var(--navy);
     }
     .space-slug { font-size: 0.85rem; color: var(--ink-soft); font-family: monospace; }
+    .space-email { font-size: 0.8rem; color: var(--navy); font-weight: 600; }
     .space-state { font-size: 0.8rem; color: var(--ink-soft); margin-top: 0.3rem; }
     .space-state.signed-in { color: var(--navy); font-weight: 600; }
 </style>

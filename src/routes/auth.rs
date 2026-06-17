@@ -4,7 +4,7 @@ use axum::http::request::Parts;
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::Form;
-use axum_extra::extract::cookie::{Cookie, PrivateCookieJar, SameSite};
+use axum_extra::extract::cookie::{Cookie, CookieJar, PrivateCookieJar, SameSite};
 use base64::Engine;
 use chrono::{Duration, Utc};
 use rand::RngCore;
@@ -503,6 +503,10 @@ struct SwitchOrg {
     url: String,
     is_current: bool,
     signed_in: bool,
+    /// The login used for this org when it differs from the email shown at the
+    /// top of the page (an org you joined under another address). `None` when
+    /// it is the same email, so the card stays uncluttered.
+    email: Option<String>,
 }
 
 #[derive(Template)]
@@ -541,46 +545,120 @@ async fn has_live_session(
     .unwrap_or(false)
 }
 
-/// Org switcher: lists every org this email belongs to, marking the current
-/// one and which others already have a live session, so switching is one click
-/// (and only needs a fresh magic-link login the first time per org).
+/// Org switcher. Lists the orgs you can switch to, from two sources:
+///
+/// 1. every org your current email belongs to (same login across them), and
+/// 2. every org you already have a live session for under a *different* email
+///    -- discovered from the `lb_session_<slug>` cookies, which are all sent to
+///    every subdomain. Without this, a person whose spaces use different
+///    addresses (e.g. `me@work.com` and `me@gmail.com`) would never see the
+///    other space here.
+///
+/// The current one is marked, and cards show which login each space uses when
+/// it isn't the current email.
 pub async fn switch_page(
     State(state): State<AppState>,
     TenantCtx(tenant): TenantCtx,
     AuthUser(user): AuthUser,
     jar: PrivateCookieJar,
+    plain: CookieJar,
     loc: Locale,
 ) -> AppResult<Response> {
+    struct Acc {
+        id: Uuid,
+        name: String,
+        signed_in: bool,
+        /// The org's login, when it differs from the current email.
+        email: Option<String>,
+    }
+    // Keyed by slug so a cookie-discovered org never duplicates an email match.
+    let mut by_slug: std::collections::BTreeMap<String, Acc> = std::collections::BTreeMap::new();
+
+    // 1. Orgs the current email belongs to.
     let rows: Vec<(Uuid, String, String)> = sqlx::query_as(
         "SELECT t.id, t.slug, t.name FROM users u \
          JOIN tenants t ON t.id = u.tenant_id \
-         WHERE u.email = $1 \
-         ORDER BY t.name ASC",
+         WHERE u.email = $1",
     )
     .bind(&user.email)
     .fetch_all(&state.pool)
     .await?;
-
-    let mut orgs = Vec::with_capacity(rows.len());
     for (tid, slug, name) in rows {
-        let is_current = tid == tenant.id;
-        let signed_in = is_current || has_live_session(&state, &jar, &slug, tid).await;
-        let base = public_url_for_slug(&slug, &state.cfg);
-        let url = if is_current {
-            "/today".to_string()
-        } else if signed_in {
-            format!("{base}/today")
-        } else {
-            format!("{base}/login?email={}", email_for_query(&user.email))
-        };
-        orgs.push(SwitchOrg {
-            name,
+        let signed_in = tid == tenant.id || has_live_session(&state, &jar, &slug, tid).await;
+        by_slug.insert(
             slug,
-            url,
-            is_current,
-            signed_in,
-        });
+            Acc {
+                id: tid,
+                name,
+                signed_in,
+                email: None,
+            },
+        );
     }
+
+    // 2. Orgs reachable via an existing session cookie, even under another
+    //    email. Cookie names aren't encrypted, so we read them from the plain
+    //    jar and decrypt each value through the private jar.
+    for cookie in plain.iter() {
+        let Some(slug) = cookie.name().strip_prefix("lb_session_") else {
+            continue;
+        };
+        if by_slug.contains_key(slug) {
+            continue;
+        }
+        let Some(decrypted) = jar.get(&session_cookie_name(slug)) else {
+            continue;
+        };
+        let Ok(sid) = Uuid::parse_str(decrypted.value()) else {
+            continue;
+        };
+        let row: Option<(Uuid, String, String)> = sqlx::query_as(
+            "SELECT t.id, t.name, u.email FROM sessions s \
+             JOIN tenants t ON t.id = s.tenant_id \
+             JOIN users u ON u.id = s.user_id \
+             WHERE s.id = $1 AND t.slug = $2 AND s.expires_at > NOW()",
+        )
+        .bind(sid)
+        .bind(slug)
+        .fetch_optional(&state.pool)
+        .await?;
+        if let Some((tid, name, org_email)) = row {
+            let email = (org_email != user.email).then_some(org_email);
+            by_slug.insert(
+                slug.to_string(),
+                Acc {
+                    id: tid,
+                    name,
+                    signed_in: true,
+                    email,
+                },
+            );
+        }
+    }
+
+    let mut orgs: Vec<SwitchOrg> = by_slug
+        .into_iter()
+        .map(|(slug, a)| {
+            let is_current = a.id == tenant.id;
+            let base = public_url_for_slug(&slug, &state.cfg);
+            let url = if is_current {
+                "/today".to_string()
+            } else if a.signed_in {
+                format!("{base}/today")
+            } else {
+                format!("{base}/login?email={}", email_for_query(&user.email))
+            };
+            SwitchOrg {
+                name: a.name,
+                slug,
+                url,
+                is_current,
+                signed_in: a.signed_in,
+                email: a.email,
+            }
+        })
+        .collect();
+    orgs.sort_by(|x, y| x.name.cmp(&y.name));
 
     let tpl = SwitchTpl {
         loc,
