@@ -655,6 +655,56 @@ canvas.ball3d.ball-hero {
     margin-bottom: 0.3rem;
 }
 
+/* Live (in-progress) matches: same card as a finished one, but with a pulsing
+   red badge and the running score (in red) instead of a final result. */
+.match.live { background: var(--paper); }
+.match.live .teams-row {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    color: var(--ink);
+    font-size: 0.95rem;
+    margin-bottom: 0.3rem;
+}
+.final-score.live-score {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 0.8rem;
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 2.2rem;
+    color: var(--red);
+    margin: 0.5rem 0;
+}
+.final-score.live-score .sep { color: var(--navy); font-size: 1.8rem; }
+.live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--red);
+    color: #fff;
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.05em;
+    font-size: 0.72rem;
+    padding: 0.08rem 0.45rem;
+    border-radius: 3px;
+    animation: live-pulse 1.4s ease-in-out infinite;
+}
+.live-badge::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: #fff;
+}
+@keyframes live-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .live-badge { animation: none; }
+}
+
 .bet-row {
     margin-top: 0.7rem;
     padding-top: 0.7rem;

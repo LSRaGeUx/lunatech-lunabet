@@ -23,6 +23,15 @@ pub struct MatchView {
     pub jokers_enabled: bool,
 }
 
+impl MatchView {
+    /// The match has kicked off but has no final result yet: it is being played
+    /// right now (or is awaiting its result). Used to render a "live" state
+    /// rather than the finished layout.
+    pub fn live(&self) -> bool {
+        !self.open && !self.finished
+    }
+}
+
 /// A team as displayed in a group-stage overview card.
 pub struct TeamRef {
     pub code: String,
