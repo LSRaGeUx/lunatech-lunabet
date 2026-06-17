@@ -116,7 +116,7 @@ impl Config {
             }
             Err(_) if dev_mode => {
                 let mut bytes = vec![0u8; 64];
-                rand::thread_rng().fill_bytes(&mut bytes);
+                rand::rng().fill_bytes(&mut bytes);
                 tracing::warn!(
                     "DEV_MODE: no COOKIE_KEY set, generated a random one (sessions reset on restart)"
                 );

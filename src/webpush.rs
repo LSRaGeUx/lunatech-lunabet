@@ -23,7 +23,7 @@ use p256::ecdsa::signature::Signer;
 use p256::ecdsa::{Signature, SigningKey};
 use p256::elliptic_curve::sec1::ToEncodedPoint;
 use p256::PublicKey;
-use rand::rngs::OsRng;
+use rand_core::OsRng;
 use rand::RngCore;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -211,7 +211,7 @@ fn encrypt(sub: &Subscription, payload: &[u8]) -> anyhow::Result<Vec<u8>> {
 
     // Content-encryption salt + record size (RFC 8188).
     let mut salt = [0u8; 16];
-    rand::thread_rng().fill_bytes(&mut salt);
+    rand::rng().fill_bytes(&mut salt);
 
     let prk = hkdf_extract(&salt, &ikm);
     let cek = hkdf_expand(&prk, b"Content-Encoding: aes128gcm\0", 16);
@@ -333,7 +333,7 @@ mod tests {
         let ua_public = ua_secret.public_key();
         let ua_public_bytes = ua_public.to_encoded_point(false).as_bytes().to_vec();
         let mut auth = [0u8; 16];
-        rand::thread_rng().fill_bytes(&mut auth);
+        rand::rng().fill_bytes(&mut auth);
 
         let sub = Subscription {
             endpoint: "https://push.example.com/abc".into(),

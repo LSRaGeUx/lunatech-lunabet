@@ -281,7 +281,7 @@ async fn send_magic_link_for_tenant(
     email: &str,
 ) -> AppResult<()> {
     let mut raw = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut raw);
+    rand::rng().fill_bytes(&mut raw);
     let token = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(raw);
     let token_hash = hex_sha256(&token);
     let expires_at = Utc::now() + Duration::minutes(MAGIC_LINK_TTL_MINUTES);

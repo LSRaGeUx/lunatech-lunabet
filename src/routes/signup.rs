@@ -255,7 +255,7 @@ pub async fn submit(
     // Generate the verification token. We store only its hash, the link
     // carries the raw value.
     let mut raw = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut raw);
+    rand::rng().fill_bytes(&mut raw);
     let token = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(raw);
     let token_hash = hex_sha256(&token);
     let expires_at = Utc::now() + Duration::minutes(SIGNUP_TOKEN_TTL_MINUTES);
