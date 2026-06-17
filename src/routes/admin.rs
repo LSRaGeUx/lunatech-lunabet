@@ -17,7 +17,6 @@ use crate::tenant::{Tenant, TenantCtx};
 
 pub struct AdminUser(pub User);
 
-#[axum::async_trait]
 impl FromRequestParts<AppState> for AdminUser {
     type Rejection = Response;
 

@@ -313,7 +313,6 @@ impl TenantRegistry {
 #[derive(Clone)]
 pub struct TenantCtx(pub Tenant);
 
-#[axum::async_trait]
 impl<S> FromRequestParts<S> for TenantCtx
 where
     S: Send + Sync,
@@ -343,7 +342,6 @@ pub struct UnknownSlug(pub String);
 /// marketing apex and inside a tenant (the home page, signup).
 pub struct MaybeTenant(pub Option<Tenant>);
 
-#[axum::async_trait]
 impl<S> FromRequestParts<S> for MaybeTenant
 where
     S: Send + Sync,
@@ -360,7 +358,6 @@ where
 /// on a tenant subdomain (e.g. `/super-admin/*`).
 pub struct ApexOnly;
 
-#[axum::async_trait]
 impl<S> FromRequestParts<S> for ApexOnly
 where
     S: Send + Sync,
@@ -377,7 +374,6 @@ where
 
 pub struct MaybeUnknownSlug(pub Option<String>);
 
-#[axum::async_trait]
 impl<S> FromRequestParts<S> for MaybeUnknownSlug
 where
     S: Send + Sync,

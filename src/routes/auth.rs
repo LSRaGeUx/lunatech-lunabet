@@ -452,7 +452,6 @@ pub async fn current_user(
 
 pub struct AuthUser(pub User);
 
-#[axum::async_trait]
 impl FromRequestParts<AppState> for AuthUser {
     type Rejection = Response;
 

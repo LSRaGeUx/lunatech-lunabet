@@ -55,7 +55,6 @@ impl Locale {
 
 pub const LANG_COOKIE: &str = "lb_lang";
 
-#[axum::async_trait]
 impl<S> FromRequestParts<S> for Locale
 where
     S: Send + Sync,
