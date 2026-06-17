@@ -20,9 +20,22 @@ use crate::rate_limit::client_ip;
 use crate::state::AppState;
 use crate::tenant::{public_url_for_slug, MaybeTenant, Tenant, TenantCtx};
 
-const SESSION_COOKIE: &str = "lb_session";
 const MAGIC_LINK_TTL_MINUTES: i64 = 15;
 const SESSION_TTL_DAYS: i64 = 30;
+
+/// Name of the session cookie for a given tenant.
+///
+/// The session cookie is set on the shared apex domain (so a cookie set on the
+/// apex during signup carries onto the freshly created subdomain). With a
+/// single fixed name, signing into one org would overwrite another org's
+/// cookie, so a user could only be signed into one org at a time. Namespacing
+/// the cookie by slug lets several orgs' sessions coexist in the same browser,
+/// each subdomain reading its own. The browser still ships every `lb_session_*`
+/// cookie to every subdomain (shared domain), which is what lets the org
+/// switcher tell which orgs you are already signed into.
+pub fn session_cookie_name(tenant_slug: &str) -> String {
+    format!("lb_session_{tenant_slug}")
+}
 
 #[derive(Template)]
 #[template(path = "login.html")]
@@ -395,11 +408,14 @@ pub async fn callback(
     .execute(&state.pool)
     .await?;
 
-    let mut builder = Cookie::build((SESSION_COOKIE, session_id.to_string()))
-        .path("/")
-        .http_only(true)
-        .same_site(SameSite::Lax)
-        .max_age(time::Duration::days(SESSION_TTL_DAYS));
+    let mut builder = Cookie::build((
+        session_cookie_name(&tenant.slug),
+        session_id.to_string(),
+    ))
+    .path("/")
+    .http_only(true)
+    .same_site(SameSite::Lax)
+    .max_age(time::Duration::days(SESSION_TTL_DAYS));
     if let Some(domain) = state.cfg.cookie_domain() {
         builder = builder.domain(domain);
     }
@@ -409,9 +425,12 @@ pub async fn callback(
 
 pub async fn logout(
     State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
     jar: PrivateCookieJar,
 ) -> AppResult<Response> {
-    if let Some(c) = jar.get(SESSION_COOKIE) {
+    // Sign out of the current org only: other orgs keep their own cookies.
+    let cookie_name = session_cookie_name(&tenant.slug);
+    if let Some(c) = jar.get(&cookie_name) {
         if let Ok(id) = Uuid::parse_str(c.value()) {
             let _ = sqlx::query("DELETE FROM sessions WHERE id = $1")
                 .bind(id)
@@ -419,7 +438,14 @@ pub async fn logout(
                 .await;
         }
     }
-    let jar = jar.remove(Cookie::from(SESSION_COOKIE));
+    // The removal cookie must carry the same path/domain it was set with so the
+    // browser actually clears it.
+    let mut removal = Cookie::new(cookie_name, "");
+    removal.set_path("/");
+    if let Some(domain) = state.cfg.cookie_domain() {
+        removal.set_domain(domain);
+    }
+    let jar = jar.remove(removal);
     Ok((jar, Redirect::to("/")).into_response())
 }
 
@@ -428,7 +454,7 @@ pub async fn current_user(
     tenant: &Tenant,
     jar: &PrivateCookieJar,
 ) -> AppResult<Option<User>> {
-    let Some(c) = jar.get(SESSION_COOKIE) else {
+    let Some(c) = jar.get(&session_cookie_name(&tenant.slug)) else {
         return Ok(None);
     };
     let Ok(id) = Uuid::parse_str(c.value()) else {
@@ -468,6 +494,103 @@ impl FromRequestParts<AppState> for AuthUser {
     }
 }
 
+/// One org in the switcher list.
+struct SwitchOrg {
+    name: String,
+    slug: String,
+    /// Where the card links to: the app for orgs you're already signed into,
+    /// that org's login (email prefilled) otherwise.
+    url: String,
+    is_current: bool,
+    signed_in: bool,
+}
+
+#[derive(Template)]
+#[template(path = "switch.html")]
+struct SwitchTpl<'a> {
+    loc: Locale,
+    tenant: &'a Tenant,
+    email: &'a str,
+    orgs: Vec<SwitchOrg>,
+}
+
+/// Is there a live session for `tenant_id` in the request's cookie jar? Works
+/// across orgs because every `lb_session_*` cookie is sent to every subdomain
+/// (shared apex domain), so the switcher can show which orgs you're signed
+/// into without leaving the current one.
+async fn has_live_session(
+    state: &AppState,
+    jar: &PrivateCookieJar,
+    slug: &str,
+    tenant_id: Uuid,
+) -> bool {
+    let Some(c) = jar.get(&session_cookie_name(slug)) else {
+        return false;
+    };
+    let Ok(id) = Uuid::parse_str(c.value()) else {
+        return false;
+    };
+    sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM sessions \
+         WHERE id = $1 AND tenant_id = $2 AND expires_at > NOW())",
+    )
+    .bind(id)
+    .bind(tenant_id)
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or(false)
+}
+
+/// Org switcher: lists every org this email belongs to, marking the current
+/// one and which others already have a live session, so switching is one click
+/// (and only needs a fresh magic-link login the first time per org).
+pub async fn switch_page(
+    State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
+    AuthUser(user): AuthUser,
+    jar: PrivateCookieJar,
+    loc: Locale,
+) -> AppResult<Response> {
+    let rows: Vec<(Uuid, String, String)> = sqlx::query_as(
+        "SELECT t.id, t.slug, t.name FROM users u \
+         JOIN tenants t ON t.id = u.tenant_id \
+         WHERE u.email = $1 \
+         ORDER BY t.name ASC",
+    )
+    .bind(&user.email)
+    .fetch_all(&state.pool)
+    .await?;
+
+    let mut orgs = Vec::with_capacity(rows.len());
+    for (tid, slug, name) in rows {
+        let is_current = tid == tenant.id;
+        let signed_in = is_current || has_live_session(&state, &jar, &slug, tid).await;
+        let base = public_url_for_slug(&slug, &state.cfg);
+        let url = if is_current {
+            "/today".to_string()
+        } else if signed_in {
+            format!("{base}/today")
+        } else {
+            format!("{base}/login?email={}", email_for_query(&user.email))
+        };
+        orgs.push(SwitchOrg {
+            name,
+            slug,
+            url,
+            is_current,
+            signed_in,
+        });
+    }
+
+    let tpl = SwitchTpl {
+        loc,
+        tenant: &tenant,
+        email: &user.email,
+        orgs,
+    };
+    Ok(Html(tpl.render()?).into_response())
+}
+
 fn hex_sha256(input: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(input.as_bytes());
@@ -478,4 +601,17 @@ fn hex_sha256(input: &str) -> String {
         let _ = write!(s, "{b:02x}");
     }
     s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::session_cookie_name;
+
+    #[test]
+    fn session_cookies_are_namespaced_per_tenant() {
+        // Distinct names per slug are what let two orgs' sessions coexist in
+        // one browser instead of overwriting each other.
+        assert_eq!(session_cookie_name("lunatech"), "lb_session_lunatech");
+        assert_ne!(session_cookie_name("lunatech"), session_cookie_name("acme"));
+    }
 }

@@ -69,6 +69,7 @@ pub fn router() -> Router<AppState> {
             "/super-admin/send-today-matches",
             post(platform::send_today_matches),
         )
+        .route("/switch", get(auth::switch_page))
         .route("/logout", post(auth::logout))
         .route("/today", get(today::page))
         .route("/today/match/{id}", get(today::match_fragment))
