@@ -12,10 +12,13 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # No compile-time sqlx query macros are used, so the build and tests
+  # run without a database connection.
+  SQLX_OFFLINE: "true"
 
 jobs:
   test:
-    name: Build and test
+    name: Build & test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,11 +27,11 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo registry and build artifacts
+      - name: Cache cargo registry and build
         uses: Swatinem/rust-cache@v2
 
       - name: Build
         run: cargo build --all-targets --locked
 
       - name: Run tests
-        run: cargo test --locked
+        run: cargo test --all-features --locked
