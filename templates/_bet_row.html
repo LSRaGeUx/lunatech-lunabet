@@ -1,0 +1,14 @@
+{# The "your bet" / points line shown under a finished or live match score.
+   Shared by the finished and live branches of _match_card.html. Expects `v`
+   (a MatchView) and `loc` in scope. #}
+<div class="bet-row">
+    {% match v.bet_home %}
+        {% when Some with (bh) %}
+            <span>{{ loc.f("Ton pari", "Your bet") }} : <strong>{{ bh }} - {% match v.bet_away %}{% when Some with (ba) %}{{ ba }}{% when None %}?{% endmatch %}</strong></span>
+            {% match v.points %}
+                {% when Some with (p) %}<span class="pts pts-{{ p }}">+{{ p }} pts</span>
+                {% when None %}<em>{{ loc.f("en attente", "pending") }}</em>
+            {% endmatch %}
+        {% when None %}<span>{{ loc.f("Pas de pari", "No bet") }}</span><span class="pts pts-0">{{ loc.f("manqué", "missed") }}</span>
+    {% endmatch %}
+</div>

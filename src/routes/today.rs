@@ -12,9 +12,11 @@
 use std::collections::HashMap;
 
 use askama::Template;
-use axum::extract::State;
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
 use chrono::{NaiveDate, Utc};
+use serde::Deserialize;
 
 use serde_json::json;
 
@@ -195,6 +197,79 @@ pub async fn page(
         standings,
         celebrate_json,
         player_of_day,
+    };
+    Ok(Html(tpl.render()?).into_response())
+}
+
+#[derive(Template)]
+#[template(path = "_match_card.html")]
+struct MatchCardTpl {
+    loc: Locale,
+    v: MatchView,
+    /// Drop the kickoff time from the label (the "Yesterday's results" column).
+    date_only: bool,
+}
+
+#[derive(Deserialize)]
+pub struct FragmentQuery {
+    #[serde(default)]
+    date_only: bool,
+}
+
+/// Re-render a single match card. Live cards on the Today screen poll this every
+/// 30s and swap themselves in place, so the displayed score keeps up with the
+/// background score sync instead of going stale until a manual reload. Once a
+/// match is finished the rendered card no longer carries a poll trigger, so the
+/// refresh loop stops on its own.
+pub async fn match_fragment(
+    State(state): State<AppState>,
+    TenantCtx(tenant): TenantCtx,
+    loc: Locale,
+    AuthUser(user): AuthUser,
+    Path(id): Path<i64>,
+    Query(q): Query<FragmentQuery>,
+) -> AppResult<Response> {
+    let m: Option<Match> = sqlx::query_as(
+        r#"
+        SELECT id, competition, stage, group_name,
+               home_team, away_team, home_team_code, away_team_code,
+               kickoff_at, status, home_score, away_score
+        FROM matches
+        WHERE id = $1
+        "#,
+    )
+    .bind(id)
+    .fetch_optional(&state.pool)
+    .await?;
+    let Some(m) = m else {
+        return Ok(StatusCode::NOT_FOUND.into_response());
+    };
+
+    let bet: Option<(i32, i32, Option<i32>, i32)> = sqlx::query_as(
+        "SELECT home_score, away_score, points, multiplier FROM bets \
+         WHERE user_id = $1 AND tenant_id = $2 AND match_id = $3",
+    )
+    .bind(user.id)
+    .bind(tenant.id)
+    .bind(id)
+    .fetch_optional(&state.pool)
+    .await?;
+
+    let view = MatchView {
+        open: m.is_open_for_bets(),
+        finished: m.has_final_result(),
+        bet_home: bet.map(|(h, _, _, _)| h),
+        bet_away: bet.map(|(_, a, _, _)| a),
+        points: bet.and_then(|(_, _, p, _)| p),
+        is_joker: bet.map(|(_, _, _, mult)| mult == 2).unwrap_or(false),
+        jokers_enabled: tenant.jokers_enabled,
+        m,
+    };
+
+    let tpl = MatchCardTpl {
+        loc,
+        v: view,
+        date_only: q.date_only,
     };
     Ok(Html(tpl.render()?).into_response())
 }

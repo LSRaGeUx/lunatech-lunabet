@@ -1,0 +1,92 @@
+{# One match card on the Today screen, in one of three states:
+   - finished: final score + the player's points,
+   - live: running score that auto-refreshes, plus the player's bet,
+   - open: the bet form.
+   `date_only` drops the kickoff time (used by the "Yesterday's results"
+   column). Expects `v` (a MatchView), `loc` and `date_only` in scope.
+
+   Live cards poll /today/match/:id every 30s and swap themselves in place, so
+   the displayed score keeps up with the background score sync. When a live
+   match becomes finished, the swapped-in card carries no poll trigger and the
+   refresh loop stops on its own. #}
+{% if v.finished %}
+<article class="match finished{% match v.points %}{% when Some with (p) %} result-{{ p }}{% when None %}{% match v.bet_home %}{% when Some with (_) %} result-pending{% when None %} result-none{% endmatch %}{% endmatch %}" id="match-{{ v.m.id }}">
+    <header>
+        <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}"{% if date_only %} data-date-only{% endif %}>{% if date_only %}{{ v.m.kickoff_at.format("%a %d/%m") }}{% else %}{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }}{% endif %} UTC</span>
+        {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
+    </header>
+    <div class="teams-row"><span>{{ v.m.home_team }}</span><span>{{ v.m.away_team }}</span></div>
+    <div class="final-score">
+        <span>{% match v.m.home_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
+        <span class="sep">-</span>
+        <span>{% match v.m.away_score %}{% when Some with (n) %}{{ n }}{% when None %}-{% endmatch %}</span>
+    </div>
+    {% include "_bet_row.html" %}
+</article>
+{% else if v.live() %}
+<article class="match live" id="match-{{ v.m.id }}"
+         hx-get="/today/match/{{ v.m.id }}?date_only={{ date_only }}"
+         hx-trigger="every 30s"
+         hx-swap="outerHTML">
+    <header>
+        <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}"{% if date_only %} data-date-only{% endif %}>{% if date_only %}{{ v.m.kickoff_at.format("%a %d/%m") }}{% else %}{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }}{% endif %} UTC</span>
+        <span class="live-badge">{{ loc.f("EN DIRECT", "LIVE") }}</span>
+        {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
+    </header>
+    <div class="live-scoreline">
+        <span class="ls-team home">{{ v.m.home_team }}</span>
+        <span class="ls-score">
+            <span>{% match v.m.home_score %}{% when Some with (n) %}{{ n }}{% when None %}0{% endmatch %}</span>
+            <span class="ls-sep">-</span>
+            <span>{% match v.m.away_score %}{% when Some with (n) %}{{ n }}{% when None %}0{% endmatch %}</span>
+        </span>
+        <span class="ls-team away">{{ v.m.away_team }}</span>
+    </div>
+    <div class="bet-row">
+        {% match v.bet_home %}
+            {% when Some with (bh) %}
+                <span>{{ loc.f("Ton pari", "Your bet") }} : <strong>{{ bh }} - {% match v.bet_away %}{% when Some with (ba) %}{{ ba }}{% when None %}?{% endmatch %}</strong></span>
+                <em>{{ loc.f("en attente", "pending") }}</em>
+            {% when None %}<span>{{ loc.f("Pas de pari", "No bet") }}</span>
+        {% endmatch %}
+    </div>
+</article>
+{% else %}
+<article class="match" id="match-{{ v.m.id }}">
+    <header>
+        <span class="kickoff" data-kickoff="{{ v.m.kickoff_at.to_rfc3339() }}"{% if date_only %} data-date-only{% endif %}>{% if date_only %}{{ v.m.kickoff_at.format("%a %d/%m") }}{% else %}{{ v.m.kickoff_at.format("%a %d/%m - %H:%M") }}{% endif %} UTC</span>
+        {% match v.m.group_name %}{% when Some with (g) %}<span class="group">{{ g }}</span>{% when None %}{% endmatch %}
+    </header>
+    <form method="post" action="/matches/{{ v.m.id }}/bet"
+          hx-post="/matches/{{ v.m.id }}/bet"
+          hx-target="closest article"
+          hx-swap="outerHTML"
+          class="bet-form">
+        <div class="team home">
+            <span class="code">{% match v.m.home_team_code %}{% when Some with (c) %}{{ c }}{% when None %}---{% endmatch %}</span>
+            <span class="name">{{ v.m.home_team }}</span>
+        </div>
+        <input type="number" inputmode="numeric" name="home_score" min="0" max="30"
+               value="{% match v.bet_home %}{% when Some with (n) %}{{ n }}{% when None %}{% endmatch %}"
+               required {% if !v.open %}disabled{% endif %}>
+        <span class="sep">vs</span>
+        <input type="number" inputmode="numeric" name="away_score" min="0" max="30"
+               value="{% match v.bet_away %}{% when Some with (n) %}{{ n }}{% when None %}{% endmatch %}"
+               required {% if !v.open %}disabled{% endif %}>
+        <div class="team away">
+            <span class="code">{% match v.m.away_team_code %}{% when Some with (c) %}{{ c }}{% when None %}---{% endmatch %}</span>
+            <span class="name">{{ v.m.away_team }}</span>
+        </div>
+        <div class="submit-row">
+            {% if v.open %}
+                {% match v.bet_home %}
+                    {% when Some with (_) %}<span class="my-bet">{{ loc.f("Ton pari est noté", "Your bet is in") }}</span><button class="btn" type="submit">{{ loc.f("Modifier", "Change") }}</button>
+                    {% when None %}<span class="my-bet">{{ loc.f("Place ton pronostic", "Place your prediction") }}</span><button class="btn" type="submit">{{ loc.f("Coller la vignette", "Stick the sticker") }}</button>
+                {% endmatch %}
+            {% else %}
+                <span class="closed">{{ loc.f("Paris fermés - match en cours", "Bets closed - match in progress") }}</span>
+            {% endif %}
+        </div>
+    </form>
+</article>
+{% endif %}
