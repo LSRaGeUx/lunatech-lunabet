@@ -32,7 +32,10 @@ dotenvy = "0.15"
 anyhow = "1"
 thiserror = "2"
 
-rand = "0.8"
+rand = "0.9"
+# p256 / elliptic-curve still depend on rand_core 0.6, so the key-generation
+# calls in webpush.rs need an OsRng from that line rather than rand 0.9's.
+rand_core = { version = "0.6", features = ["getrandom"] }
 base64 = "0.22"
 sha2 = "0.11"
 time = "0.3"

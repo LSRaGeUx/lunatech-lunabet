@@ -400,7 +400,7 @@ pub async fn accept(
 
 fn random_token() -> String {
     let mut raw = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut raw);
+    rand::rng().fill_bytes(&mut raw);
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(raw)
 }
 
