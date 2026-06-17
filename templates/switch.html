@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}{{ loc.f("Espaces", "Spaces") }} - LunaBet{% endblock %}
+
+{% block nav %}
+<a href="/today">{{ loc.f("Retour", "Back") }}</a>
+{% endblock %}
+
+{% block content %}
+<section class="card" style="max-width: 640px;">
+    <h1>{{ loc.f("Tes espaces", "Your spaces") }}</h1>
+    <p>
+        {{ loc.f(
+            "Bascule entre les espaces auxquels ton compte est rattaché. Tu restes connecté à chacun en parallèle.",
+            "Switch between the spaces your account belongs to. You stay signed in to each one in parallel."
+        ) }}
+        <br>
+        <small style="color: var(--ink-soft);">{{ email }}</small>
+    </p>
+
+    <div class="space-grid">
+        {% for org in orgs %}
+        {% if org.is_current %}
+        <div class="space-card is-current" aria-current="true">
+            <span class="space-name">{{ org.name }}</span>
+            <span class="space-slug">{{ org.slug }}.lunabet.eu</span>
+            <span class="space-state">{{ loc.f("Espace actuel", "Current space") }}</span>
+        </div>
+        {% else %}
+        <a class="space-card" href="{{ org.url }}">
+            <span class="space-name">{{ org.name }}</span>
+            <span class="space-slug">{{ org.slug }}.lunabet.eu</span>
+            {% if org.signed_in %}
+            <span class="space-state signed-in">{{ loc.f("Connecté · basculer", "Signed in · switch") }}</span>
+            {% else %}
+            <span class="space-state">{{ loc.f("Se connecter", "Sign in") }}</span>
+            {% endif %}
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    {% if orgs.len() == 1 %}
+    <p style="margin-top: 1.2rem; color: var(--ink-soft);">
+        {{ loc.f(
+            "Ton compte n'est rattaché qu'à un seul espace pour le moment.",
+            "Your account belongs to only one space for now."
+        ) }}
+    </p>
+    {% endif %}
+</section>
+
+<style>
+    .space-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 0.8rem;
+        margin: 1.2rem 0;
+    }
+    .space-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        padding: 1rem 1.1rem;
+        background: var(--paper-light);
+        border: 2px solid var(--ink);
+        border-radius: 6px;
+        box-shadow: 4px 4px 0 var(--ink);
+        color: var(--ink);
+        text-decoration: none;
+        transition: transform 0.1s, box-shadow 0.1s, background 0.1s;
+    }
+    a.space-card:hover {
+        transform: translate(-1px, -1px);
+        box-shadow: 5px 5px 0 var(--red);
+        background: var(--gold-light);
+    }
+    .space-card.is-current {
+        border-color: var(--navy);
+        box-shadow: 4px 4px 0 var(--navy);
+        background: var(--gold-light);
+    }
+    .space-name {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 1.3rem;
+        letter-spacing: 0.05em;
+        color: var(--navy);
+    }
+    .space-slug { font-size: 0.85rem; color: var(--ink-soft); font-family: monospace; }
+    .space-state { font-size: 0.8rem; color: var(--ink-soft); margin-top: 0.3rem; }
+    .space-state.signed-in { color: var(--navy); font-weight: 600; }
+</style>
+{% endblock %}

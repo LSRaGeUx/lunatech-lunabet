@@ -19,7 +19,6 @@ use crate::rate_limit;
 use crate::state::AppState;
 use crate::tenant::{MaybeTenant, Tenant};
 
-const SESSION_COOKIE: &str = "lb_session";
 const SIGNUP_TOKEN_TTL_MINUTES: i64 = 30;
 const SESSION_TTL_DAYS: i64 = 30;
 
@@ -422,11 +421,14 @@ pub async fn verify(
 
     tx.commit().await?;
 
-    let mut builder = Cookie::build((SESSION_COOKIE, session_id.to_string()))
-        .path("/")
-        .http_only(true)
-        .same_site(SameSite::Lax)
-        .max_age(time::Duration::days(SESSION_TTL_DAYS));
+    let mut builder = Cookie::build((
+        crate::routes::auth::session_cookie_name(&slug),
+        session_id.to_string(),
+    ))
+    .path("/")
+    .http_only(true)
+    .same_site(SameSite::Lax)
+    .max_age(time::Duration::days(SESSION_TTL_DAYS));
     if let Some(domain) = state.cfg.cookie_domain() {
         // Multi-tenant DNS mode: the cookie was set on the apex (where
         // /signup/verify lives) but the new owner is about to be redirected

@@ -11,4 +11,5 @@
 <a href="/stake"{% if nav_active == "stake" %} class="active"{% endif %}>{{ loc.f("Ma mise", "My stake") }}</a>
 {% if is_admin %}<a href="/admin/stakes"{% if nav_active == "admin_stakes" %} class="active"{% endif %}>Admin</a>{% endif %}
 {% if is_admin %}<a href="/admin/settings"{% if nav_active == "admin_settings" %} class="active"{% endif %}>{{ loc.f("Réglages", "Settings") }}</a>{% endif %}
+<a href="/switch"{% if nav_active == "switch" %} class="active"{% endif %}>{{ loc.f("Espaces", "Spaces") }}</a>
 <form method="post" action="/logout" class="inline"><button class="link" type="submit">{{ loc.f("Déconnexion", "Sign out") }}</button></form>
