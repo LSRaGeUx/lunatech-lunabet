@@ -117,3 +117,36 @@ pub async fn player_of_the_day(
         exact_count: exact_count as i64,
     }))
 }
+
+/// Longest run of consecutive recorded matchdays a user was player of the day,
+/// for the profile's badge-progress widget. "Consecutive" follows the same
+/// gaps-and-islands logic as the `potd_*` badges: matchless days are skipped,
+/// not counted as a break. Returns 0 if the user never won a day.
+pub async fn best_potd_streak(
+    pool: &PgPool,
+    tenant_id: Uuid,
+    user_id: Uuid,
+) -> anyhow::Result<i64> {
+    let (best,): (i64,) = sqlx::query_as(
+        r#"
+        WITH ordered AS (
+            SELECT user_id,
+                   ROW_NUMBER() OVER (ORDER BY day) AS rn,
+                   ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY day) AS urn
+            FROM player_of_the_day
+            WHERE tenant_id = $1
+        ),
+        runs AS (
+            SELECT user_id, COUNT(*) AS run_len
+            FROM ordered
+            GROUP BY user_id, (rn - urn)
+        )
+        SELECT COALESCE(MAX(run_len), 0)::BIGINT FROM runs WHERE user_id = $2
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
+    Ok(best)
+}
