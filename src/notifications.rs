@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 use chrono_tz::Europe::Amsterdam;
 use serde_json::json;
 use uuid::Uuid;
@@ -674,8 +674,11 @@ pub async fn send_daily_digest(
     date: NaiveDate,
     force: bool,
 ) -> anyhow::Result<()> {
-    let start = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap());
-    let end = start + Duration::days(1);
+    // The matchday window (15:00 CEST -> 08:00 CEST next morning), so the recap
+    // sent at 08:00 CEST covers the night that just ended -- including
+    // early-morning kickoffs -- and matches the Today screen's "Yesterday's
+    // results" exactly.
+    let (start, end) = crate::matchday::window(date);
     let day_label = date.format("%d/%m/%Y").to_string();
 
     // Make sure scoring is up to date before we read it. The 5-minute scoring
@@ -866,8 +869,10 @@ pub async fn send_today_matches(
     date: NaiveDate,
     force: bool,
 ) -> anyhow::Result<()> {
-    let start = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap());
-    let end = start + Duration::days(1);
+    // Same matchday window as the Today screen, so the preview lists tonight's
+    // full slate -- including matches that tip over past midnight UTC into the
+    // early hours of the next morning.
+    let (start, end) = crate::matchday::window(date);
     let day_label = date.format("%d/%m/%Y").to_string();
 
     let match_rows: Vec<(i64, String, String, DateTime<Utc>, Option<String>)> = sqlx::query_as(
